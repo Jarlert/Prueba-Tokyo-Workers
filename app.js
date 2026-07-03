@@ -495,7 +495,6 @@ function guardarEdicionPedido() {
     pedidosEnMemoria[pedidoIndex].cliente = nuevoCliente; 
     pedidosEnMemoria[pedidoIndex].pedido_detallado = nuevoDetalle; 
     pedidosEnMemoria[pedidoIndex].total_orden = totalEdicionUSD;
-    (); 
     cerrarModalEditar();
 
     const payloadBD = {
