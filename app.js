@@ -112,7 +112,6 @@ if (document.getElementById('tasaBCV')) {
         const hoy = new Date().toLocaleDateString('en-CA', {timeZone: 'America/Caracas'});
         localStorage.setItem('tasaBCV', e.target.value);
         localStorage.setItem('fechaTasa', hoy); 
-        (); 
     });
 }
 
