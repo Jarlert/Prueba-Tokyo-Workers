@@ -7,7 +7,7 @@ load_dotenv()
 
 # La URL de Railway normalmente tiene el formato: 
 # postgresql://usuario:contraseña@host:puerto/nombre_bd
-DATABASE_URL = os.getenv("postgresql://postgres:rqPCXepPTPgbvPYCFroDuLMDYPrzuizZ@reseau.proxy.rlwy.net:20322/railway")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # create_engine maneja el pool de conexiones automáticamente
 engine = create_engine(DATABASE_URL)
