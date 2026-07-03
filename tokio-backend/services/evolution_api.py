@@ -9,7 +9,7 @@ EVOLUTION_API_KEY = os.getenv("EVOLUTION_API_KEY")
 INSTANCE_NAME = os.getenv("INSTANCE_NAME") # El nombre de tu instancia en Evolution API
 
 async def enviar_whatsapp(numero: str, mensaje: str):
-    url = f"{EVOLUTION_API_URL}/message/sendText/{Tokyo 1}"
+    url = f"{EVOLUTION_API_URL}/message/sendText/{INSTANCE_NAME}"
     
     headers = {
         "apikey": EVOLUTION_API_KEY,
@@ -18,13 +18,7 @@ async def enviar_whatsapp(numero: str, mensaje: str):
     
     payload = {
         "number": numero,
-        "options": {
-            "delay": 1200, # Pequeño delay humano
-            "presence": "composing" # Muestra "escribiendo..."
-        },
-        "textMessage": {
-            "text": mensaje
-        }
+        "text": mensaje
     }
 
     # Usamos AsyncClient para no bloquear el servidor
