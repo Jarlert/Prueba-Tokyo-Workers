@@ -646,7 +646,7 @@ async function sendOrder(event) {
     };
 
     // La URL original de tu webhook de creación de pedidos
-    const n8nWebhookUrl = "https://n8n-production-0c91c.up.railway.app/webhook/Prueba-tokyo"; 
+    const n8nWebhookUrl = "http://127.0.0.1:8000/api/pedidos/"; 
 
     try {
         const response = await fetch(n8nWebhookUrl, {
