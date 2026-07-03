@@ -492,19 +492,24 @@ function guardarEdicionPedido() {
     const pedidoAnterior = pedidosEnMemoria[pedidoIndex]; 
     const nuevoDetalle = carritoEdicion.map(item => `${item.qty}x ${item.name} ($${(item.price * item.qty).toFixed(2)})`).join('\n');
 
+    // CAPTURAMOS LA TASA DE LA PANTALLA
+    const tasaActual = parseFloat(document.getElementById('tasaBCV').value) || 1;
+
     pedidosEnMemoria[pedidoIndex].cliente = nuevoCliente; 
     pedidosEnMemoria[pedidoIndex].pedido_detallado = nuevoDetalle; 
     pedidosEnMemoria[pedidoIndex].total_orden = totalEdicionUSD;
+    pedidosEnMemoria[pedidoIndex].tasa_bcv = tasaActual; // Actualizamos memoria
+    
     cerrarModalEditar();
 
     const payloadBD = {
         id: idReal, estado: pedidoAnterior.estado || 'Pago Pendiente', cliente: nuevoCliente, pedido_detallado: nuevoDetalle, total_orden: totalEdicionUSD,   
         telefono: pedidoAnterior.telefono || '', tipo_entrega: pedidoAnterior.tipo_entrega || '', procesado_por: usuarioActivo ? `${usuarioActivo.nombre} (${usuarioActivo.rol})` : "No registrado",
-        referencia_pago: pedidoAnterior.referencia_pago || pedidoAnterior.Referencia_pago || "", imagen_pago: pedidoAnterior.imagen_pago || pedidoAnterior.Imagen_pago || ""
+        referencia_pago: pedidoAnterior.referencia_pago || pedidoAnterior.Referencia_pago || "", imagen_pago: pedidoAnterior.imagen_pago || pedidoAnterior.Imagen_pago || "",
+        tasa_bcv: tasaActual // ENVIAMOS LA TASA A LA BASE DE DATOS
     };
     fetch(API_ACTUALIZAR_ESTADO, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer TokioSushi_App_2026_X' }, body: JSON.stringify(payloadBD) }).catch(e => console.error("Error BD:", e));
 
-    const tasaActual = parseFloat(document.getElementById('tasaBCV').value) || 1;
     const metodoPago = String(pedidoAnterior.metodo_pago || pedidoAnterior['Método de pago'] || pedidoAnterior.Metodo_pago || '').toLowerCase();
     const esPagoMovil = metodoPago.includes('pago') || metodoPago.includes('movil') || metodoPago.includes('móvil');
     
@@ -615,9 +620,13 @@ function ejecutarActualizacion(id, estado, telefono, cliente, tipoEntrega, datos
     const refGuardada = pedidoViejo.referencia_pago || pedidoViejo['Referencia_pago'] || pedidoViejo.Referencia_pago || "";
     const imgGuardada = pedidoViejo.imagen_pago || pedidoViejo['Imagen_pago'] || pedidoViejo['Imagen Pago'] || "";
     const nuevaRef = datosPago ? datosPago.referencia : refGuardada; const nuevaImg = datosPago ? datosPago.imagen : imgGuardada;
+    
+    // CAPTURAMOS LA TASA DE LA PANTALLA
+    const tasaActual = parseFloat(document.getElementById('tasaBCV').value) || 1;
 
     pedidosEnMemoria[index].estado = estado; pedidosEnMemoria[index].procesado_por = operadorFirma;
     pedidosEnMemoria[index].referencia_pago = nuevaRef; pedidosEnMemoria[index].imagen_pago = nuevaImg;
+    pedidosEnMemoria[index].tasa_bcv = tasaActual; // Actualizamos memoria
     renderizarTablero();
 
     const direccionGuardada = pedidoViejo.direccion || pedidoViejo.Direccion || "Dirección no especificada";
@@ -626,7 +635,8 @@ function ejecutarActualizacion(id, estado, telefono, cliente, tipoEntrega, datos
         id: id, estado: estado, telefono: telefono, cliente: cliente, tipo_entrega: tipoEntrega, procesado_por: operadorFirma,
         referencia_pago: nuevaRef, imagen_pago: nuevaImg, pedido_detallado: pedidoViejo.pedido_detallado || pedidoViejo['Pedido Detallado'] || "",
         total_orden: parseFloat(pedidoViejo.total_orden || pedidoViejo['Total Orden']) || 0, tiempo_estimado: tiempoEstimado,
-        direccion: direccionGuardada 
+        direccion: direccionGuardada,
+        tasa_bcv: tasaActual // ENVIAMOS LA TASA A LA BASE DE DATOS
     };
     fetch(API_ACTUALIZAR_ESTADO, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer TokioSushi_App_2026_X' }, body: JSON.stringify(payload) }).catch(e => console.error(e));
 }
@@ -1034,11 +1044,15 @@ async function procesarPrecioDelivery(idPedido) {
     const nuevoTotal = parseFloat(pedido.total_orden) + costoDelivery;
     const nuevoDetalle = pedido.pedido_detallado + `\n1x Servicio de Delivery ($${costoDelivery})`;
     const operadorFirma = usuarioActivo ? `${usuarioActivo.nombre} (${usuarioActivo.rol})` : "No registrado";
+    
+    // CAPTURAMOS LA TASA DE LA PANTALLA
+    const tasaActual = parseFloat(document.getElementById('tasaBCV').value) || 1;
 
     const index = pedidosEnMemoria.findIndex(p => String(p.id_pedido || p['ID_Pedido'] || p.ID) === String(idPedido));
     pedidosEnMemoria[index].estado = 'Pago Pendiente';
     pedidosEnMemoria[index].total_orden = nuevoTotal;
     pedidosEnMemoria[index].pedido_detallado = nuevoDetalle;
+    pedidosEnMemoria[index].tasa_bcv = tasaActual; // Actualizamos memoria
     renderizarTablero();
 
     const payload = {
@@ -1053,7 +1067,8 @@ async function procesarPrecioDelivery(idPedido) {
         procesado_por: operadorFirma,
         referencia_pago: pedido.referencia_pago || "", 
         imagen_pago: "Sin comprobante",
-        es_cotizacion_delivery: true
+        es_cotizacion_delivery: true,
+        tasa_bcv: tasaActual // ENVIAMOS LA TASA A LA BASE DE DATOS
     };
     
     fetch(API_ACTUALIZAR_ESTADO, { 
