@@ -20,3 +20,13 @@ class TasaManual(Base):
     id = Column(Integer, primary_key=True, index=True)
     tasa = Column(Float, nullable=False)
     fecha = Column(Date, default=date.today, unique=True)
+
+class Cliente(Base):
+    __tablename__ = "clientes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    telefono = Column(String, unique=True, index=True, nullable=False)
+    nombre = Column(String, nullable=False)
+    cedula = Column(String, nullable=True)
+    # Guardaremos las direcciones extra como un texto JSON (string)
+    direcciones_extra = Column(String, default="[]")

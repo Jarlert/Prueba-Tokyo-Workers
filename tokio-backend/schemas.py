@@ -22,3 +22,12 @@ class PedidoCreate(BaseModel):
 
 class TasaManualCreate(BaseModel):
     tasa: float
+
+class ClienteVerificar(BaseModel):
+    telefono: str
+
+class ClienteRegistro(BaseModel):
+    telefono: str
+    nombre: str
+    cedula: str
+    # Agrega otros campos si el formulario de registro los pide
