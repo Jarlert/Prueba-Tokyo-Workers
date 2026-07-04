@@ -3,7 +3,7 @@
 // ==========================================
 
 // ⚠️ RECUERDA: Si subes esto a GitHub, cambia "localhost:5678" por tu URL de loca.lt
-const URL_OBTENER_MENU = "https://n8n-production-0c91c.up.railway.app/webhook/obtener-menu";
+const URL_OBTENER_MENU = "http://127.0.0.1:8000/api/menu/";
 const URL_VERIFICAR_CLIENTE = "https://n8n-production-0c91c.up.railway.app/webhook/verificar-cliente";
 const URL_REGISTRAR_CLIENTE = "https://n8n-production-0c91c.up.railway.app/webhook/registrar-cliente";
 

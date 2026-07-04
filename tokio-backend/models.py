@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, String, Date
+from sqlalchemy import Column, Integer, Float, String, Date, Boolean
 from database import Base
 from datetime import date
 
@@ -30,3 +30,29 @@ class Cliente(Base):
     cedula = Column(String, nullable=True)
     # Guardaremos las direcciones extra como un texto JSON (string)
     direcciones_extra = Column(String, default="[]")
+
+class Categoria(Base):
+    __tablename__ = "categorias"
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String, nullable=False)
+    imagen = Column(String, nullable=True)
+
+class Producto(Base):
+    __tablename__ = "productos"
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String, nullable=False)
+    categoria = Column(String, nullable=False)
+    precio = Column(Float, nullable=False)
+    descripcion = Column(String, nullable=True)
+    disponible = Column(Boolean, default=True)
+    imagen = Column(String, nullable=True)
+
+class Combo(Base):
+    __tablename__ = "combos"
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String, nullable=False)
+    precio = Column(Float, nullable=False)
+    descripcion = Column(String, nullable=True)
+    imagen = Column(String, nullable=True)
+    items_json = Column(String, nullable=True)
+    disponible = Column(Boolean, default=True)
