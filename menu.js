@@ -4,8 +4,8 @@
 
 // ⚠️ RECUERDA: Si subes esto a GitHub, cambia "localhost:5678" por tu URL de loca.lt
 const URL_OBTENER_MENU = "http://127.0.0.1:8000/api/menu/";
-const URL_VERIFICAR_CLIENTE = "https://n8n-production-0c91c.up.railway.app/webhook/verificar-cliente";
-const URL_REGISTRAR_CLIENTE = "https://n8n-production-0c91c.up.railway.app/webhook/registrar-cliente";
+const URL_VERIFICAR_CLIENTE = "http://127.0.0.1:8000/api/clientes/verificar";
+const URL_REGISTRAR_CLIENTE = "http://127.0.0.1:8000/api/clientes/registrar";
 
 let menuData = { combos: [], cocina: [], sushi: [], extras: [] };
 let cart = {};
@@ -299,7 +299,7 @@ function toggleNoteField(id) {
 
 function updateItemNote(id, name, price, value) {
     if (!cart[id]) {
-        cart[id] = { name: name, price: price, qty: 1, note: value };
+        cart[id] = { id: id, name: name, price: price, qty: 1, note: value };
         const qtyInput = document.getElementById(`qty-${id}`); if (qtyInput) qtyInput.value = 1;
         calculateTotals();
     } else {
@@ -369,7 +369,7 @@ function updateQty(id, name, price, change) {
     }
 
     // COMPORTAMIENTO NORMAL PARA PLATOS SIMPLES O COMBOS VACÍOS
-    if (!cart[id]) cart[id] = { name: name, price: price, qty: 0, note: "" };
+    if (!cart[id]) cart[id] = { id: id, name: name, price: price, qty: 0, note: "" };
     cart[id].qty += change;
     
     if (cart[id].qty <= 0) {
@@ -391,7 +391,7 @@ function setExactQty(id, name, price, value) {
         if (noteInput) { noteInput.classList.add('hidden'); noteInput.value = ''; }
         if (noteBtn) noteBtn.innerHTML = '📝 Añadir nota especial (ej. sin papas)';
     } else {
-        if (!cart[id]) cart[id] = { name: name, price: price, qty: 0, note: "" };
+        if (!cart[id]) cart[id] = { id: id, name: name, price: price, qty: 0, note: "" };
         cart[id].qty = parsedQty;
         const element = document.getElementById(`qty-${id}`); if (element) element.value = parsedQty;
     }
@@ -620,7 +620,7 @@ async function sendOrder(event) {
                     datosClienteLogueado.direcciones_extra = JSON.stringify(extras);
                     localStorage.setItem('sesionCliente', JSON.stringify(datosClienteLogueado));
                     
-                    fetch("https://n8n-production-0c91c.up.railway.app/webhook/actualizar-direcciones-cliente", {
+                    fetch("http://127.0.0.1:8000/api/clientes/actualizar-direcciones-cliente", {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ telefono: datosClienteLogueado.telefono, direcciones_extra: datosClienteLogueado.direcciones_extra })
                     }).catch(err => console.error(err));
@@ -900,7 +900,7 @@ async function guardarEdicionDatos() {
 
     try {
         // Aprovechamos tu webhook actual para enviar ambas actualizaciones
-        await fetch("https://n8n-production-0c91c.up.railway.app/webhook/actualizar-direcciones-cliente", {
+        await fetch("http://127.0.0.1:8000/api/clientes/actualizar-direcciones-cliente", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 

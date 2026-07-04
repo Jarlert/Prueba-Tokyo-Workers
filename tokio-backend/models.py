@@ -5,7 +5,14 @@ from datetime import date
 class Pedido(Base):
     __tablename__ = "pedidos"
 
-    id = Column(Integer, primary_key=True, index=True) 
+    id = Column("id_pedido", Integer, primary_key=True, index=True) 
+    
+    cliente = Column(String, nullable=True)
+    telefono = Column(String, nullable=True)
+    tipo_entrega = Column(String, nullable=True)
+    direccion = Column(String, nullable=True)
+    metodo_pago = Column(String, nullable=True)
+    pedido_detallado = Column(String, nullable=True) 
     total_orden = Column(Float)
     estado = Column(String)
     procesado_por = Column(String, nullable=True)
@@ -24,11 +31,11 @@ class TasaManual(Base):
 class Cliente(Base):
     __tablename__ = "clientes"
 
-    id = Column(Integer, primary_key=True, index=True)
-    telefono = Column(String, unique=True, index=True, nullable=False)
+    telefono = Column(String, primary_key=True, index=True, nullable=False)
+    
     nombre = Column(String, nullable=False)
     cedula = Column(String, nullable=True)
-    # Guardaremos las direcciones extra como un texto JSON (string)
+    direccion_principal = Column(String, nullable=True)
     direcciones_extra = Column(String, default="[]")
 
 class Categoria(Base):

@@ -1,9 +1,11 @@
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
 
 # Definimos cómo es un artículo individual
 class ArticuloCarrito(BaseModel):
+    id: str
     name: str
     price: float
     qty: int
@@ -30,4 +32,10 @@ class ClienteRegistro(BaseModel):
     telefono: str
     nombre: str
     cedula: str
-    # Agrega otros campos si el formulario de registro los pide
+    direccion_principal: str = ""
+    direcciones_extra: str = "[]"
+
+class ClienteActualizarDirecciones(BaseModel):
+    telefono: str
+    direccion_principal: Optional[str] = None
+    direcciones_extra: Optional[str] = None
