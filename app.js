@@ -2,7 +2,7 @@
 // Tokio Sushi - Núcleo de Operaciones y Control del Sistema (app.js)
 // =====================================================================
 
-const URL_OBTENER_MOTORIZADOS = "https://n8n-production-0c91c.up.railway.app/webhook/obtener-motorizados";
+const URL_OBTENER_MOTORIZADOS = "http://127.0.0.1:8000/api/motorizados/";
 const API_OBTENER_PEDIDOS = "https://n8n-production-0c91c.up.railway.app/webhook/obtener-pedidos";
 const API_ACTUALIZAR_ESTADO = "https://n8n-production-0c91c.up.railway.app/webhook/actualizar-estado";
 const URL_NUEVO_PEDIDO = "https://n8n-production-0c91c.up.railway.app/webhook/Prueba-tokyo";
@@ -148,7 +148,7 @@ function verificarSesion() {
     }
 }
 
-const API_VALIDAR_ACCESO = "https://n8n-production-0c91c.up.railway.app/webhook/validar-acceso";
+const API_VALIDAR_ACCESO = "http://127.0.0.1:8000/api/usuarios/validar-acceso";
 
 async function iniciarSesion(event) {
     if (event && typeof event.preventDefault === 'function') event.preventDefault();

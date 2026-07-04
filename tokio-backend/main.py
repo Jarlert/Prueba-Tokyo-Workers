@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routers import bcv, pedidos, clientes, menu
+from routers import bcv, pedidos, clientes, menu, usuarios, motorizados
 from fastapi.middleware.cors import CORSMiddleware
 from routers import bcv, pedidos
 from database import engine, Base
@@ -39,3 +39,5 @@ async def test_whatsapp(numero: str, mensaje: str):
 app.include_router(pedidos.router) 
 app.include_router(clientes.router)
 app.include_router(menu.router)
+app.include_router(usuarios.router)
+app.include_router(motorizados.router)

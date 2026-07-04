@@ -63,3 +63,16 @@ class Combo(Base):
     imagen = Column(String, nullable=True)
     items_json = Column(String, nullable=True)
     disponible = Column(Boolean, default=True)
+
+class Motorizado(Base):
+    __tablename__ = "motorizados"
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String, nullable=False)
+
+class Usuario(Base):
+    __tablename__ = "usuarios"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    pin = Column(String, nullable=False)
+    nombre = Column(String, nullable=False)
+    rol = Column(String, nullable=False)
