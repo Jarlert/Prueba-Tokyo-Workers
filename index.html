@@ -6,6 +6,7 @@
     <title>Tokio Sushi - Control de Operaciones</title>
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <style>
         .step { display: none; }
         .step.active { display: block; }
@@ -69,7 +70,7 @@
                     </div>
                     
                     <div class="flex items-center bg-slate-700 px-3 h-10 rounded-lg border border-slate-600">
-                        <input type="date" id="calendarioFiltro" onchange="cargarPedidos()" class="bg-slate-800 text-slate-300 text-sm font-semibold border-none focus:outline-none cursor-pointer py-1 px-2 rounded [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert">
+                        <input type="text" id="calendarioFiltro" class="bg-slate-800 text-slate-300 text-sm font-semibold border-none focus:outline-none cursor-pointer py-1 px-2 rounded w-28 text-center" placeholder="Seleccionar fecha">
                     </div>
                     
                     <button onclick="abrirModalNuevoPedido()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold h-10 px-4 rounded-lg shadow-lg shadow-emerald-900/20 transition flex items-center gap-2 cursor-pointer">
@@ -380,5 +381,20 @@
     
     <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
     <script src="app.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
+    <script>
+        flatpickr("#calendarioFiltro", {
+            locale: "es", 
+            altInput: true,
+            altFormat: "d/m/Y", 
+            dateFormat: "Y-m-d",
+            defaultDate: "today",
+            onChange: function() {
+                cargarPedidos();
+            }
+        });
+    </script>
 </body>
 </html>

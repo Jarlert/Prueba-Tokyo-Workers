@@ -3,8 +3,8 @@
 // =====================================================================
 
 const URL_OBTENER_MOTORIZADOS = "http://127.0.0.1:8000/api/motorizados/";
-const API_OBTENER_PEDIDOS = "https://n8n-production-0c91c.up.railway.app/webhook/obtener-pedidos";
-const API_ACTUALIZAR_ESTADO = "https://n8n-production-0c91c.up.railway.app/webhook/actualizar-estado";
+const API_OBTENER_PEDIDOS = "http://127.0.0.1:8000/api/pedidos/";
+const API_ACTUALIZAR_ESTADO = "http://127.0.0.1:8000/api/pedidos/actualizar-estado";
 const URL_NUEVO_PEDIDO = "https://n8n-production-0c91c.up.railway.app/webhook/Prueba-tokyo";
 const URL_OBTENER_MENU = "https://n8n-production-0c91c.up.railway.app/webhook/obtener-menu";
 const URL_OBTENER_USUARIOS = "https://n8n-production-0c91c.up.railway.app/webhook/obtener-usuarios";

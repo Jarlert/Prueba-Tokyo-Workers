@@ -8,6 +8,7 @@ class Pedido(Base):
     id = Column("id_pedido", Integer, primary_key=True, index=True) 
     
     cliente = Column(String, nullable=True)
+    timestamp = Column(String, nullable=True)
     telefono = Column(String, nullable=True)
     tipo_entrega = Column(String, nullable=True)
     direccion = Column(String, nullable=True)

@@ -88,3 +88,47 @@ async def crear_pedido(pedido: schemas.PedidoCreate, db: Session = Depends(get_d
         "id_pedido": nuevo_pedido.id, 
         "mensaje": "Pedido procesado con éxito"
     }
+
+@router.get("/")
+def obtener_pedidos(_t: str = None, fecha: str = None, db: Session = Depends(get_db)):
+    # Traemos los últimos 150 pedidos de la base de datos
+    pedidos = db.query(models.Pedido).order_by(models.Pedido.id.desc()).limit(150).all()
+    
+    lista_pedidos = []
+    for p in pedidos:
+        # Convertimos el modelo a diccionario de forma 100% segura
+        dict_p = {**p.__dict__}
+        
+        # Limpiamos la basura interna que agrega SQLAlchemy
+        dict_p.pop("_sa_instance_state", None) 
+        
+        # Le inyectamos el ID explícitamente para que el JS lo entienda
+        dict_p["id_pedido"] = p.id 
+        
+        lista_pedidos.append(dict_p)
+        
+    return lista_pedidos
+
+@router.post("/actualizar-estado")
+def actualizar_estado(datos: dict, db: Session = Depends(get_db)):
+    # Recibimos un diccionario genérico ('datos: dict') para que FastAPI no rechace 
+    # ningún campo extraño que el frontend antiguo pudiera enviar.
+    
+    pedido_id = datos.get("id") or datos.get("id_pedido")
+    pedido = db.query(models.Pedido).filter(models.Pedido.id == pedido_id).first()
+    
+    if not pedido:
+        return {"success": False, "msg": "Pedido no encontrado"}
+
+    # Actualizamos solo los campos que el frontend nos haya enviado
+    if "estado" in datos: pedido.estado = datos["estado"]
+    if "procesado_por" in datos: pedido.procesado_por = datos["procesado_por"]
+    if "referencia_pago" in datos: pedido.referencia_pago = datos["referencia_pago"]
+    if "imagen_pago" in datos: pedido.imagen_pago = datos["imagen_pago"]
+    if "repartidor" in datos: pedido.repartidor = datos["repartidor"]
+    if "total_orden" in datos: pedido.total_orden = datos["total_orden"]
+    if "pedido_detallado" in datos: pedido.pedido_detallado = datos["pedido_detallado"]
+    if "tasa_bcv" in datos: pedido.tasa_bcv = datos["tasa_bcv"]
+
+    db.commit()
+    return {"success": True}
