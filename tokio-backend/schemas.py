@@ -69,3 +69,16 @@ class NotificacionDespacho(BaseModel):
     telefono: str
     cliente: str
     tipo_entrega: str
+    id_visual: str = ""
+    direccion: str = ""
+
+class UsuarioGuardar(BaseModel):
+    id: Optional[int] = None
+    nombre: str
+    username: str
+    pin: str
+    rol: str
+
+class MotorizadoGuardar(BaseModel):
+    id: Optional[int] = None
+    nombre: str

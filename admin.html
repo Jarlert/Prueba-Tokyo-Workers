@@ -83,16 +83,20 @@
                 <i class="fa-solid fa-lock text-3xl text-rose-500"></i>
             </div>
             <h2 class="text-2xl font-bold text-white mb-2 tracking-wide">Acceso Restringido</h2>
-            <p class="text-sm text-slate-400 mb-8">Área exclusiva de administración. Ingresa tu PIN para continuar.</p>
+            <p class="text-sm text-slate-400 mb-6">Área exclusiva de administración. Ingresa tus credenciales.</p>
             
+            <div class="relative mb-4">
+                <input type="text" id="input-user-admin" placeholder="Usuario" class="w-full bg-slate-950/50 border-2 border-slate-700/50 rounded-xl p-4 text-center text-white text-xl outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/20 transition-all duration-300" onkeypress="if(event.key === 'Enter') document.getElementById('input-pin-admin').focus()">
+            </div>
+
             <div class="relative mb-6">
-                <input type="password" id="input-pin-admin" placeholder="••••" class="w-full bg-slate-950/50 border-2 border-slate-700/50 rounded-xl p-4 text-center text-white text-3xl tracking-[0.5em] outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/20 transition-all duration-300" onkeypress="if(event.key === 'Enter') desbloquearAdmin()">
+                <input type="password" id="input-pin-admin" placeholder="PIN" class="w-full bg-slate-950/50 border-2 border-slate-700/50 rounded-xl p-4 text-center text-white text-3xl tracking-[0.2em] outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/20 transition-all duration-300" onkeypress="if(event.key === 'Enter') desbloquearAdmin()">
             </div>
             
             <button id="btn-desbloquear-admin" onclick="desbloquearAdmin()" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 shadow-[0_5px_15px_rgba(225,29,72,0.3)] hover:shadow-[0_8px_25px_rgba(225,29,72,0.5)]">
                 Desbloquear Panel <i class="fa-solid fa-unlock-keyhole"></i>
             </button>
-            <p id="error-pin-admin" class="text-rose-400 text-sm font-semibold mt-4 hidden bg-rose-500/10 py-3 rounded-lg border border-rose-500/20 animate-pulse">PIN incorrecto o sin permisos.</p>
+            <p id="error-pin-admin" class="text-rose-400 text-sm font-semibold mt-4 hidden bg-rose-500/10 py-3 rounded-lg border border-rose-500/20 animate-pulse">Credenciales incorrectas.</p>
         </div>
     </div>
 
@@ -163,6 +167,11 @@
                         <label style="color: #0ea5e9;">4B. Finalizado (Pick-Up Listo)</label>
                         <textarea id="msg-final-pickup" rows="2"></textarea>
                     </div>
+                    
+                    <div style="border-left: 3px solid #8b5cf6; padding-left: 15px; margin-bottom: 20px;">
+                        <label style="color: #8b5cf6;">5. Aviso al Grupo de Motorizados</label>
+                        <textarea id="msg-grupo-delivery" rows="3"></textarea>
+                    </div>        
 
                     <div style="border-left: 3px solid #e11d48; padding-left: 15px; margin-bottom: 10px;">
                         <label style="color: #e11d48;">Extra: Pedido Modificado</label>
@@ -314,7 +323,7 @@
                         <input type="hidden" id="mot-id">
                         <label>Nombre del Chofer</label>
                         <input type="text" id="mot-nombre" placeholder="Ej: Pedro Pérez" required>
-                        <button type="submit" class="btn-submit" id="btn-save-mot">💾 Guardar Chofer</button>
+                        <button type="submit" class="btn-submit" id="btn-save-mot">💾 Guardar Motorizado</button>
                         <button type="button" class="btn-submit btn-cancel" id="btn-cancel-mot" onclick="resetFormMot()">❌ Cancelar Edición</button>
                     </form>
                 </div>

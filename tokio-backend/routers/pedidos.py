@@ -268,27 +268,43 @@ async def notificar_aprobado_pedido(datos: schemas.NotificacionAprobado, db: Ses
 @router.post("/notificar-despacho")
 async def notificar_despacho_pedido(datos: schemas.NotificacionDespacho, db: Session = Depends(get_db)):
     
-    # 1. Decidimos la plantilla según si es para llevar o delivery
+    # --- 1. MENSAJE AL CLIENTE ---
     if "delivery" in datos.tipo_entrega.lower():
         plantilla_id = "final_delivery"
     else:
         plantilla_id = "final_pickup"
         
-    # 2. Buscamos la plantilla en la base de datos
-    plantilla = db.query(models.MensajeWhatsapp).filter(models.MensajeWhatsapp.id == plantilla_id).first()
+    plantilla_cliente = db.query(models.MensajeWhatsapp).filter(models.MensajeWhatsapp.id == plantilla_id).first()
     
-    if plantilla:
-        mensaje = plantilla.texto
-        # Reemplazamos la etiqueta [CLIENTE] por si en el futuro decides agregarla al texto de tu plantilla
-        mensaje = mensaje.replace("[CLIENTE]", datos.cliente)
+    if plantilla_cliente:
+        mensaje_cliente = plantilla_cliente.texto.replace("[CLIENTE]", datos.cliente)
     else:
-        # Fallback de emergencia
-        mensaje = f"¡Hola {datos.cliente}! Tu pedido ({datos.tipo_entrega}) está listo y despachado. ¡Gracias por preferir Tokio Sushi!"
+        mensaje_cliente = f"¡Hola {datos.cliente}! Tu pedido ({datos.tipo_entrega}) está listo y despachado."
         
-    # 3. Disparamos el WhatsApp
     try:
-        await enviar_whatsapp(datos.telefono, mensaje)
-        return {"success": True, "mensaje": f"Notificación enviada: {plantilla_id}"}
+        await enviar_whatsapp(datos.telefono, mensaje_cliente)
     except Exception as e:
-        print(f"Error enviando WhatsApp de despacho: {e}")
-        return {"success": False, "error": str(e)}
+        print(f"Error enviando WhatsApp de despacho al cliente: {e}")
+
+    # --- 2. MENSAJE AL GRUPO DE MOTORIZADOS (Solo si es Delivery) ---
+    if "delivery" in datos.tipo_entrega.lower():
+        plantilla_grupo = db.query(models.MensajeWhatsapp).filter(models.MensajeWhatsapp.id == 'aviso_grupo_delivery').first()
+        
+        if plantilla_grupo:
+            mensaje_grupo = plantilla_grupo.texto
+            mensaje_grupo = mensaje_grupo.replace("[PEDIDO]", datos.id_visual)
+            mensaje_grupo = mensaje_grupo.replace("[CLIENTE]", datos.cliente)
+            mensaje_grupo = mensaje_grupo.replace("[DIRECCION]", datos.direccion)
+        else:
+            # Fallback de emergencia
+            mensaje_grupo = f"🛵 *NUEVO PEDIDO LISTO*\n\nEl pedido #{datos.id_visual} a nombre de {datos.cliente} en {datos.direccion} está listo para ser entregado."
+            
+        # Reemplaza esto con el ID real de tu grupo de WhatsApp en Evolution API / GREEN API
+        ID_GRUPO_WHATSAPP = "120363403360852542@g.us"
+        
+        try:
+            await enviar_whatsapp(ID_GRUPO_WHATSAPP, mensaje_grupo)
+        except Exception as e:
+            print(f"Error enviando WhatsApp al grupo de motorizados: {e}")
+
+    return {"success": True, "mensaje": "Notificaciones procesadas"}

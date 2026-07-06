@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routers import bcv, pedidos, clientes, menu, usuarios, motorizados
+from routers import bcv, pedidos, clientes, menu, usuarios, motorizados, mensajes
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 from services.evolution_api import enviar_whatsapp # Mantenemos tu función de WhatsApp
@@ -40,3 +40,4 @@ app.include_router(clientes.router)
 app.include_router(menu.router)
 app.include_router(usuarios.router)
 app.include_router(motorizados.router)
+app.include_router(mensajes.router)

@@ -3,24 +3,24 @@
 // Lógica exclusiva, limpia y blindada.
 // =====================================================================
 
-// --- URLs DE CONEXIÓN CON n8n ---
-const API_VALIDAR_ACCESO = "https://n8n-production-0c91c.up.railway.app/webhook/validar-acceso";
-const ADMIN_URL_MENU = "https://n8n-production-0c91c.up.railway.app/webhook/obtener-menu";
-const ADMIN_URL_GUARDAR_CAT = "https://n8n-production-0c91c.up.railway.app/webhook/guardar-categoria";
-const ADMIN_URL_GUARDAR_PROD = "https://n8n-production-0c91c.up.railway.app/webhook/guardar-producto";
-const ADMIN_URL_GUARDAR_COMBO = "https://n8n-production-0c91c.up.railway.app/webhook/guardar-combo";
-const ADMIN_URL_ELIMINAR = "https://n8n-production-0c91c.up.railway.app/webhook/eliminar-item";
+// --- URLs DE CONEXIÓN CON FASTAPI (REEMPLAZANDO n8n) ---
+const API_VALIDAR_ACCESO = "http://127.0.0.1:8000/api/usuarios/validar-acceso";
+const ADMIN_URL_MENU = "http://127.0.0.1:8000/api/menu/";
+const ADMIN_URL_GUARDAR_CAT = "http://127.0.0.1:8000/api/menu/guardar-categoria";
+const ADMIN_URL_GUARDAR_PROD = "http://127.0.0.1:8000/api/menu/guardar-producto";
+const ADMIN_URL_GUARDAR_COMBO = "http://127.0.0.1:8000/api/menu/guardar-combo";
+const ADMIN_URL_ELIMINAR = "http://127.0.0.1:8000/api/menu/eliminar-item";
 
-const URL_OBTENER_USUARIOS_ADMIN = "https://n8n-production-0c91c.up.railway.app/webhook/obtener-usuarios";
-const ADMIN_URL_GUARDAR_USUARIO = "https://n8n-production-0c91c.up.railway.app/webhook/guardar-usuario";
-const ADMIN_URL_ELIMINAR_USUARIO = "https://n8n-production-0c91c.up.railway.app/webhook/eliminar-usuario";
+const URL_OBTENER_USUARIOS_ADMIN = "http://127.0.0.1:8000/api/usuarios/";
+const ADMIN_URL_GUARDAR_USUARIO = "http://127.0.0.1:8000/api/usuarios/guardar";
+const ADMIN_URL_ELIMINAR_USUARIO = "http://127.0.0.1:8000/api/usuarios/eliminar";
 
-const URL_OBTENER_MOTORIZADOS = "https://n8n-production-0c91c.up.railway.app/webhook/obtener-motorizados";
-const ADMIN_URL_GUARDAR_MOT = "https://n8n-production-0c91c.up.railway.app/webhook/guardar-motorizado";
-const ADMIN_URL_ELIMINAR_MOT = "https://n8n-production-0c91c.up.railway.app/webhook/eliminar-motorizado";
+const URL_OBTENER_MOTORIZADOS = "http://127.0.0.1:8000/api/motorizados/";
+const ADMIN_URL_GUARDAR_MOT = "http://127.0.0.1:8000/api/motorizados/guardar";
+const ADMIN_URL_ELIMINAR_MOT = "http://127.0.0.1:8000/api/motorizados/eliminar";
 
-const URL_OBTENER_MSJ = "https://n8n-production-0c91c.up.railway.app/webhook/obtener-mensajes";
-const URL_GUARDAR_MSJ = "https://n8n-production-0c91c.up.railway.app/webhook/guardar-mensajes";
+const URL_OBTENER_MSJ = "http://127.0.0.1:8000/api/mensajes/";
+const URL_GUARDAR_MSJ = "http://127.0.0.1:8000/api/mensajes/guardar";
 
 // --- MEMORIA DEL ADMINISTRADOR ---
 let adminCategorias = [];
@@ -39,11 +39,16 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function desbloquearAdmin() {
+    const userIngresado = document.getElementById('input-user-admin').value.trim();
     const pinIngresado = document.getElementById('input-pin-admin').value.trim();
     const errorMsg = document.getElementById('error-pin-admin');
     const boton = document.getElementById('btn-desbloquear-admin');
     
-    if (!pinIngresado) return;
+    // Verificamos que no deje las cajas vacías
+    if (!userIngresado || !pinIngresado) {
+        lanzarErrorBloqueo(errorMsg, boton, "Debes ingresar usuario y PIN.");
+        return;
+    }
     
     errorMsg.classList.add('hidden');
     boton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando...';
@@ -53,23 +58,22 @@ async function desbloquearAdmin() {
         const response = await fetch(API_VALIDAR_ACCESO, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tipo: 'login_admin', pin: pinIngresado })
+            // AHORA ENVIAMOS EL USUARIO AL BACKEND
+            body: JSON.stringify({ tipo: 'login_admin', username: userIngresado, pin: pinIngresado })
         });
 
         const data = await response.json();
 
         if (data.success && data.usuario) {
-            // Guardamos el token en secreto para firmar las peticiones
             adminToken = pinIngresado; 
             
             document.getElementById('pantalla-bloqueo-admin').style.opacity = '0';
             setTimeout(() => { document.getElementById('pantalla-bloqueo-admin').classList.add('hidden'); }, 300);
             
-            // Recién ahora que es seguro, descargamos la información
             cargarDatosAdmin();
             cargarMensajesWP();
         } else {
-            lanzarErrorBloqueo(errorMsg, boton, "PIN incorrecto o sin privilegios de administrador.");
+            lanzarErrorBloqueo(errorMsg, boton, "Usuario/PIN incorrecto o sin privilegios.");
         }
     } catch (error) {
         lanzarErrorBloqueo(errorMsg, boton, "Error de conexión con el servidor.");
@@ -81,7 +85,7 @@ function lanzarErrorBloqueo(errorMsg, boton, mensaje) {
     errorMsg.classList.remove('hidden');
     boton.innerHTML = 'Desbloquear Panel <i class="fa-solid fa-unlock-keyhole"></i>';
     boton.disabled = false;
-    document.getElementById('input-pin-admin').value = '';
+    document.getElementById('input-pin-admin').value = ''; // Borramos el PIN por seguridad
     document.getElementById('input-pin-admin').focus();
 }
 
@@ -136,6 +140,7 @@ async function cargarMensajesWP() {
             if(m.id === 'final_delivery') document.getElementById('msg-final-delivery').value = m.texto;
             if(m.id === 'final_pickup') document.getElementById('msg-final-pickup').value = m.texto;
             if(m.id === 'modificado') document.getElementById('msg-modificado').value = m.texto;
+            if(m.id === 'aviso_grupo_delivery') document.getElementById('msg-grupo-delivery').value = m.texto;
         });
     } catch (e) { 
         if(txtRecepcion) txtRecepcion.value = "Error de conexión. Verifica n8n.";
@@ -154,7 +159,8 @@ if(formMensajes) {
             aprobado: document.getElementById('msg-aprobado').value,
             final_delivery: document.getElementById('msg-final-delivery').value,
             final_pickup: document.getElementById('msg-final-pickup').value,
-            modificado: document.getElementById('msg-modificado').value
+            modificado: document.getElementById('msg-modificado').value,
+            aviso_grupo_delivery: document.getElementById('msg-grupo-delivery').value
         };
         try {
             await fetch(URL_GUARDAR_MSJ, { 
@@ -218,14 +224,21 @@ if (document.getElementById('form-usuario')) {
             rol: document.getElementById('usr-rol').value
         };
         try {
-            await fetch(ADMIN_URL_GUARDAR_USUARIO, { 
+            const res = await fetch(ADMIN_URL_GUARDAR_USUARIO, { 
                 method: 'POST', 
                 headers:{'Content-Type':'application/json', 'Authorization': `Bearer ${adminToken}`}, 
                 body: JSON.stringify(payload)
             });
+            const data = await res.json();
+            
+            if (!data.success) {
+                alert("Error de Base de Datos: " + data.error);
+                return;
+            }
+            
             resetFormUsr(); 
             await cargarUsuariosDesdeDB();
-        } catch (error) { alert('Error al guardar el usuario.'); }
+        } catch (error) { alert('Error de red al intentar conectar con el servidor.'); }
     });
 }
 
@@ -300,14 +313,21 @@ if (document.getElementById('form-motorizado')) {
         const id = document.getElementById('mot-id').value;
         const payload = { id: id ? parseInt(id) : null, nombre: document.getElementById('mot-nombre').value.trim() };
         try {
-            await fetch(ADMIN_URL_GUARDAR_MOT, { 
+            const res = await fetch(ADMIN_URL_GUARDAR_MOT, { 
                 method: 'POST', 
                 headers:{'Content-Type':'application/json', 'Authorization': `Bearer ${adminToken}`}, 
                 body: JSON.stringify(payload)
             });
+            const data = await res.json();
+            
+            if (!data.success) {
+                alert("Error de Base de Datos: " + data.error);
+                return;
+            }
+            
             resetFormMot(); 
             await cargarMotorizadosDesdeDB();
-        } catch (error) { alert('Error al guardar.'); }
+        } catch (error) { alert('Error de red al intentar conectar con el servidor.'); }
     });
 }
 

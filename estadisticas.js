@@ -2,15 +2,13 @@
 // --- LÓGICA EXCLUSIVA DEL PANEL DE ESTADÍSTICAS ---
 // =================================================================
 
-const API_ESTADISTICAS_PEDIDOS = "https://n8n-production-0c91c.up.railway.app/webhook/obtener-pedidos";
+const API_ESTADISTICAS_PEDIDOS = "http://127.0.0.1:8000/api/pedidos/";
 let datosEstadisticas = [];
 let tasaEstadisticas = 1;
 let graficoTorta = null;
 let pedidosFiltradosActuales = []; 
 
-// 🟢 NUEVAS VARIABLES PARA EL AUTO-REFRESH
 let filtroActivo = 'hoy'; 
-let timerEstadisticas = null;
 
 async function iniciarPantallaEstadisticas() {
     if (!document.getElementById('graficoPagos')) return;
@@ -18,33 +16,43 @@ async function iniciarPantallaEstadisticas() {
     tasaEstadisticas = parseFloat(localStorage.getItem('tasaBCV')) || 1;
     
     try {
-        const res = await fetch(API_ESTADISTICAS_PEDIDOS + "?historico=true");
+        const res = await fetch(API_ESTADISTICAS_PEDIDOS + "?_t=" + new Date().getTime());
         const data = await res.json();
         datosEstadisticas = Array.isArray(data) ? data : [];
         
         aplicarFiltroEstadisticas('hoy');
-        arrancarPollingEstadisticas(); // 🟢 Arrancamos el motor de recarga automática
+        
+        // 🟢 Conectamos Pusher en lugar de usar un timer gastador de recursos
+        arrancarPusherEstadisticas(); 
     } catch(e) {
         console.error("Error descargando pedidos para estadísticas:", e);
     }
 }
 
-// 🟢 NUEVA FUNCIÓN: Motor de recarga silenciosa
-function arrancarPollingEstadisticas() {
-    if (timerEstadisticas) clearInterval(timerEstadisticas);
-    
-    timerEstadisticas = setInterval(async () => {
-        try {
-            const res = await fetch(API_ESTADISTICAS_PEDIDOS + "?historico=true");
-            const data = await res.json();
-            datosEstadisticas = Array.isArray(data) ? data : [];
-            
-            // Re-aplicamos el filtro actual para que actualice los números sin mover la pantalla
-            aplicarFiltroEstadisticas(filtroActivo, true);
-        } catch (error) {
-            console.error("Error en auto-refresh de estadísticas:", error);
-        }
-    }, 15000); // Se actualiza cada 15 segundos
+// 🟢 NUEVA FUNCIÓN: Actualización Inteligente con Pusher
+function arrancarPusherEstadisticas() {
+    if (typeof Pusher !== 'undefined') {
+        const pusher = new Pusher('88089dcd4800848c78dd', {
+            cluster: 'us2'
+        });
+        
+        const channel = pusher.subscribe('canal-cocina');
+        channel.bind('actualizar-tablero', async function(data) {
+            console.log("¡Ping de la base de datos! Actualizando estadísticas silenciosamente...");
+            try {
+                const res = await fetch(API_ESTADISTICAS_PEDIDOS + "?_t=" + new Date().getTime());
+                const freshData = await res.json();
+                datosEstadisticas = Array.isArray(freshData) ? freshData : [];
+                
+                // Re-aplicamos el filtro actual para actualizar los números sin mover la pantalla del usuario
+                aplicarFiltroEstadisticas(filtroActivo, true);
+            } catch (error) {
+                console.error("Error al actualizar estadísticas vía Pusher:", error);
+            }
+        });
+    } else {
+        console.warn("La librería Pusher no se cargó correctamente en el HTML.");
+    }
 }
 
 // -----------------------------------------------------------------
@@ -53,24 +61,20 @@ function arrancarPollingEstadisticas() {
 function cambiarFiltroActivo(botonClickeado, rangoFiltro) {
     const botones = document.querySelectorAll('.btn-filtro');
     
-    // Apagamos todos los botones
     botones.forEach(btn => {
         btn.classList.remove('bg-indigo-600', 'text-white');
         btn.classList.add('text-slate-400', 'hover:bg-slate-800');
     });
     
-    // Encendemos SOLO el botón que recibió el clic
     if (botonClickeado) {
         botonClickeado.classList.remove('text-slate-400', 'hover:bg-slate-800');
         botonClickeado.classList.add('bg-indigo-600', 'text-white');
     }
     
-    // Si tocan un botón rápido, borramos la fecha manual
     if (rangoFiltro !== 'custom') {
         document.getElementById('fechaCustom').value = '';
     }
     
-    // Ejecutamos la lógica de datos
     aplicarFiltroEstadisticas(rangoFiltro);
 }
 
@@ -88,12 +92,11 @@ function apagarBotonesFiltro() {
 async function aplicarFiltroEstadisticas(tipo, esSilencioso = false) {
     if (!document.getElementById('graficoPagos')) return;
 
-    filtroActivo = tipo; // Guardamos en memoria en qué pestaña estamos
+    filtroActivo = tipo;
 
-    // SI ES UN CLIC MANUAL: Descargamos la data más fresca del servidor
     if (!esSilencioso) {
         try {
-            const res = await fetch(API_ESTADISTICAS_PEDIDOS + "?historico=true");
+            const res = await fetch(API_ESTADISTICAS_PEDIDOS + "?_t=" + new Date().getTime());
             const data = await res.json();
             datosEstadisticas = Array.isArray(data) ? data : [];
         } catch(e) {
@@ -101,7 +104,6 @@ async function aplicarFiltroEstadisticas(tipo, esSilencioso = false) {
         }
     }
 
-    // PROCEDEMOS A FILTRAR LA DATA
     const hoy = new Date();
     hoy.setHours(0,0,0,0);
     
@@ -126,7 +128,6 @@ async function aplicarFiltroEstadisticas(tipo, esSilencioso = false) {
         if (tipo === 'custom') {
             const fechaSeleccionada = document.getElementById('fechaCustom').value;
             if (!fechaSeleccionada) return true;
-            // Reparación de Zona Horaria para el calendario manual
             const partesFecha = fechaSeleccionada.split('-');
             const fCustom = new Date(partesFecha[0], partesFecha[1] - 1, partesFecha[2]);
             fCustom.setHours(0,0,0,0);
@@ -135,7 +136,7 @@ async function aplicarFiltroEstadisticas(tipo, esSilencioso = false) {
         return true;
     });
 
-    const finalizados = pedidosFiltrados.filter(p => (p.estado || '').toLowerCase() === 'finalizado');
+    const finalizados = pedidosFiltrados.filter(p => String(p.estado || '').toLowerCase().replace(/\s+/g, '') === 'finalizado');
     pedidosFiltradosActuales = finalizados; 
     
     procesarCalculosEstadisticos(finalizados);
@@ -144,16 +145,21 @@ async function aplicarFiltroEstadisticas(tipo, esSilencioso = false) {
 
 function procesarCalculosEstadisticos(pedidos) {
     let totalUSD = 0;
+    let totalBS = 0; 
+    
     const conteoClientes = {};
     const conteoProductos = {};
     const pagos = { 'Zelle': 0, 'Pago Movil': 0, 'Efectivo': 0 };
     const nominaRepartidores = {};
 
     pedidos.forEach(p => {
-        const monto = parseFloat(p.total_orden || 0);
-        totalUSD += monto;
+        const monto = parseFloat(String(p.total_orden || 0).replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+        const tasaHistorica = p.tasa_bcv ? parseFloat(p.tasa_bcv) : tasaEstadisticas;
         
-        let metodo = (p.metodo_pago || 'Efectivo').toLowerCase();
+        totalUSD += monto;
+        totalBS += (monto * tasaHistorica); 
+        
+        let metodo = String(p.metodo_pago || 'Efectivo').toLowerCase();
         if (metodo.includes('zelle')) pagos['Zelle']++;
         else if (metodo.includes('pago') || metodo.includes('movil')) pagos['Pago Movil']++;
         else pagos['Efectivo']++;
@@ -190,12 +196,15 @@ function procesarCalculosEstadisticos(pedidos) {
         });
     });
 
-    dibujarWidgetsEstadisticas(pedidos.length, totalUSD, pagos, conteoClientes, conteoProductos, nominaRepartidores);
+    dibujarWidgetsEstadisticas(pedidos.length, totalUSD, totalBS, pagos, conteoClientes, conteoProductos, nominaRepartidores);
 }
 
-function dibujarWidgetsEstadisticas(cantPedidos, totalUSD, pagos, clientes, productos, repartidores) {
-    document.getElementById('widgetTotalUSD').innerText = `$${totalUSD.toFixed(2)}`;
-    document.getElementById('widgetTotalBS').innerText = `Bs. ${(totalUSD * tasaEstadisticas).toFixed(2)}`;
+function dibujarWidgetsEstadisticas(cantPedidos, totalUSD, totalBS, pagos, clientes, productos, repartidores) {
+    const formatoUSD = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(totalUSD);
+    const formatoBS = new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(totalBS);
+
+    document.getElementById('widgetTotalUSD').innerText = `$${formatoUSD}`;
+    document.getElementById('widgetTotalBS').innerText = `Bs. ${formatoBS}`;
     document.getElementById('widgetCantPedidos').innerHTML = `<i class="fa-solid fa-receipt"></i> ${cantPedidos} pedidos finalizados`;
 
     if (graficoTorta) graficoTorta.destroy();
@@ -263,33 +272,37 @@ function renderHistorialFinalizadosEnStats(pedidosList) {
     contenedor.innerHTML = '';
     
     finalizados.forEach(pedido => {
-        const idVisual = pedido.id_pedido || pedido.ID || 'S/ID';
+        const idReal = pedido.id_pedido || pedido.ID || 'S/ID';
+        const idVisual = idReal; 
         const cliente = pedido.cliente || 'Desconocido';
         const monto = parseFloat(String(pedido.total_orden || pedido.monto || 0).replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
         const metodo = pedido.metodo_pago || 'N/A';
         
-        let hora = '--:--';
+        let fechaHora = '--:--';
         if (pedido.timestamp) {
             try {
-                if (pedido.timestamp.includes('T')) hora = new Date(pedido.timestamp).toLocaleTimeString('en-US', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit' });
+                const d = new Date(pedido.timestamp);
+                const fechaStr = d.toLocaleDateString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: 'numeric' });
+                const horaStr = d.toLocaleTimeString('en-US', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit' });
+                fechaHora = `${fechaStr} • ${horaStr}`;
             } catch(e){}
         }
 
         let linkRecibo = '';
         if (pedido.imagen_pago && String(pedido.imagen_pago).trim() !== '' && String(pedido.imagen_pago) !== 'undefined') {
-            linkRecibo = `<a href="${pedido.imagen_pago}" target="_blank" class="text-[11px] text-sky-400 font-semibold underline decoration-sky-600/50 underline-offset-2 hover:text-sky-300 transition mt-1 block"><i class="fa-regular fa-image"></i> Ver Recibo</a>`;
+            linkRecibo = `<a href="${pedido.imagen_pago}" target="_blank" onclick="event.stopPropagation()" class="text-[11px] text-sky-400 font-semibold underline decoration-sky-600/50 underline-offset-2 hover:text-sky-300 transition mt-1 block"><i class="fa-regular fa-image"></i> Ver Recibo</a>`;
         }
 
         const esDelivery = String(pedido.tipo_entrega || '').toLowerCase().includes('delivery');
         const iconoMoto = esDelivery ? `<i class="fa-solid fa-motorcycle text-emerald-400 text-xs ml-2" title="Delivery"></i>` : '';
 
         contenedor.innerHTML += `
-            <div class="bg-slate-900 border border-slate-700 rounded-lg p-3 flex justify-between items-center transition hover:border-emerald-400">
+            <div onclick="abrirModalDetalle('${idReal}')" class="bg-slate-900 border border-slate-700 rounded-lg p-3 flex justify-between items-center transition hover:border-emerald-400 cursor-pointer">
                 <div class="flex items-center gap-3">
                     <span class="bg-emerald-400/10 text-emerald-400 px-2 py-1 rounded text-xs font-bold border border-emerald-400/20">#${idVisual}</span>
                     <div>
                         <p class="text-slate-100 m-0 text-sm font-bold">${cliente} ${iconoMoto}</p>
-                        <p class="text-slate-400 m-0 text-[11px] mt-0.5"><i class="fa-regular fa-clock"></i> ${hora} • Pago: ${metodo}</p>
+                        <p class="text-slate-400 m-0 text-[11px] mt-0.5"><i class="fa-regular fa-calendar-days"></i> ${fechaHora} • Pago: ${metodo}</p>
                     </div>
                 </div>
                 <div class="text-right">
@@ -324,7 +337,7 @@ function abrirModalRepartidor(nombre, deudaTotal) {
 
             let hora = '--:--';
             if (p.timestamp && p.timestamp.includes('T')) {
-                hora = new Date(p.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                hora = new Date(p.timestamp).toLocaleTimeString('en-US', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit' });
             }
 
             listaContenedor.innerHTML += `
@@ -361,9 +374,111 @@ function cerrarModalRepartidor() {
     }, 300);
 }
 
-// -----------------------------------------------------------------
+function abrirModalDetalle(idPedido) {
+    const pedido = pedidosFiltradosActuales.find(p => String(p.id_pedido || p.ID || 'S/ID') === String(idPedido)); 
+    if (!pedido) return;
+    
+    const idReal = pedido.id_pedido || pedido.ID || 'S/ID'; 
+    const cliente = pedido.cliente || 'Registrado'; 
+    const tel = pedido.telefono || 'No registrado';
+    const entrega = pedido.tipo_entrega || 'No definido'; 
+    const dir = pedido.direccion || 'No especificada';
+    const pago = pedido.metodo_pago || 'No especificado'; 
+    const arts = pedido.pedido_detallado || '';
+    const img = pedido.imagen_pago || ''; 
+    const ref = pedido.referencia_pago || '';
+    const monto = parseFloat(String(pedido.total_orden || 0).replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+    const operador = pedido.procesado_por || 'Sin registro';
+
+    document.getElementById('modalID').innerText = `ID Base de datos: #${idReal}`;
+    
+    const tasaHistorica = pedido.tasa_bcv ? parseFloat(pedido.tasa_bcv) : tasaEstadisticas;
+
+    let seccionVES = '';
+    if (pago.toLowerCase().includes('pago') || pago.toLowerCase().includes('movil')) {
+        const totalBsFormateado = new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(monto * tasaHistorica);
+        seccionVES = `<div class="bg-amber-500/10 border border-amber-500/20 p-3 rounded-lg mt-2 text-amber-300 text-xs text-center font-bold">Total en Bolívares: Bs. ${totalBsFormateado} (Tasa: ${tasaHistorica.toFixed(2)} Bs/$)</div>`;
+    }
+    
+    let refHtml = ref ? `<p class="text-xs text-amber-400 mt-1 font-mono bg-slate-900 border border-slate-700 px-2 py-1 rounded inline-block">Ref: ${ref}</p>` : '';
+    
+    let btnImg = '';
+    if (img && String(img).trim() !== '' && String(img) !== 'undefined') {
+        btnImg = `
+            <div class="mt-4 pt-4 border-t border-slate-700/50 flex flex-col items-center justify-center w-full">
+                <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider mb-2">Comprobante Adjunto</span>
+                <a href="${img}" target="_blank" class="block border border-slate-600 rounded-lg overflow-hidden hover:border-emerald-500 transition shadow-lg max-w-[220px] w-full">
+                    <img src="${img}" class="w-full h-auto object-contain rounded-lg bg-slate-900" alt="Comprobante de Pago">
+                </a>
+                <span class="text-[10px] text-slate-500 mt-1 italic"><i class="fa-solid fa-magnifying-glass-plus"></i> Clic en la imagen para ampliar</span>
+            </div>
+        `;
+    }
+
+    document.getElementById('modalCuerpo').innerHTML = `<div class="space-y-3.5"><div class="flex justify-between"><div><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Cliente</span><p class="font-bold text-white text-base">${cliente}</p><p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-phone"></i> ${tel}</p></div><div class="text-right"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider block">Comandado por</span><p class="text-xs text-white bg-slate-900 border border-slate-700 px-2 py-1 rounded mt-1 font-semibold">${operador}</p></div></div><div class="border-t border-slate-700/50 pt-2.5"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Método de Distribución</span><p class="text-white text-xs mt-0.5 font-medium">${entrega}</p><p class="text-xs text-slate-400 mt-1 bg-slate-900/40 p-2 rounded border border-slate-700/30 italic">${dir}</p></div><div class="border-t border-slate-700/50 pt-2.5"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Productos</span><div class="text-xs bg-slate-900/40 p-2.5 rounded border border-slate-700/30 whitespace-pre-line max-h-32 overflow-y-auto text-slate-300 font-mono">${arts}</div></div><div class="border-t border-slate-700/50 pt-2.5 flex justify-between items-center"><div><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Forma de Pago</span><p class="text-white text-xs font-semibold">${pago}</p>${refHtml}</div><div class="text-right"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Total</span><p class="text-emerald-400 font-bold text-lg">$${monto.toFixed(2)}</p></div></div>${seccionVES}${btnImg}</div>`;
+    document.getElementById('modalDetalle').classList.remove('hidden');
+}
+
+function cerrarModalDetalle() { 
+    document.getElementById('modalDetalle').classList.add('hidden'); 
+}
+
+// =================================================================
+// 7. EXPORTACIÓN A EXCEL / GOOGLE SHEETS (CSV)
+// =================================================================
+function exportarCSV() {
+    if (!pedidosFiltradosActuales || pedidosFiltradosActuales.length === 0) {
+        alert("No hay datos para exportar en el rango de fechas seleccionado.");
+        return;
+    }
+
+    let csvContent = "ID Base Datos,Fecha,Hora,Cliente,Telefono,Metodo de Pago,Referencia,Total USD,Total Bolivares,Tipo de Entrega,Motorizado,Detalle del Pedido\n";
+
+    pedidosFiltradosActuales.forEach(p => {
+        const id = p.id_pedido || p.ID || 'S/ID';
+        
+        let fecha = '', hora = '';
+        if (p.timestamp) {
+            try {
+                const d = new Date(p.timestamp);
+                fecha = d.toLocaleDateString('es-VE');
+                hora = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            } catch(e){}
+        }
+
+        const cliente = `"${(p.cliente || 'Desconocido').replace(/"/g, '""')}"`;
+        const tel = p.telefono || 'N/A';
+        const metodo = p.metodo_pago || 'N/A';
+        const ref = p.referencia_pago || '';
+        
+        const totalUSD = parseFloat(p.total_orden || 0).toFixed(2);
+        const tasa = p.tasa_bcv ? parseFloat(p.tasa_bcv) : tasaEstadisticas;
+        const totalVES = (totalUSD * tasa).toFixed(2);
+        
+        const tipo = p.tipo_entrega || 'N/A';
+        const repartidor = p.repartidor || 'N/A';
+        
+        const detalle = `"${(p.pedido_detallado || '').replace(/"/g, '""').replace(/\n/g, ' | ')}"`;
+
+        const fila = [id, fecha, hora, cliente, tel, metodo, ref, totalUSD, totalVES, tipo, repartidor, detalle];
+        csvContent += fila.join(",") + "\n";
+    });
+
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Reporte_TokioSushi_${filtroActivo}_${new Date().getTime()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// =================================================================
 // EVENTOS AL CARGAR LA PÁGINA
-// -----------------------------------------------------------------
+// =================================================================
 document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('graficoPagos')) {
         iniciarPantallaEstadisticas();

@@ -815,7 +815,9 @@ function procesarPasoFinalizado(idPedido) {
     const payloadDespacho = {
         telefono: telefono,
         cliente: cliente,
-        tipo_entrega: tipoEntrega
+        tipo_entrega: tipoEntrega,
+        id_visual: String(pedido.id_pedido || pedido.ID || idPedido),
+        direccion: pedido.direccion || pedido.Direccion || 'Dirección no especificada'
     };
 
     fetch("http://127.0.0.1:8000/api/pedidos/notificar-despacho", {
@@ -1062,19 +1064,24 @@ function renderizarTablero() {
                 </div>`;
         } else if (estadoLimpio === 'finalizado') {
             conteoFinalizado++; 
-            
-            // 🌟 NUEVO: Contabilidad perfecta guardando dólares y bolívares exactos
             totalVentasDia += monto; 
             totalVentasDiaBs += (monto * tasaHistorica); 
             
-            const esDelivery = String(pedido.tipo_entrega || '').toLowerCase().includes('delivery');
+            // Detección a prueba de balas: revisa la columna de entrega y también el detalle de los platos
+            const tipoEntregaStr = String(pedido.tipo_entrega || '').toLowerCase();
+            const detalleStr = String(pedido.pedido_detallado || '').toLowerCase();
+            const esDelivery = tipoEntregaStr.includes('delivery') || detalleStr.includes('servicio de delivery');
+            
             const repartidorAsignado = pedido.repartidor || pedido.Repartidor || '';
             let btnMoto = '';
             
             if (esDelivery) {
+                // Si el motorizado ya está asignado se pinta de verde, si no, gris
                 const colorMoto = repartidorAsignado !== '' ? 'text-emerald-400' : 'text-slate-400 hover:text-emerald-400';
-                const tituloMoto = repartidorAsignado !== '' ? `Pagado a: ${repartidorAsignado}` : 'Marcar pago de delivery';
-                btnMoto = `<button onclick="abrirModalRepartidor('${idReal}', event)" class="${colorMoto} transition cursor-pointer ml-2" title="${tituloMoto}"><i class="fa-solid fa-motorcycle"></i></button>`;
+                const tituloMoto = repartidorAsignado !== '' ? `Pagado a: ${repartidorAsignado}` : 'Asignar Motorizado';
+                
+                // Botón con el ícono de la moto ajustado al lado de WhatsApp
+                btnMoto = `<button onclick="abrirModalRepartidor('${idReal}', event)" class="${colorMoto} transition cursor-pointer ml-1 text-[13px]" title="${tituloMoto}"><i class="fa-solid fa-motorcycle"></i></button>`;
             }
 
             let htmlMontoFinalizado = `<span class="text-sm font-bold text-emerald-400">$${montoFormateado}</span>`;
