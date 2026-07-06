@@ -2,9 +2,9 @@
 // TOKIO SUSHI - LÓGICA DEL CLIENTE (FRONTEND)
 // ==========================================
 
-const URL_OBTENER_MENU = "http://127.0.0.1:8000/api/menu/";
-const URL_VERIFICAR_CLIENTE = "http://127.0.0.1:8000/api/clientes/verificar";
-const URL_REGISTRAR_CLIENTE = "http://127.0.0.1:8000/api/clientes/registrar";
+const URL_OBTENER_MENU = "prueba-tokyo-workers-production.up.railway.app/api/menu/";
+const URL_VERIFICAR_CLIENTE = "prueba-tokyo-workers-production.up.railway.app/api/clientes/verificar";
+const URL_REGISTRAR_CLIENTE = "prueba-tokyo-workers-production.up.railway.app/api/clientes/registrar";
 
 let menuData = { combos: [], cocina: [], sushi: [], extras: [] };
 let cart = {};
@@ -585,7 +585,7 @@ async function sendOrder(event) {
                     datosClienteLogueado.direcciones_extra = JSON.stringify(extras);
                     localStorage.setItem('sesionCliente', JSON.stringify(datosClienteLogueado));
                     
-                    fetch("http://127.0.0.1:8000/api/clientes/actualizar-direcciones-cliente", {
+                    fetch("prueba-tokyo-workers-production.up.railway.app/api/clientes/actualizar-direcciones-cliente", {
                         method: 'POST', 
                         headers: { 
                             'Content-Type': 'application/json',
@@ -613,7 +613,7 @@ async function sendOrder(event) {
         pedido_detallado: "Generado por Backend" // Validacion Pydantic FastAPI
     };
 
-    const urlBackendPedidos = "http://127.0.0.1:8000/api/pedidos/"; 
+    const urlBackendPedidos = "prueba-tokyo-workers-production.up.railway.app/api/pedidos/"; 
 
     try {
         const response = await fetch(urlBackendPedidos, {
@@ -862,7 +862,7 @@ async function guardarEdicionDatos() {
     cargarSelectorDirecciones();
 
     try {
-        await fetch("http://127.0.0.1:8000/api/clientes/actualizar-direcciones-cliente", {
+        await fetch("prueba-tokyo-workers-production.up.railway.app/api/clientes/actualizar-direcciones-cliente", {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',

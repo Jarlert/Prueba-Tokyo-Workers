@@ -2,7 +2,7 @@
 // --- LÓGICA EXCLUSIVA DEL PANEL DE ESTADÍSTICAS ---
 // =================================================================
 
-const API_ESTADISTICAS_PEDIDOS = "http://127.0.0.1:8000/api/pedidos/";
+const API_ESTADISTICAS_PEDIDOS = "prueba-tokyo-workers-production.up.railway.app/api/pedidos/";
 let datosEstadisticas = [];
 let tasaEstadisticas = 1;
 let graficoTorta = null;
