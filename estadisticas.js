@@ -432,7 +432,8 @@ function exportarCSV() {
         return;
     }
 
-    let csvContent = "ID Base Datos,Fecha,Hora,Cliente,Telefono,Metodo de Pago,Referencia,Total USD,Total Bolivares,Tipo de Entrega,Motorizado,Detalle del Pedido\n";
+    // CAMBIO 1: Reemplazamos las comas por punto y coma en las cabeceras
+    let csvContent = "ID Base Datos;Fecha;Hora;Cliente;Telefono;Metodo de Pago;Referencia;Total USD;Total Bolivares;Tipo de Entrega;Motorizado;Detalle del Pedido\n";
 
     pedidosFiltradosActuales.forEach(p => {
         const id = p.id_pedido || p.ID || 'S/ID';
@@ -461,7 +462,9 @@ function exportarCSV() {
         const detalle = `"${(p.pedido_detallado || '').replace(/"/g, '""').replace(/\n/g, ' | ')}"`;
 
         const fila = [id, fecha, hora, cliente, tel, metodo, ref, totalUSD, totalVES, tipo, repartidor, detalle];
-        csvContent += fila.join(",") + "\n";
+        
+        // CAMBIO 2: Unimos los datos de la fila con punto y coma
+        csvContent += fila.join(";") + "\n";
     });
 
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -475,12 +478,3 @@ function exportarCSV() {
     link.click();
     document.body.removeChild(link);
 }
-
-// =================================================================
-// EVENTOS AL CARGAR LA PÁGINA
-// =================================================================
-document.addEventListener('DOMContentLoaded', () => {
-    if (document.getElementById('graficoPagos')) {
-        iniciarPantallaEstadisticas();
-    }
-});
