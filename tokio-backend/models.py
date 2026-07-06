@@ -24,10 +24,9 @@ class Pedido(Base):
 
 class TasaManual(Base):
     __tablename__ = "tasa_manual"
-
     id = Column(Integer, primary_key=True, index=True)
-    tasa = Column(Float, nullable=False)
-    fecha = Column(Date, default=date.today, unique=True)
+    tasa = Column(Float)
+    fecha = Column(String)
 
 class Cliente(Base):
     __tablename__ = "clientes"
@@ -77,3 +76,10 @@ class Usuario(Base):
     pin = Column(String, nullable=False)
     nombre = Column(String, nullable=False)
     rol = Column(String, nullable=False)
+
+class MensajeWhatsapp(Base):
+    __tablename__ = "mensajes_whatsapp"
+    
+    # En tu base de datos, el 'id' es el nombre del evento (ej. 'recepcion')
+    id = Column(String, primary_key=True, index=True)
+    texto = Column(String)

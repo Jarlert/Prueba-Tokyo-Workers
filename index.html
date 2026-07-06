@@ -77,7 +77,7 @@
                         <i class="fa-solid fa-plus"></i> Nuevo Pedido
                     </button>
 
-                    <button onclick="cargarPedidos()" class="bg-indigo-600 hover:bg-indigo-500 text-white h-10 w-10 rounded-lg shadow-lg shadow-indigo-900/20 transition flex items-center justify-center cursor-pointer" title="Actualizar ahora">
+                    <button onclick="const icono = this.querySelector('i'); icono.classList.add('fa-spin'); cargarPedidos().then(() => setTimeout(() => icono.classList.remove('fa-spin'), 500));" class="bg-indigo-600 hover:bg-indigo-500 text-white h-10 w-10 rounded-lg shadow-lg shadow-indigo-900/20 transition flex items-center justify-center cursor-pointer" title="Actualizar ahora">
                         <i class="fa-solid fa-rotate-right"></i>
                     </button>
 
@@ -167,7 +167,6 @@
                         <div>
                             <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1">Entrega</label>
                             <select id="inputEntrega" class="w-full bg-slate-900 p-2.5 rounded-lg border border-slate-700 text-white text-sm focus:border-emerald-500 focus:outline-none">
-                                <option value="En el Local">En el Local (Mesa)</option>
                                 <option value="Pickup">Pickup (Retiro)</option>
                                 <option value="Delivery">Delivery</option>
                             </select>
@@ -197,9 +196,18 @@
                                 <div class="w-8"></div>
                             </div>
                         </div>
-                        <button type="button" onclick="agregarFilaArticulo()" class="mt-3 text-xs text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 cursor-pointer">
-                            <i class="fa-solid fa-plus"></i> Añadir otro plato
-                        </button>
+                        
+                        <div class="flex items-center gap-4 mt-3">
+                            <button type="button" onclick="agregarFilaArticulo()" class="text-sm text-emerald-400 hover:text-emerald-300 font-bold transition cursor-pointer flex items-center gap-1">
+                                <i class="fa-solid fa-plus"></i> Añadir fila manual
+                            </button>
+                            
+                            <div class="h-4 w-px bg-slate-600"></div>
+                            
+                            <button type="button" onclick="window.open('menu.html', '_blank')" class="text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-md flex items-center gap-2 transition cursor-pointer shadow-lg shadow-indigo-500/20">
+                                <i class="fa-solid fa-mobile-screen"></i> Usar Menú Interactivo
+                            </button>
+                        </div>
                     </div>
                 </form> 
             </div>

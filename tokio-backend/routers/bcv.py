@@ -1,51 +1,60 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database import get_db
+from pydantic import BaseModel
+from datetime import datetime
+import requests
 import models
-import schemas
-from datetime import date
-from services.dolar_api import obtener_tasa_bcv_oficial
 
 router = APIRouter(
     prefix="/api/bcv",
-    tags=["Tasa BCV"]
+    tags=["BCV"]
 )
 
-# Función interna unificada que usaremos aquí y en los pedidos
-async def obtener_tasa_del_dia(db: Session):
-    # Prioridad 1: Buscar si el admin fijó una tasa HOY en la base de datos
-    tasa_hoy = db.query(models.TasaManual).filter(models.TasaManual.fecha == date.today()).first()
-    
-    if tasa_hoy:
-        return tasa_hoy.tasa, "Manual"
-    
-    # Prioridad 2: Si no hay tasa manual hoy, consultamos Dolar API
-    tasa_api = await obtener_tasa_bcv_oficial()
-    if tasa_api:
-        return tasa_api, "Dolar API"
-        
-    return None, None
+class TasaRequest(BaseModel):
+    tasa: float
 
-@router.get("/actual")
-async def obtener_tasa_actual(db: Session = Depends(get_db)):
-    tasa, fuente = await obtener_tasa_del_dia(db)
+@router.get("/")
+def obtener_tasa(db: Session = Depends(get_db)):
+    hoy = datetime.now().strftime("%Y-%m-%d")
+    registro = db.query(models.TasaManual).first()
     
-    if not tasa:
-        raise HTTPException(status_code=503, detail="Servicio no disponible.")
+    # FIX: Envolvemos registro.fecha en str() para que los formatos coincidan siempre
+    if registro and str(registro.fecha) == hoy:
+        return {"success": True, "tasa": registro.tasa}
         
-    return {"status": "ok", "tasa": tasa, "fuente": fuente}
+    # Si es un día nuevo, Consultamos la API
+    try:
+        respuesta = requests.get("https://ve.dolarapi.com/v1/dolares/oficial", timeout=5)
+        datos_api = respuesta.json()
+        tasa_fresca = datos_api["promedio"]
+        
+        if registro:
+            registro.tasa = tasa_fresca
+            registro.fecha = hoy
+        else:
+            nuevo_registro = models.TasaManual(tasa=tasa_fresca, fecha=hoy)
+            db.add(nuevo_registro)
+            
+        db.commit()
+        return {"success": True, "tasa": tasa_fresca}
+        
+    except Exception as e:
+        print(f"Error consultando API BCV: {e}")
+        return {"success": True, "tasa": registro.tasa if registro else 1.0}
 
-@router.post("/manual")
-def fijar_tasa_manual(datos: schemas.TasaManualCreate, db: Session = Depends(get_db)):
-    """ Endpoint para que el Admin fije la tasa del día """
-    # Buscamos si ya existe una tasa hoy para sobreescribirla
-    tasa_hoy = db.query(models.TasaManual).filter(models.TasaManual.fecha == date.today()).first()
+@router.post("/actualizar")
+def actualizar_tasa(datos: TasaRequest, db: Session = Depends(get_db)):
+    hoy = datetime.now().strftime("%Y-%m-%d")
+    registro = db.query(models.TasaManual).first()
     
-    if tasa_hoy:
-        tasa_hoy.tasa = datos.tasa
+    if not registro:
+        nuevo_registro = models.TasaManual(tasa=datos.tasa, fecha=hoy)
+        db.add(nuevo_registro)
     else:
-        nueva_tasa = models.TasaManual(tasa=datos.tasa)
-        db.add(nueva_tasa)
+        # El Admin la modificó manualmente, actualizamos el número y le ponemos fecha de HOY
+        registro.tasa = datos.tasa
+        registro.fecha = hoy
         
     db.commit()
-    return {"status": "success", "mensaje": f"Tasa manual fijada en {datos.tasa} Bs. para hoy."}
+    return {"success": True, "tasa": datos.tasa}

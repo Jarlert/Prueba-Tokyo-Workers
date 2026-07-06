@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from routers import bcv, pedidos, clientes, menu, usuarios, motorizados
 from fastapi.middleware.cors import CORSMiddleware
-from routers import bcv, pedidos
 from database import engine, Base
 from services.evolution_api import enviar_whatsapp # Mantenemos tu función de WhatsApp
 

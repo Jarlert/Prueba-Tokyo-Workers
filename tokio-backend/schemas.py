@@ -44,3 +44,28 @@ class LoginRequest(BaseModel):
     tipo: str
     username: str
     pin: str
+
+class NotificacionEdicion(BaseModel):
+    telefono: str
+    cliente: str
+    pedido_detallado: str
+    total_orden: float
+    texto_bolivares: str = ""
+
+class NotificacionCobro(BaseModel):
+    telefono: str
+    cliente: str
+    pedido_detallado: str
+    total_orden: float
+    metodo_pago: str
+    total_bs: str = ""
+
+class NotificacionAprobado(BaseModel):
+    telefono: str
+    cliente: str
+    tiempo_estimado: str
+
+class NotificacionDespacho(BaseModel):
+    telefono: str
+    cliente: str
+    tipo_entrega: str

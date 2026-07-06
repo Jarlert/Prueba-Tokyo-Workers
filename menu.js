@@ -2,7 +2,6 @@
 // TOKIO SUSHI - LÓGICA DEL CLIENTE (FRONTEND)
 // ==========================================
 
-// ⚠️ RECUERDA: Si subes esto a GitHub, cambia "localhost:5678" por tu URL de loca.lt
 const URL_OBTENER_MENU = "http://127.0.0.1:8000/api/menu/";
 const URL_VERIFICAR_CLIENTE = "http://127.0.0.1:8000/api/clientes/verificar";
 const URL_REGISTRAR_CLIENTE = "http://127.0.0.1:8000/api/clientes/registrar";
@@ -71,11 +70,9 @@ async function procesarVerificacionTelefono(event) {
 
         if (listaClientes.length > 0) {
             datosClienteLogueado = listaClientes[0];
-            // SOLUCIONADO: Faltaba el paréntesis final aquí
             localStorage.setItem('sesionCliente', JSON.stringify(datosClienteLogueado)); 
             document.getElementById('lbl-cliente-activo').innerText = datosClienteLogueado.nombre;
             
-            // SOLUCIONADO: Faltaba el nombre de la función aquí
             await cargarMenuDesdeDB(); 
             goToStep(1);
         } else {
@@ -92,38 +89,34 @@ async function procesarVerificacionTelefono(event) {
     }
 }
 
-// --- REEMPLAZA LA FUNCIÓN DE REGISTRO ---
 async function procesarRegistroCliente(event) {
     event.preventDefault();
     
-    // Atrapamos los datos exactamente como el cliente los escribió
     const payload = {
         telefono: document.getElementById('auth-phone').value.trim(),
         nombre: document.getElementById('reg-name').value.trim(),
         cedula: document.getElementById('reg-cedula').value.trim(),
         direccion_principal: document.getElementById('reg-address').value.trim(),
-        direcciones_extra: '[]' // Lo inicializamos vacío desde el principio
+        direcciones_extra: '[]' 
     };
 
     const btn = document.getElementById('btn-reg-submit');
     btn.disabled = true; btn.innerText = "Registrando...";
 
     try {
-        // Enviamos a la base de datos (n8n) para que se guarde
         await fetch(URL_REGISTRAR_CLIENTE, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer TokioSushi_App_2026_X' // Agregada la llave de seguridad
+            },
             body: JSON.stringify(payload)
         });
 
-        // EL TRUCO: Inyectamos directamente el 'payload' perfecto a la memoria viva.
-        // Así no dependemos de cómo responda n8n y evitamos que el usuario tenga que recargar.
         datosClienteLogueado = payload;
-        
         localStorage.setItem('sesionCliente', JSON.stringify(datosClienteLogueado));
         document.getElementById('lbl-cliente-activo').innerText = datosClienteLogueado.nombre;
         
-        // SOLUCIONADO: Faltaba el nombre de la función aquí
         await cargarMenuDesdeDB();
         goToStep(1);
     } catch(e) {
@@ -141,7 +134,7 @@ function cerrarSesionCliente() {
     goToStep('auth');
 }
 
-// --- 1. CARGA DINÁMICA DE LA BASE DE DATOS (CON PREVENCIÓN DE COLISIÓN DE IDs) ---
+// --- 1. CARGA DINÁMICA DE LA BASE DE DATOS ---
 async function cargarMenuDesdeDB() {
     try {
         const urlFresca = URL_OBTENER_MENU + "?t=" + new Date().getTime();
@@ -172,11 +165,10 @@ async function cargarMenuDesdeDB() {
                 };
             }
 
-            // 🔥 EL BLINDAJE ANTI-COLISIONES: Le ponemos 'c_' a combos y 'p_' a productos
             const idUnico = esCombo ? 'c_' + prod.id : 'p_' + prod.id;
 
             menuData[categoriaKey].items.push({
-                id: idUnico, // <-- Ahora el ID es 100% único
+                id: idUnico, 
                 name: prod.nombre,
                 price: parseFloat(prod.precio),
                 desc: prod.descripcion || "",
@@ -200,13 +192,11 @@ function renderizarCategorias() {
     if (!container) return;
     container.innerHTML = ''; 
 
-    // Dejamos los emojis por si alguna categoría no tiene foto aún (como respaldo)
     const iconosRespado = ['🍱', '🍙', '🍣', '🥤', '🍰', '🥟', '🍤', '🔥']; 
 
     Object.keys(menuData).forEach((catKey, index) => {
         const catInfo = menuData[catKey];
         
-        // Si hay URL de imagen, la pintamos. Si no, usamos el emoji de respaldo.
         let arteVisual = '';
         if (catInfo.imagen && catInfo.imagen.startsWith('http')) {
             arteVisual = `<img src="${catInfo.imagen}" alt="${catInfo.titulo}" class="w-full h-full object-cover">`;
@@ -234,10 +224,8 @@ function selectCategory(categoryKey) {
     const container = document.getElementById('items-container');
     container.innerHTML = '';
     
-    // Leemos el título directamente de los datos dinámicos
     document.getElementById('category-title').innerText = menuData[categoryKey].titulo;
 
-    // Pintamos los platos (usando la nueva ruta .items)
     menuData[categoryKey].items.forEach(item => {
         let currentQty = 0;
         Object.keys(cart).forEach(key => {
@@ -248,7 +236,6 @@ function selectCategory(categoryKey) {
 
         const isComboCustom = item.opciones_combo !== undefined && item.opciones_combo !== null && item.opciones_combo !== '' && item.opciones_combo !== '[]';
         
-        // MAGIA VISUAL: ¿Es un enlace HTTP o es un Emoji?
         const esEnlace = item.image && item.image.startsWith('http');
         const vistaImagen = esEnlace 
             ? `<img src="${item.image}" alt="${item.name}" class="w-20 h-20 object-cover rounded-xl flex-shrink-0 bg-gray-100 border border-gray-100 shadow-sm">`
@@ -318,7 +305,6 @@ function removeNoteFromCheckout(id) {
     }
 }
 
-// --- 1. FUNCIÓN PARA AÑADIR AL CARRITO (CON RASTREADORES) ---
 function updateQty(id, name, price, change) {
     let itemOriginal = null;
     for (let catKey in menuData) {
@@ -326,32 +312,21 @@ function updateQty(id, name, price, change) {
         if (found) { itemOriginal = found; break; }
     }
 
-    // RASTREADORES PARA LA CONSOLA (F12)
-    console.log("🔥 CLICK EN COMBO:", name);
-    console.log("📦 Datos que llegaron de la base de datos:", itemOriginal);
-
     let isComboWithItems = false;
     try {
         if (itemOriginal && itemOriginal.opciones_combo && itemOriginal.opciones_combo !== '[]') {
             let arr = typeof itemOriginal.opciones_combo === 'string' ? JSON.parse(itemOriginal.opciones_combo) : itemOriginal.opciones_combo;
-            console.log("🔍 Opciones del combo desempaquetadas:", arr);
             if (Array.isArray(arr) && arr.length > 0) {
-                isComboWithItems = true; // Si tiene ALGO adentro, marcamos que es un combo armado
+                isComboWithItems = true;
             }
-        } else {
-            console.log("⚠️ Este combo está vacío por dentro (opciones_combo es null o '[]')");
         }
-    } catch(e) {
-        console.error("❌ Error leyendo las opciones:", e);
-    }
+    } catch(e) {}
 
-    // Si es combo y se está sumando -> SIEMPRE Abrir Modal (sin importar si es fijo o a elegir)
     if (isComboWithItems && change > 0) {
         abrirModalCombo(itemOriginal);
         return;
     }
 
-    // Si es combo personalizado y se está restando
     if (isComboWithItems && change < 0) {
         let keys = Object.keys(cart).filter(k => k.startsWith(id + "_"));
         if (keys.length > 0) {
@@ -368,7 +343,6 @@ function updateQty(id, name, price, change) {
         return;
     }
 
-    // COMPORTAMIENTO NORMAL PARA PLATOS SIMPLES O COMBOS VACÍOS
     if (!cart[id]) cart[id] = { id: id, name: name, price: price, qty: 0, note: "" };
     cart[id].qty += change;
     
@@ -473,7 +447,6 @@ function prepareCheckout() {
     
     document.getElementById('checkout-total-price').innerText = `$${total.toFixed(2)}`;
 
-    // Inicializar formularios dinámicos
     document.getElementById('chk-usar-mis-datos').checked = true;
     toggleFormularioDatosEnvio();
     cargarSelectorDirecciones();
@@ -490,48 +463,41 @@ function toggleFormularioDatosEnvio() {
     const select = document.getElementById('sel-direccion-entrega');
 
     if (isChecked) {
-        // ES PARA MÍ: Oculto los campos extra
         wrapperNuevosDatos.classList.add('hidden');
         inputNombre.removeAttribute('required');
         inputTelefono.removeAttribute('required');
         
-        // Devuelvo el selector a la dirección principal
         if (select && select.options.length > 0) {
             select.selectedIndex = 0; 
         }
     } else {
-        // ES PARA OTRO: Muestro los campos extra
         wrapperNuevosDatos.classList.remove('hidden');
         inputNombre.setAttribute('required', 'required');
         inputTelefono.setAttribute('required', 'required');
         
-        // Lleno temporalmente con los datos del usuario por si solo quiere cambiar una letra
         inputNombre.value = datosClienteLogueado ? datosClienteLogueado.nombre : '';
         inputTelefono.value = datosClienteLogueado ? datosClienteLogueado.telefono : '';
         
-        // Cambio el selector de direcciones a "Manual" para que escriba dónde entregarlo
         if (select) {
             select.value = "__MANUAL__";
         }
     }
     manejarSeleccionDireccion();
 }
+
 function cargarSelectorDirecciones() {
     const select = document.getElementById('sel-direccion-entrega');
     if (!select || !datosClienteLogueado) return;
 
     select.innerHTML = ''; 
 
-    // Extraemos la dirección principal de forma súper segura
     const dirPrincipal = datosClienteLogueado.direccion_principal || "Mi dirección registrada";
 
-    // Opción 1: Dirección principal
     const optPrincipal = document.createElement('option');
     optPrincipal.value = dirPrincipal;
     optPrincipal.innerText = `🏠 Principal: ${String(dirPrincipal).substring(0, 35)}...`;
     select.appendChild(optPrincipal);
 
-    // Opciones extras
     let extras = [];
     try {
         if (datosClienteLogueado.direcciones_extra) {
@@ -552,7 +518,6 @@ function cargarSelectorDirecciones() {
         });
     }
 
-    // Opción manual
     const optManual = document.createElement('option');
     optManual.value = "__MANUAL__";
     optManual.innerText = "🗺️ Usar otra dirección (Playa, trabajo, etc)...";
@@ -579,7 +544,7 @@ function toggleAddress() {
     const input = document.getElementById('client-address');
     const select = document.getElementById('sel-direccion-entrega');
 
-    if (type === 'Pickup') {
+    if (type === 'Pickup' || type === 'En el Local') {
         container.style.display = 'none'; input.removeAttribute('required'); select.removeAttribute('required');
     } else {
         container.style.display = 'block'; select.setAttribute('required', 'required'); manejarSeleccionDireccion();
@@ -591,7 +556,7 @@ function resetForm() {
     calculateTotals(); toggleAddress(); goToStep(1); 
 }
 
-// --- 6. ENVÍO DE ORDEN A N8N ---
+// --- 6. ENVÍO DE ORDEN AL BACKEND ---
 async function sendOrder(event) {
     event.preventDefault();
     
@@ -621,7 +586,11 @@ async function sendOrder(event) {
                     localStorage.setItem('sesionCliente', JSON.stringify(datosClienteLogueado));
                     
                     fetch("http://127.0.0.1:8000/api/clientes/actualizar-direcciones-cliente", {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        method: 'POST', 
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer TokioSushi_App_2026_X'
+                        },
                         body: JSON.stringify({ telefono: datosClienteLogueado.telefono, direcciones_extra: datosClienteLogueado.direcciones_extra })
                     }).catch(err => console.error(err));
                 }
@@ -640,23 +609,31 @@ async function sendOrder(event) {
         metodo_pago: document.getElementById('payment-method').value,
         articulos: itemsInCart,
         metadata_titular: datosClienteLogueado ? `Pedido por: ${datosClienteLogueado.nombre} (CI: ${datosClienteLogueado.cedula})` : "No registrado",
-        
-        // NUEVA LÍNEA: Inteligencia para el tablero
-        estado_inicial: tipoEntrega === 'Delivery' ? 'Calculando Delivery' : 'Pago Pendiente'
+        estado_inicial: tipoEntrega === 'Delivery' ? 'Calculando Delivery' : 'Pago Pendiente',
+        pedido_detallado: "Generado por Backend" // Validacion Pydantic FastAPI
     };
 
-    // La URL original de tu webhook de creación de pedidos
-    const n8nWebhookUrl = "http://127.0.0.1:8000/api/pedidos/"; 
+    const urlBackendPedidos = "http://127.0.0.1:8000/api/pedidos/"; 
 
     try {
-        const response = await fetch(n8nWebhookUrl, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+        const response = await fetch(urlBackendPedidos, {
+            method: 'POST', 
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer TokioSushi_App_2026_X'
+            },
             body: JSON.stringify(orderPayload)
         });
-        if (response.ok || response.status === 200) goToStep(4);
-        else goToStep(4); 
+        
+        if (response.ok) {
+            goToStep(4);
+        } else {
+            alert("Hubo un error al procesar tu pedido. Por favor intenta de nuevo.");
+            console.error("Error del servidor:", await response.text());
+        }
     } catch (error) {
-        console.error("Error:", error); goToStep(4); 
+        console.error("Error de conexión:", error); 
+        alert("Fallo de conexión. Revisa tu internet e intenta de nuevo.");
     } finally {
         submitBtn.innerText = "🚀 Confirmar y Enviar Pedido"; submitBtn.disabled = false;
     }
@@ -695,16 +672,12 @@ function abrirModalCombo(item) {
                 return;
             }
 
-            // MAGIA 1: Agregamos el atributo "data-desc" a cada opción
             let optionsHtml = opcionesCat.map(opt => `<option value="${opt.name}" data-desc="${opt.desc || ''}">${opt.name}</option>`).join('');
-            
-            // Extraemos la descripción del primer elemento para mostrarla al abrir
             let primeraDesc = opcionesCat[0] && opcionesCat[0].desc ? opcionesCat[0].desc : '';
             
             for(let i=0; i < grupo.cantidad; i++) {
                 let tituloVisual = grupo.cantidad > 1 ? `Elige tu ${grupo.valor} (${i+1} de ${grupo.cantidad})` : `Elige tu ${grupo.valor}`;
                 
-                // MAGIA 2: Agregamos el onchange al select y el párrafo <p> abajo
                 let grupoHtml = `
                     <div class="space-y-1 mb-3">
                         <label class="block text-gray-500 font-bold text-[10px] uppercase tracking-wider">${tituloVisual}</label>
@@ -731,7 +704,6 @@ function abrirModalCombo(item) {
                 if (!prodName) prodName = isNaN(grupo.valor) ? grupo.valor : "Producto Fijo";
             }
             
-            // MAGIA 3: También le agregamos la descripción a los fijos si la tienen
             let htmlDescFija = descFija ? `<p class="text-[10px] text-gray-400 italic px-1 mt-0.5">${descFija}</p>` : '';
 
             let fijoHtml = `
@@ -759,7 +731,6 @@ function cerrarModalCombo() {
     comboEnPersonalizacion = null;
 }
 
-// --- NUEVO: Motor que cambia la descripción en tiempo real ---
 function actualizarDescripcionCombo(selectElement, idParrafo) {
     const opcionSeleccionada = selectElement.options[selectElement.selectedIndex];
     const descripcion = opcionSeleccionada.getAttribute('data-desc');
@@ -780,7 +751,6 @@ function guardarSeleccionCombo() {
         elecciones.push(select.value);
     });
 
-    // Anexamos lo que eligió al nombre del combo
     let descripcionVariante = elecciones.length > 0 ? elecciones.join(', ') : '';
     let stringClave = elecciones.length > 0 ? elecciones.join('_').replace(/[^a-zA-Z0-9]/g, '') : 'fijo';
     let variantKey = comboEnPersonalizacion.id + "_" + stringClave;
@@ -799,7 +769,6 @@ function guardarSeleccionCombo() {
         cart[variantKey].qty += 1;
     }
 
-    // Actualizamos el número del contador general
     let totalQty = 0;
     Object.keys(cart).forEach(k => {
         if (k === String(comboEnPersonalizacion.id) || k.startsWith(comboEnPersonalizacion.id + "_")) {
@@ -815,6 +784,7 @@ function guardarSeleccionCombo() {
     
     cerrarModalCombo();
 }
+
 // ==========================================
 // GESTIÓN DE DIRECCIONES Y PERFIL
 // ==========================================
@@ -822,10 +792,7 @@ function guardarSeleccionCombo() {
 function abrirModalEditarDatos() {
     if (!datosClienteLogueado) return;
     
-    // Cargar la dirección principal actual
     document.getElementById('edit-dir-principal').value = datosClienteLogueado.direccion_principal || '';
-    
-    // Cargar las extra
     renderizarDireccionesExtra();
     
     document.getElementById('modal-editar-datos').classList.remove('hidden');
@@ -875,14 +842,11 @@ function eliminarDireccionExtra(index) {
             : datosClienteLogueado.direcciones_extra;
     } catch(e) { return; }
     
-    // Borramos el elemento seleccionado
     extras.splice(index, 1);
     
-    // Actualizamos la memoria viva y local
     datosClienteLogueado.direcciones_extra = JSON.stringify(extras);
     localStorage.setItem('sesionCliente', JSON.stringify(datosClienteLogueado));
     
-    // Redibujamos la lista al instante
     renderizarDireccionesExtra();
     cargarSelectorDirecciones(); 
 }
@@ -893,16 +857,17 @@ async function guardarEdicionDatos() {
     
     btn.disabled = true; btn.innerText = "Guardando...";
 
-    // Actualizamos localmente
     datosClienteLogueado.direccion_principal = dirPrincipalNueva;
     localStorage.setItem('sesionCliente', JSON.stringify(datosClienteLogueado));
     cargarSelectorDirecciones();
 
     try {
-        // Aprovechamos tu webhook actual para enviar ambas actualizaciones
         await fetch("http://127.0.0.1:8000/api/clientes/actualizar-direcciones-cliente", {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer TokioSushi_App_2026_X'
+            },
             body: JSON.stringify({ 
                 telefono: datosClienteLogueado.telefono, 
                 direccion_principal: datosClienteLogueado.direccion_principal,
