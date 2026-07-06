@@ -10,6 +10,26 @@ let pedidosFiltradosActuales = [];
 
 let filtroActivo = 'hoy'; 
 
+// 🟢 LÓGICA: Calculadora de IDs Diarios
+function preprocesarIDsVisuales(pedidos) {
+    const ordenados = [...pedidos].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const contadores = {};
+
+    ordenados.forEach(p => {
+        if (p.timestamp) {
+            // Cortamos por la 'T' y también por el espacio ' ' para asegurar que solo quede la fecha
+            const fecha = p.timestamp.split('T')[0].split(' ')[0]; 
+            
+            if (!contadores[fecha]) contadores[fecha] = 1;
+            else contadores[fecha]++;
+            
+            p.id_visual = contadores[fecha];
+        } else {
+            p.id_visual = p.id_pedido || 'S/N';
+        }
+    });
+}
+
 async function iniciarPantallaEstadisticas() {
     if (!document.getElementById('graficoPagos')) return;
 
@@ -20,16 +40,14 @@ async function iniciarPantallaEstadisticas() {
         const data = await res.json();
         datosEstadisticas = Array.isArray(data) ? data : [];
         
+        preprocesarIDsVisuales(datosEstadisticas); 
         aplicarFiltroEstadisticas('hoy');
-        
-        // 🟢 Conectamos Pusher en lugar de usar un timer gastador de recursos
         arrancarPusherEstadisticas(); 
     } catch(e) {
         console.error("Error descargando pedidos para estadísticas:", e);
     }
 }
 
-// 🟢 NUEVA FUNCIÓN: Actualización Inteligente con Pusher
 function arrancarPusherEstadisticas() {
     if (typeof Pusher !== 'undefined') {
         const pusher = new Pusher('88089dcd4800848c78dd', {
@@ -38,29 +56,25 @@ function arrancarPusherEstadisticas() {
         
         const channel = pusher.subscribe('canal-cocina');
         channel.bind('actualizar-tablero', async function(data) {
-            console.log("¡Ping de la base de datos! Actualizando estadísticas silenciosamente...");
             try {
                 const res = await fetch(API_ESTADISTICAS_PEDIDOS + "?_t=" + new Date().getTime());
                 const freshData = await res.json();
                 datosEstadisticas = Array.isArray(freshData) ? freshData : [];
                 
-                // Re-aplicamos el filtro actual para actualizar los números sin mover la pantalla del usuario
+                preprocesarIDsVisuales(datosEstadisticas); 
                 aplicarFiltroEstadisticas(filtroActivo, true);
             } catch (error) {
                 console.error("Error al actualizar estadísticas vía Pusher:", error);
             }
         });
-    } else {
-        console.warn("La librería Pusher no se cargó correctamente en el HTML.");
     }
 }
 
 // -----------------------------------------------------------------
-// CONTROLADORES DE LA INTERFAZ (BOTONES DE FILTRO)
+// CONTROLADORES DE LA INTERFAZ
 // -----------------------------------------------------------------
 function cambiarFiltroActivo(botonClickeado, rangoFiltro) {
     const botones = document.querySelectorAll('.btn-filtro');
-    
     botones.forEach(btn => {
         btn.classList.remove('bg-indigo-600', 'text-white');
         btn.classList.add('text-slate-400', 'hover:bg-slate-800');
@@ -71,9 +85,7 @@ function cambiarFiltroActivo(botonClickeado, rangoFiltro) {
         botonClickeado.classList.add('bg-indigo-600', 'text-white');
     }
     
-    if (rangoFiltro !== 'custom') {
-        document.getElementById('fechaCustom').value = '';
-    }
+    if (rangoFiltro !== 'custom') document.getElementById('fechaCustom').value = '';
     
     aplicarFiltroEstadisticas(rangoFiltro);
 }
@@ -99,6 +111,7 @@ async function aplicarFiltroEstadisticas(tipo, esSilencioso = false) {
             const res = await fetch(API_ESTADISTICAS_PEDIDOS + "?_t=" + new Date().getTime());
             const data = await res.json();
             datosEstadisticas = Array.isArray(data) ? data : [];
+            preprocesarIDsVisuales(datosEstadisticas);
         } catch(e) {
             console.error("Error al refrescar datos manualmente:", e);
         }
@@ -273,7 +286,7 @@ function renderHistorialFinalizadosEnStats(pedidosList) {
     
     finalizados.forEach(pedido => {
         const idReal = pedido.id_pedido || pedido.ID || 'S/ID';
-        const idVisual = idReal; 
+        const idVisual = pedido.id_visual || idReal; 
         const cliente = pedido.cliente || 'Desconocido';
         const monto = parseFloat(String(pedido.total_orden || pedido.monto || 0).replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
         const metodo = pedido.metodo_pago || 'N/A';
@@ -327,7 +340,8 @@ function abrirModalRepartidor(nombre, deudaTotal) {
         listaContenedor.innerHTML = '<p class="text-center text-slate-500 my-8 italic">No se encontraron detalles de pedidos para este rango de fecha.</p>';
     } else {
         pedidosChofer.forEach(p => {
-            const idVisual = p.id_pedido || p.ID || 'S/ID';
+            const idReal = p.id_pedido || p.ID || 'S/ID';
+            const idVisual = p.id_visual || idReal;
             const cliente = p.cliente || 'Desconocido';
             const detalleRaw = p.pedido_detallado || 'Sin detalles';
             
@@ -337,7 +351,7 @@ function abrirModalRepartidor(nombre, deudaTotal) {
 
             let hora = '--:--';
             if (p.timestamp && p.timestamp.includes('T')) {
-                hora = new Date(p.timestamp).toLocaleTimeString('en-US', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit' });
+                hora = new Date(p.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
             }
 
             listaContenedor.innerHTML += `
@@ -379,6 +393,7 @@ function abrirModalDetalle(idPedido) {
     if (!pedido) return;
     
     const idReal = pedido.id_pedido || pedido.ID || 'S/ID'; 
+    const idVisual = pedido.id_visual || idReal;
     const cliente = pedido.cliente || 'Registrado'; 
     const tel = pedido.telefono || 'No registrado';
     const entrega = pedido.tipo_entrega || 'No definido'; 
@@ -390,7 +405,7 @@ function abrirModalDetalle(idPedido) {
     const monto = parseFloat(String(pedido.total_orden || 0).replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
     const operador = pedido.procesado_por || 'Sin registro';
 
-    document.getElementById('modalID').innerText = `ID Base de datos: #${idReal}`;
+    document.getElementById('modalID').innerText = `Pedido #${idVisual} (Ref DB: #${idReal})`;
     
     const tasaHistorica = pedido.tasa_bcv ? parseFloat(pedido.tasa_bcv) : tasaEstadisticas;
 
@@ -432,11 +447,11 @@ function exportarCSV() {
         return;
     }
 
-    // CAMBIO 1: Reemplazamos las comas por punto y coma en las cabeceras
-    let csvContent = "ID Base Datos;Fecha;Hora;Cliente;Telefono;Metodo de Pago;Referencia;Total USD;Total Bolivares;Tipo de Entrega;Motorizado;Detalle del Pedido\n";
+    let csvContent = "Nro. Diario;ID Base Datos;Fecha;Hora;Cliente;Telefono;Metodo de Pago;Referencia;Total USD;Total Bolivares;Tipo de Entrega;Motorizado;Detalle del Pedido\n";
 
     pedidosFiltradosActuales.forEach(p => {
-        const id = p.id_pedido || p.ID || 'S/ID';
+        const idReal = p.id_pedido || p.ID || 'S/ID';
+        const idVisual = p.id_visual || idReal;
         
         let fecha = '', hora = '';
         if (p.timestamp) {
@@ -461,9 +476,7 @@ function exportarCSV() {
         
         const detalle = `"${(p.pedido_detallado || '').replace(/"/g, '""').replace(/\n/g, ' | ')}"`;
 
-        const fila = [id, fecha, hora, cliente, tel, metodo, ref, totalUSD, totalVES, tipo, repartidor, detalle];
-        
-        // CAMBIO 2: Unimos los datos de la fila con punto y coma
+        const fila = [idVisual, idReal, fecha, hora, cliente, tel, metodo, ref, totalUSD, totalVES, tipo, repartidor, detalle];
         csvContent += fila.join(";") + "\n";
     });
 
@@ -478,3 +491,12 @@ function exportarCSV() {
     link.click();
     document.body.removeChild(link);
 }
+
+// =================================================================
+// EVENTOS AL CARGAR LA PÁGINA
+// =================================================================
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('graficoPagos')) {
+        iniciarPantallaEstadisticas();
+    }
+});
