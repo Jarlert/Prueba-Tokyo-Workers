@@ -1146,7 +1146,7 @@ function abrirModalDetalle(idPedido) {
     const cliente = pedido.cliente || 'Registrado'; const tel = pedido.telefono || 'No registrado';
     const entrega = pedido.tipo_entrega || 'No definido'; const dir = pedido.direccion || 'No especificada';
     const pago = pedido.metodo_pago || 'No especificado'; const arts = pedido.pedido_detallado || '';
-    const img = pedido.imagen_pago || ''; const ref = pedido.referencia_pago || '';
+    const ref = pedido.referencia_pago || '';
     const monto = parseFloat(String(pedido.total_orden || 0).replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
     const operador = pedido.procesado_por || 'Sin registro';
 
@@ -1165,12 +1165,13 @@ function abrirModalDetalle(idPedido) {
     let refHtml = ref ? `<p class="text-xs text-amber-400 mt-1 font-mono bg-slate-900 border border-slate-700 px-2 py-1 rounded inline-block">Ref: ${ref}</p>` : '';
     
     let btnImg = '';
-    if (pedido.imagen_pago && String(pedido.imagen_pago).trim() !== '' && String(pedido.imagen_pago) !== 'undefined') {
+    // Filtro estricto para evitar cuadros rotos si no hay imagen
+    if (pedido.imagen_pago && String(pedido.imagen_pago).trim() !== '' && String(pedido.imagen_pago) !== 'undefined' && String(pedido.imagen_pago) !== 'null') {
         btnImg = `
             <div class="mt-4 pt-4 border-t border-slate-700/50 flex flex-col items-center justify-center w-full">
                 <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider mb-2">Comprobante Adjunto</span>
                 <a href="${pedido.imagen_pago}" target="_blank" class="block border border-slate-600 rounded-lg overflow-hidden hover:border-emerald-500 transition shadow-lg max-w-[220px] w-full">
-                    <img src="${pedido.imagen_pago}" class="w-full h-auto object-contain rounded-lg bg-slate-900" alt="Comprobante de Pago">
+                    <img src="${pedido.imagen_pago}" class="w-full h-auto object-contain rounded-lg bg-slate-900" alt="Comprobante de Pago" onerror="this.style.display='none'">
                 </a>
                 <span class="text-[10px] text-slate-500 mt-1 italic"><i class="fa-solid fa-magnifying-glass-plus"></i> Clic en la imagen para ampliar</span>
             </div>
