@@ -4,23 +4,23 @@
 // =====================================================================
 
 // --- URLs DE CONEXIÓN CON FASTAPI (REEMPLAZANDO n8n) ---
-const API_VALIDAR_ACCESO = "prueba-tokyo-workers-production.up.railway.app/api/usuarios/validar-acceso";
-const ADMIN_URL_MENU = "prueba-tokyo-workers-production.up.railway.app/api/menu/";
-const ADMIN_URL_GUARDAR_CAT = "prueba-tokyo-workers-production.up.railway.app/api/menu/guardar-categoria";
-const ADMIN_URL_GUARDAR_PROD = "prueba-tokyo-workers-production.up.railway.app/api/menu/guardar-producto";
-const ADMIN_URL_GUARDAR_COMBO = "prueba-tokyo-workers-production.up.railway.app/api/menu/guardar-combo";
-const ADMIN_URL_ELIMINAR = "prueba-tokyo-workers-production.up.railway.app/api/menu/eliminar-item";
+const API_VALIDAR_ACCESO = "https://prueba-tokyo-workers-production.up.railway.app/api/usuarios/validar-acceso";
+const ADMIN_URL_MENU = "https://prueba-tokyo-workers-production.up.railway.app/api/menu/";
+const ADMIN_URL_GUARDAR_CAT = "https://prueba-tokyo-workers-production.up.railway.app/api/menu/guardar-categoria";
+const ADMIN_URL_GUARDAR_PROD = "https://prueba-tokyo-workers-production.up.railway.app/api/menu/guardar-producto";
+const ADMIN_URL_GUARDAR_COMBO = "https://prueba-tokyo-workers-production.up.railway.app/api/menu/guardar-combo";
+const ADMIN_URL_ELIMINAR = "https://prueba-tokyo-workers-production.up.railway.app/api/menu/eliminar-item";
 
-const URL_OBTENER_USUARIOS_ADMIN = "prueba-tokyo-workers-production.up.railway.app/api/usuarios/";
-const ADMIN_URL_GUARDAR_USUARIO = "prueba-tokyo-workers-production.up.railway.app/api/usuarios/guardar";
-const ADMIN_URL_ELIMINAR_USUARIO = "prueba-tokyo-workers-production.up.railway.app/api/usuarios/eliminar";
+const URL_OBTENER_USUARIOS_ADMIN = "https://prueba-tokyo-workers-production.up.railway.app/api/usuarios/";
+const ADMIN_URL_GUARDAR_USUARIO = "https://prueba-tokyo-workers-production.up.railway.app/api/usuarios/guardar";
+const ADMIN_URL_ELIMINAR_USUARIO = "https://prueba-tokyo-workers-production.up.railway.app/api/usuarios/eliminar";
 
-const URL_OBTENER_MOTORIZADOS = "prueba-tokyo-workers-production.up.railway.app/api/motorizados/";
-const ADMIN_URL_GUARDAR_MOT = "prueba-tokyo-workers-production.up.railway.app/api/motorizados/guardar";
-const ADMIN_URL_ELIMINAR_MOT = "prueba-tokyo-workers-production.up.railway.app/api/motorizados/eliminar";
+const URL_OBTENER_MOTORIZADOS = "https://prueba-tokyo-workers-production.up.railway.app/api/motorizados/";
+const ADMIN_URL_GUARDAR_MOT = "https://prueba-tokyo-workers-production.up.railway.app/api/motorizados/guardar";
+const ADMIN_URL_ELIMINAR_MOT = "https://prueba-tokyo-workers-production.up.railway.app/api/motorizados/eliminar";
 
-const URL_OBTENER_MSJ = "prueba-tokyo-workers-production.up.railway.app/api/mensajes/";
-const URL_GUARDAR_MSJ = "prueba-tokyo-workers-production.up.railway.app/api/mensajes/guardar";
+const URL_OBTENER_MSJ = "https://prueba-tokyo-workers-production.up.railway.app/api/mensajes/";
+const URL_GUARDAR_MSJ = "https://prueba-tokyo-workers-production.up.railway.app/api/mensajes/guardar";
 
 // --- MEMORIA DEL ADMINISTRADOR ---
 let adminCategorias = [];
