@@ -13,8 +13,6 @@ router = APIRouter(
     tags=["Pedidos"]
 )
 
-import pusher
-
 # Configuramos el megáfono de Pusher
 pusher_client = pusher.Pusher(
   app_id='2172992',
@@ -127,12 +125,17 @@ async def crear_pedido(pedido: schemas.PedidoCreate, db: Session = Depends(get_d
         if plantilla:
             mensaje_cliente = plantilla.texto.replace("[CLIENTE]", pedido.cliente)
             mensaje_cliente = mensaje_cliente.replace("[PEDIDO_DETALLADO]", texto_detallado)
-            mensaje_cliente = mensaje_cliente.replace("[TOTAL_USD]", f"${total_dolares:.2f}")
             
-            # Cálculo exacto de bolívares para las plantillas que lo requieran
+            # 🔥 INYECCIÓN: Agregamos la variable [PEDIDO] aquí también
+            mensaje_cliente = mensaje_cliente.replace("[PEDIDO]", str(id_visual))
+            
+            # CORRECCIÓN 1: Quitamos el "$" porque tu plantilla en la BD ya lo tiene
+            mensaje_cliente = mensaje_cliente.replace("[TOTAL_USD]", f"{total_dolares:.2f}")
+            
+            # CORRECCIÓN 2: Formateamos solo el número. 
             total_bs = total_dolares * tasa_actual
-            total_bs_str = f"Bs. {total_bs:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-            mensaje_cliente = mensaje_cliente.replace("[TOTAL_BS]", total_bs_str)
+            numero_bs_str = f"{total_bs:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            mensaje_cliente = mensaje_cliente.replace("[TOTAL_BS]", numero_bs_str)
         else:
             mensaje_cliente = f"¡Hola {pedido.cliente}! Tu pedido #{id_visual} está listo para ser pagado. Total: ${total_dolares:.2f}"
             
@@ -223,6 +226,9 @@ async def notificar_edicion_pedido(datos: schemas.NotificacionEdicion, db: Sessi
         # El :g quita los ceros inútiles (ej: 6.00 se vuelve 6)
         mensaje = mensaje.replace("[TOTAL_USD]", f"{datos.total_orden:g}")
         
+        # 🔥 INYECCIÓN GLOBAL: Por si decides usar la etiqueta en esta plantilla
+        mensaje = mensaje.replace("[PEDIDO]", str(getattr(datos, 'id_visual', '')))
+        
         # Si el cliente paga en Bs, le pegamos el texto al final (ya que tu plantilla actual no tiene etiqueta [TOTAL_BS])
         if datos.texto_bolivares:
             mensaje += f"\n{datos.texto_bolivares}"
@@ -265,6 +271,9 @@ async def notificar_cobro_pedido(datos: schemas.NotificacionCobro, db: Session =
         mensaje = mensaje.replace("[PEDIDO_DETALLADO]", datos.pedido_detallado)
         mensaje = mensaje.replace("[TOTAL_USD]", f"{datos.total_orden:g}")
         mensaje = mensaje.replace("[TOTAL_BS]", datos.total_bs)
+        
+        # 🔥 INYECCIÓN GLOBAL: Reemplazamos [PEDIDO] en cobros manuales (calculados por cajero)
+        mensaje = mensaje.replace("[PEDIDO]", str(getattr(datos, 'id_visual', '')))
     else:
         # Fallback de emergencia
         mensaje = f"Hola {datos.cliente}, tu pedido está listo. Total: ${datos.total_orden:g}."
@@ -285,6 +294,9 @@ async def notificar_aprobado_pedido(datos: schemas.NotificacionAprobado, db: Ses
     if plantilla:
         mensaje = plantilla.texto
         mensaje = mensaje.replace("[CLIENTE]", datos.cliente)
+        
+        # 🔥 INYECCIÓN GLOBAL: Por si decides usar la etiqueta en esta plantilla
+        mensaje = mensaje.replace("[PEDIDO]", str(getattr(datos, 'id_visual', '')))
         
         # Le agregamos la palabra "minutos" si el cajero solo escribió el número
         tiempo_str = datos.tiempo_estimado if "minuto" in datos.tiempo_estimado.lower() else f"{datos.tiempo_estimado} minutos"
@@ -313,6 +325,9 @@ async def notificar_despacho_pedido(datos: schemas.NotificacionDespacho, db: Ses
     
     if plantilla_cliente:
         mensaje_cliente = plantilla_cliente.texto.replace("[CLIENTE]", datos.cliente)
+        
+        # 🔥 INYECCIÓN GLOBAL: Por si decides usar la etiqueta en esta plantilla
+        mensaje_cliente = mensaje_cliente.replace("[PEDIDO]", str(getattr(datos, 'id_visual', '')))
     else:
         mensaje_cliente = f"¡Hola {datos.cliente}! Tu pedido ({datos.tipo_entrega}) está listo y despachado."
         

@@ -1146,13 +1146,13 @@ function abrirModalDetalle(idPedido) {
     const cliente = pedido.cliente || 'Registrado'; const tel = pedido.telefono || 'No registrado';
     const entrega = pedido.tipo_entrega || 'No definido'; const dir = pedido.direccion || 'No especificada';
     const pago = pedido.metodo_pago || 'No especificado'; const arts = pedido.pedido_detallado || '';
-    const img = pedido.imagen_pago || ''; const ref = pedido.referencia_pago || '';
+    const ref = pedido.referencia_pago || '';
     const monto = parseFloat(String(pedido.total_orden || 0).replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
     const operador = pedido.procesado_por || 'Sin registro';
 
     document.getElementById('modalID').innerText = `ID Base de datos: #${idVisual}`;
     
-    // 🌟 NUEVO: Calculamos la tasa histórica primero
+    // Calculamos la tasa histórica primero
     const inputTasa = document.getElementById('tasaBCV');
     const tasaPantalla = inputTasa ? (parseFloat(inputTasa.value) || 1.0) : 1.0;
     const tasaHistorica = pedido.tasa_bcv ? parseFloat(pedido.tasa_bcv) : tasaPantalla;
@@ -1165,12 +1165,13 @@ function abrirModalDetalle(idPedido) {
     let refHtml = ref ? `<p class="text-xs text-amber-400 mt-1 font-mono bg-slate-900 border border-slate-700 px-2 py-1 rounded inline-block">Ref: ${ref}</p>` : '';
     
     let btnImg = '';
-    if (pedido.imagen_pago && String(pedido.imagen_pago).trim() !== '' && String(pedido.imagen_pago) !== 'undefined') {
+    // 🔥 FILTRO DEFINITIVO: Solo mostrar la sección si el texto empieza estrictamente con "http"
+    if (pedido.imagen_pago && String(pedido.imagen_pago).trim().startsWith('http')) {
         btnImg = `
             <div class="mt-4 pt-4 border-t border-slate-700/50 flex flex-col items-center justify-center w-full">
                 <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider mb-2">Comprobante Adjunto</span>
                 <a href="${pedido.imagen_pago}" target="_blank" class="block border border-slate-600 rounded-lg overflow-hidden hover:border-emerald-500 transition shadow-lg max-w-[220px] w-full">
-                    <img src="${pedido.imagen_pago}" class="w-full h-auto object-contain rounded-lg bg-slate-900" alt="Comprobante de Pago">
+                    <img src="${pedido.imagen_pago}" class="w-full h-auto object-contain rounded-lg bg-slate-900" alt="Comprobante de Pago" onerror="this.style.display='none'">
                 </a>
                 <span class="text-[10px] text-slate-500 mt-1 italic"><i class="fa-solid fa-magnifying-glass-plus"></i> Clic en la imagen para ampliar</span>
             </div>
@@ -1180,6 +1181,7 @@ function abrirModalDetalle(idPedido) {
     document.getElementById('modalCuerpo').innerHTML = `<div class="space-y-3.5"><div class="flex justify-between"><div><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Cliente</span><p class="font-bold text-white text-base">${cliente}</p><p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-phone"></i> ${tel}</p></div><div class="text-right"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider block">Comandado por</span><p class="text-xs text-white bg-slate-900 border border-slate-700 px-2 py-1 rounded mt-1 font-semibold">${operador}</p></div></div><div class="border-t border-slate-700/50 pt-2.5"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Método de Distribución</span><p class="text-white text-xs mt-0.5 font-medium">${entrega}</p><p class="text-xs text-slate-400 mt-1 bg-slate-900/40 p-2 rounded border border-slate-700/30 italic">${dir}</p></div><div class="border-t border-slate-700/50 pt-2.5"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Productos</span><div class="text-xs bg-slate-900/40 p-2.5 rounded border border-slate-700/30 whitespace-pre-line max-h-32 overflow-y-auto text-slate-300 font-mono">${arts}</div></div><div class="border-t border-slate-700/50 pt-2.5 flex justify-between items-center"><div><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Forma de Pago</span><p class="text-white text-xs font-semibold">${pago}</p>${refHtml}</div><div class="text-right"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Total</span><p class="text-emerald-400 font-bold text-lg">$${monto.toFixed(2)}</p></div></div>${seccionVES}${btnImg}</div>`;
     document.getElementById('modalDetalle').classList.remove('hidden');
 }
+
 function cerrarModal() { document.getElementById('modalDetalle').classList.add('hidden'); }
 
 // --- SISTEMA DE TIEMPO REAL (PUSHER) ---
