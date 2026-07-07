@@ -10,12 +10,16 @@ INSTANCE_NAME = os.getenv("INSTANCE_NAME") # El nombre de tu instancia en Evolut
 
 async def enviar_whatsapp(numero: str, mensaje: str):
     numero = numero.strip()
-    if numero.startswith("0"):
-        # Le quitamos el 0 inicial y le ponemos el 58
-        numero = "58" + numero[1:]
-    elif not numero.startswith("58"):
-        # Si alguien lo escribió sin el 0 y sin el 58 (ej. 412...)
-        numero = "58" + numero
+    
+    # 🔥 CORRECCIÓN: Solo formateamos el número si NO es un grupo
+    if "@g.us" not in numero:
+        if numero.startswith("0"):
+            # Le quitamos el 0 inicial y le ponemos el 58
+            numero = "58" + numero[1:]
+        elif not numero.startswith("58"):
+            # Si alguien lo escribió sin el 0 y sin el 58 (ej. 412...)
+            numero = "58" + numero
+            
     url = f"{EVOLUTION_API_URL}/message/sendText/{INSTANCE_NAME}"
     
     headers = {
