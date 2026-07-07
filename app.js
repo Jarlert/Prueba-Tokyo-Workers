@@ -642,7 +642,7 @@ function guardarEdicionPedido() {
     if (esPagoMovil) {
         const totalBs = totalEdicionUSD * tasaActual;
         const totalBsFormateado = new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(totalBs);
-        textoAdicionalBs = `\nEquivalente en Bolívares: *Bs. ${totalBsFormateado}*`;
+        textoAdicionalBs = `\nEquivalente en Bolívares: *${totalBsFormateado} Bs*`;
     }
 
     const payloadNotificacion = {
