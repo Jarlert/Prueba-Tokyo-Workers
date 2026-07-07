@@ -211,37 +211,49 @@ def actualizar_estado(datos: dict, db: Session = Depends(get_db)):
     # -------------------------------------------------------
     return {"success": True}
 
+# ==========================================
+# FUNCION EXTRA: Traductor de ID de Base de Datos a ID Diario
+# ==========================================
+def obtener_id_diario(db: Session, db_id_str: str):
+    try:
+        db_id = int(db_id_str)
+        pedido_db = db.query(models.Pedido).filter(models.Pedido.id == db_id).first()
+        if pedido_db and pedido_db.timestamp:
+            fecha_str = pedido_db.timestamp[:10] # Saca el 'YYYY-MM-DD'
+            # Cuenta cuántos pedidos hay ese día hasta llegar a este (esto da el número diario real)
+            conteo = db.query(models.Pedido).filter(
+                models.Pedido.timestamp.like(f"{fecha_str}%"),
+                models.Pedido.id <= db_id
+            ).count()
+            return str(conteo)
+    except Exception:
+        pass
+    # Si falla algo, devuelve el ID original por seguridad
+    return str(db_id_str)
+
 @router.post("/notificar-edicion")
 async def notificar_edicion_pedido(datos: schemas.NotificacionEdicion, db: Session = Depends(get_db)):
     
-    # 1. Buscamos la plantilla en tu base de datos
+    id_diario = obtener_id_diario(db, getattr(datos, 'id_visual', ''))
+    
     plantilla = db.query(models.MensajeWhatsapp).filter(models.MensajeWhatsapp.id == 'modificado').first()
     
     if plantilla:
-        # 2. Reemplazamos las etiquetas con los datos reales
         mensaje = plantilla.texto
         mensaje = mensaje.replace("[CLIENTE]", datos.cliente)
         mensaje = mensaje.replace("[PEDIDO_DETALLADO]", datos.pedido_detallado)
-        
-        # El :g quita los ceros inútiles (ej: 6.00 se vuelve 6)
         mensaje = mensaje.replace("[TOTAL_USD]", f"{datos.total_orden:g}")
+        mensaje = mensaje.replace("[PEDIDO]", id_diario)
         
-        # 🔥 INYECCIÓN GLOBAL: Por si decides usar la etiqueta en esta plantilla
-        mensaje = mensaje.replace("[PEDIDO]", str(getattr(datos, 'id_visual', '')))
-        
-        # Si el cliente paga en Bs, le pegamos el texto al final (ya que tu plantilla actual no tiene etiqueta [TOTAL_BS])
         if datos.texto_bolivares:
             mensaje += f"\n{datos.texto_bolivares}"
-            
     else:
-        # Fallback de emergencia por si alguien borra la plantilla de la BD
         mensaje = (
             f"⚠️ ¡Hola {datos.cliente}! Hemos actualizado tu orden.\n\n"
             f"{datos.pedido_detallado}\n\n"
             f"💰 Nuevo Total: ${datos.total_orden:g}{datos.texto_bolivares}"
         )
     
-    # 3. Disparamos el mensaje por WhatsApp
     try:
         await enviar_whatsapp(datos.telefono, mensaje)
         return {"success": True, "mensaje": "Notificación dinámica enviada"}
@@ -252,7 +264,8 @@ async def notificar_edicion_pedido(datos: schemas.NotificacionEdicion, db: Sessi
 @router.post("/notificar-cobro")
 async def notificar_cobro_pedido(datos: schemas.NotificacionCobro, db: Session = Depends(get_db)):
     
-    # 1. Determinamos qué plantilla usar según el método de pago
+    id_diario = obtener_id_diario(db, getattr(datos, 'id_visual', ''))
+    
     metodo_lower = datos.metodo_pago.lower()
     if "movil" in metodo_lower or "móvil" in metodo_lower:
         plantilla_id = "cobro_pago_movil"
@@ -261,24 +274,18 @@ async def notificar_cobro_pedido(datos: schemas.NotificacionCobro, db: Session =
     else:
         plantilla_id = "cobro_efectivo"
 
-    # 2. Buscamos la plantilla exacta
     plantilla = db.query(models.MensajeWhatsapp).filter(models.MensajeWhatsapp.id == plantilla_id).first()
     
     if plantilla:
-        # 3. Reemplazamos las etiquetas
         mensaje = plantilla.texto
         mensaje = mensaje.replace("[CLIENTE]", datos.cliente)
         mensaje = mensaje.replace("[PEDIDO_DETALLADO]", datos.pedido_detallado)
         mensaje = mensaje.replace("[TOTAL_USD]", f"{datos.total_orden:g}")
         mensaje = mensaje.replace("[TOTAL_BS]", datos.total_bs)
-        
-        # 🔥 INYECCIÓN GLOBAL: Reemplazamos [PEDIDO] en cobros manuales (calculados por cajero)
-        mensaje = mensaje.replace("[PEDIDO]", str(getattr(datos, 'id_visual', '')))
+        mensaje = mensaje.replace("[PEDIDO]", id_diario)
     else:
-        # Fallback de emergencia
         mensaje = f"Hola {datos.cliente}, tu pedido está listo. Total: ${datos.total_orden:g}."
     
-    # 4. Disparamos el WhatsApp
     try:
         await enviar_whatsapp(datos.telefono, mensaje)
         return {"success": True, "mensaje": f"Cobro enviado usando plantilla: {plantilla_id}"}
@@ -288,21 +295,19 @@ async def notificar_cobro_pedido(datos: schemas.NotificacionCobro, db: Session =
     
 @router.post("/notificar-aprobado")
 async def notificar_aprobado_pedido(datos: schemas.NotificacionAprobado, db: Session = Depends(get_db)):
-    # Buscamos tu plantilla en la BD
+    
+    id_diario = obtener_id_diario(db, getattr(datos, 'id_visual', ''))
+    
     plantilla = db.query(models.MensajeWhatsapp).filter(models.MensajeWhatsapp.id == 'aprobado').first()
     
     if plantilla:
         mensaje = plantilla.texto
         mensaje = mensaje.replace("[CLIENTE]", datos.cliente)
+        mensaje = mensaje.replace("[PEDIDO]", id_diario)
         
-        # 🔥 INYECCIÓN GLOBAL: Por si decides usar la etiqueta en esta plantilla
-        mensaje = mensaje.replace("[PEDIDO]", str(getattr(datos, 'id_visual', '')))
-        
-        # Le agregamos la palabra "minutos" si el cajero solo escribió el número
         tiempo_str = datos.tiempo_estimado if "minuto" in datos.tiempo_estimado.lower() else f"{datos.tiempo_estimado} minutos"
         mensaje = mensaje.replace("[TIEMPO_ESTIMADO]", tiempo_str)
     else:
-        # Fallback de seguridad
         mensaje = f"¡Hola {datos.cliente}! ✅ Tu pago ha sido aprobado. Tu pedido ya está preparándose y estará listo en {datos.tiempo_estimado} minutos aproximadamente."
     
     try:
@@ -315,6 +320,8 @@ async def notificar_aprobado_pedido(datos: schemas.NotificacionAprobado, db: Ses
 @router.post("/notificar-despacho")
 async def notificar_despacho_pedido(datos: schemas.NotificacionDespacho, db: Session = Depends(get_db)):
     
+    id_diario = obtener_id_diario(db, getattr(datos, 'id_visual', ''))
+    
     # --- 1. MENSAJE AL CLIENTE ---
     if "delivery" in datos.tipo_entrega.lower():
         plantilla_id = "final_delivery"
@@ -325,9 +332,7 @@ async def notificar_despacho_pedido(datos: schemas.NotificacionDespacho, db: Ses
     
     if plantilla_cliente:
         mensaje_cliente = plantilla_cliente.texto.replace("[CLIENTE]", datos.cliente)
-        
-        # 🔥 INYECCIÓN GLOBAL: Por si decides usar la etiqueta en esta plantilla
-        mensaje_cliente = mensaje_cliente.replace("[PEDIDO]", str(getattr(datos, 'id_visual', '')))
+        mensaje_cliente = mensaje_cliente.replace("[PEDIDO]", id_diario)
     else:
         mensaje_cliente = f"¡Hola {datos.cliente}! Tu pedido ({datos.tipo_entrega}) está listo y despachado."
         
@@ -342,14 +347,12 @@ async def notificar_despacho_pedido(datos: schemas.NotificacionDespacho, db: Ses
         
         if plantilla_grupo:
             mensaje_grupo = plantilla_grupo.texto
-            mensaje_grupo = mensaje_grupo.replace("[PEDIDO]", datos.id_visual)
+            mensaje_grupo = mensaje_grupo.replace("[PEDIDO]", id_diario)
             mensaje_grupo = mensaje_grupo.replace("[CLIENTE]", datos.cliente)
             mensaje_grupo = mensaje_grupo.replace("[DIRECCION]", datos.direccion)
         else:
-            # Fallback de emergencia
-            mensaje_grupo = f"🛵 *NUEVO PEDIDO LISTO*\n\nEl pedido #{datos.id_visual} a nombre de {datos.cliente} en {datos.direccion} está listo para ser entregado."
+            mensaje_grupo = f"🛵 *NUEVO PEDIDO LISTO*\n\nEl pedido #{id_diario} a nombre de {datos.cliente} en {datos.direccion} está listo para ser entregado."
             
-        # Reemplaza esto con el ID real de tu grupo de WhatsApp en Evolution API / GREEN API
         ID_GRUPO_WHATSAPP = "120363403360852542@g.us"
         
         try:
