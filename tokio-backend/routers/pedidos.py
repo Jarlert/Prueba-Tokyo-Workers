@@ -127,12 +127,15 @@ async def crear_pedido(pedido: schemas.PedidoCreate, db: Session = Depends(get_d
         if plantilla:
             mensaje_cliente = plantilla.texto.replace("[CLIENTE]", pedido.cliente)
             mensaje_cliente = mensaje_cliente.replace("[PEDIDO_DETALLADO]", texto_detallado)
-            mensaje_cliente = mensaje_cliente.replace("[TOTAL_USD]", f"${total_dolares:.2f}")
             
-            # Cálculo exacto de bolívares para las plantillas que lo requieran
+            # CORRECCIÓN 1: Quitamos el "$" porque tu plantilla en la BD ya lo tiene
+            mensaje_cliente = mensaje_cliente.replace("[TOTAL_USD]", f"{total_dolares:.2f}")
+            
+            # CORRECCIÓN 2: Formateamos solo el número. 
+            # Así el replace() no transforma accidentalmente el punto de "Bs." en una coma.
             total_bs = total_dolares * tasa_actual
-            total_bs_str = f"Bs. {total_bs:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-            mensaje_cliente = mensaje_cliente.replace("[TOTAL_BS]", total_bs_str)
+            numero_bs_str = f"{total_bs:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            mensaje_cliente = mensaje_cliente.replace("[TOTAL_BS]", numero_bs_str)
         else:
             mensaje_cliente = f"¡Hola {pedido.cliente}! Tu pedido #{id_visual} está listo para ser pagado. Total: ${total_dolares:.2f}"
             
