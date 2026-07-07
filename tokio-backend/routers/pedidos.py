@@ -93,36 +93,71 @@ async def crear_pedido(pedido: schemas.PedidoCreate, db: Session = Depends(get_d
     db.commit()
     db.refresh(nuevo_pedido)
 
-    # --- NUEVO: Avisar al tablero que llegó un pedido ---
-    try:
-        pusher_client.trigger('canal-cocina', 'actualizar-tablero', {'mensaje': 'nuevo_pedido'})
-    except Exception as e:
-        print(f"Aviso de Pusher falló, pero el pedido se guardó: {e}")
-    # ----------------------------------------------------
-
-    # ... (luego sigue el código de enviar_whatsapp) ...
-
-    # 4. Enviar notificación por WhatsApp con Plantilla Dinámica
-    
     # A. Calcular el ID visual (contamos cuántos pedidos hay HOY en la base de datos)
     hoy_str = datetime.now().strftime("%Y-%m-%d")
     pedidos_de_hoy = db.query(models.Pedido).filter(models.Pedido.timestamp.like(f"{hoy_str}%")).count()
     id_visual = pedidos_de_hoy 
+
+    # ==========================================
+    # LÓGICA DE NOTIFICACIONES PARA PEDIDO NUEVO
+    # ==========================================
+    es_pickup = "pickup" in pedido.tipo_entrega.lower() or "retiro" in pedido.tipo_entrega.lower()
     
-    # B. Buscar la plantilla exacta en tu base de datos (fila 'recepcion')
-    plantilla = db.query(models.MensajeWhatsapp).filter(models.MensajeWhatsapp.id == 'recepcion').first()
-    
-    if plantilla:
-        # C. Cambiamos las etiquetas usando tu columna 'texto'
-        mensaje_cliente = plantilla.texto.replace("[CLIENTE]", pedido.cliente).replace("[PEDIDO]", str(id_visual))
-    else:
-        # Fallback de seguridad
-        mensaje_cliente = f"🍣 ¡Hola, {pedido.cliente}! Hemos recibido tu pedido #{id_visual}."
+    if es_pickup:
+        # Si es Pickup, saltamos el cálculo de delivery y lo pasamos directo a cobro
+        nuevo_pedido.estado = "Pago Pendiente"
+        db.commit()
         
-    # D. Enviamos el mensaje procesado
-    await enviar_whatsapp(pedido.telefono, mensaje_cliente)
-    
+        # Avisamos al tablero que hubo una actualización rápida
+        try:
+            pusher_client.trigger('canal-cocina', 'actualizar-tablero', {'mensaje': 'actualizacion'})
+        except:
+            pass
+            
+        metodo = pedido.metodo_pago.lower()
+        if "zelle" in metodo:
+            plantilla_id = "cobro_zelle"
+        elif "efectivo" in metodo:
+            plantilla_id = "cobro_efectivo"
+        else:
+            plantilla_id = "cobro_pago_movil"
+            
+        plantilla = db.query(models.MensajeWhatsapp).filter(models.MensajeWhatsapp.id == plantilla_id).first()
+        
+        if plantilla:
+            mensaje_cliente = plantilla.texto.replace("[CLIENTE]", pedido.cliente)
+            mensaje_cliente = mensaje_cliente.replace("[PEDIDO_DETALLADO]", texto_detallado)
+            mensaje_cliente = mensaje_cliente.replace("[TOTAL_USD]", f"${total_dolares:.2f}")
+            
+            # Cálculo exacto de bolívares para las plantillas que lo requieran
+            total_bs = total_dolares * tasa_actual
+            total_bs_str = f"Bs. {total_bs:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            mensaje_cliente = mensaje_cliente.replace("[TOTAL_BS]", total_bs_str)
+        else:
+            mensaje_cliente = f"¡Hola {pedido.cliente}! Tu pedido #{id_visual} está listo para ser pagado. Total: ${total_dolares:.2f}"
+            
+    else:
+        # Si es Delivery, enviamos el mensaje normal de cálculo de zona
+        try:
+            pusher_client.trigger('canal-cocina', 'actualizar-tablero', {'mensaje': 'nuevo_pedido'})
+        except:
+            pass
+
+        plantilla = db.query(models.MensajeWhatsapp).filter(models.MensajeWhatsapp.id == 'recepcion').first()
+        
+        if plantilla:
+            mensaje_cliente = plantilla.texto.replace("[CLIENTE]", pedido.cliente).replace("[PEDIDO]", str(id_visual))
+        else:
+            mensaje_cliente = f"🍣 ¡Hola, {pedido.cliente}! Hemos recibido tu pedido #{id_visual}. En breve calcularemos el delivery."
+
+    # Disparamos el mensaje procesado
+    try:
+        await enviar_whatsapp(pedido.telefono, mensaje_cliente)
+    except Exception as e:
+        print(f"Error enviando WhatsApp de nuevo pedido: {e}")
+        
     return {"success": True}
+
 @router.get("/")
 def obtener_pedidos(_t: str = None, fecha: str = None, db: Session = Depends(get_db)):
     # Traemos los últimos 150 pedidos de la base de datos
