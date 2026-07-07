@@ -1152,7 +1152,7 @@ function abrirModalDetalle(idPedido) {
 
     document.getElementById('modalID').innerText = `ID Base de datos: #${idVisual}`;
     
-    // 🌟 NUEVO: Calculamos la tasa histórica primero
+    // Calculamos la tasa histórica primero
     const inputTasa = document.getElementById('tasaBCV');
     const tasaPantalla = inputTasa ? (parseFloat(inputTasa.value) || 1.0) : 1.0;
     const tasaHistorica = pedido.tasa_bcv ? parseFloat(pedido.tasa_bcv) : tasaPantalla;
@@ -1165,8 +1165,8 @@ function abrirModalDetalle(idPedido) {
     let refHtml = ref ? `<p class="text-xs text-amber-400 mt-1 font-mono bg-slate-900 border border-slate-700 px-2 py-1 rounded inline-block">Ref: ${ref}</p>` : '';
     
     let btnImg = '';
-    // Filtro estricto para evitar cuadros rotos si no hay imagen
-    if (pedido.imagen_pago && String(pedido.imagen_pago).trim() !== '' && String(pedido.imagen_pago) !== 'undefined' && String(pedido.imagen_pago) !== 'null') {
+    // 🔥 FILTRO DEFINITIVO: Solo mostrar la sección si el texto empieza estrictamente con "http"
+    if (pedido.imagen_pago && String(pedido.imagen_pago).trim().startsWith('http')) {
         btnImg = `
             <div class="mt-4 pt-4 border-t border-slate-700/50 flex flex-col items-center justify-center w-full">
                 <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider mb-2">Comprobante Adjunto</span>
@@ -1181,6 +1181,7 @@ function abrirModalDetalle(idPedido) {
     document.getElementById('modalCuerpo').innerHTML = `<div class="space-y-3.5"><div class="flex justify-between"><div><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Cliente</span><p class="font-bold text-white text-base">${cliente}</p><p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-phone"></i> ${tel}</p></div><div class="text-right"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider block">Comandado por</span><p class="text-xs text-white bg-slate-900 border border-slate-700 px-2 py-1 rounded mt-1 font-semibold">${operador}</p></div></div><div class="border-t border-slate-700/50 pt-2.5"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Método de Distribución</span><p class="text-white text-xs mt-0.5 font-medium">${entrega}</p><p class="text-xs text-slate-400 mt-1 bg-slate-900/40 p-2 rounded border border-slate-700/30 italic">${dir}</p></div><div class="border-t border-slate-700/50 pt-2.5"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Productos</span><div class="text-xs bg-slate-900/40 p-2.5 rounded border border-slate-700/30 whitespace-pre-line max-h-32 overflow-y-auto text-slate-300 font-mono">${arts}</div></div><div class="border-t border-slate-700/50 pt-2.5 flex justify-between items-center"><div><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Forma de Pago</span><p class="text-white text-xs font-semibold">${pago}</p>${refHtml}</div><div class="text-right"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Total</span><p class="text-emerald-400 font-bold text-lg">$${monto.toFixed(2)}</p></div></div>${seccionVES}${btnImg}</div>`;
     document.getElementById('modalDetalle').classList.remove('hidden');
 }
+
 function cerrarModal() { document.getElementById('modalDetalle').classList.add('hidden'); }
 
 // --- SISTEMA DE TIEMPO REAL (PUSHER) ---
