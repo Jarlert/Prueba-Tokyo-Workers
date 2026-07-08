@@ -718,7 +718,7 @@ function pedirComprobantePago(metodoPago) {
                 formData.append("image", file);
 
                 try {
-                    const API_KEY_IMGBB = "12db9b6546ff1c703074a4bbd8ffae1f";
+                    const API_KEY_IMGBB = "627e932e53c3f448bbd8594d59042b6b";
                     
                     const imgbbRes = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY_IMGBB}`, {
                         method: "POST",
