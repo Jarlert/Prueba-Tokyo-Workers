@@ -1314,12 +1314,13 @@ async function procesarPrecioDelivery(idPedido) {
 
     // 2. MAGIA NUEVA: Disparamos la notificación de cobro al cliente
     const payloadCobro = {
-        telefono: payload.telefono,
-        cliente: payload.cliente,
-        pedido_detallado: payload.pedido_detallado,
-        total_orden: payload.total_orden,
-        metodo_pago: payload.metodo_pago,
-        total_bs: totalBsFormateado
+    telefono: pedido.telefono,
+    cliente: pedido.cliente,
+    pedido_detallado: pedido.pedido_detallado,
+    total_orden: pedido.total_orden,
+    metodo_pago: pedido.metodo_pago,
+    total_bs: pedido.total_bs,
+    id_visual: String(pedido.id_visual || pedido.id_pedido || pedido.ID || 'S/N')
     };
 
     fetch("https://prueba-tokyo-workers-production.up.railway.app/api/pedidos/notificar-cobro", { 
