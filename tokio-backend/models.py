@@ -5,10 +5,11 @@ from datetime import date
 class Pedido(Base):
     __tablename__ = "pedidos"
 
-    id = Column("id_pedido", Integer, primary_key=True, index=True) 
-    
+    id = Column("id_pedido", Integer, primary_key=True, index=True)
+
     cliente = Column(String, nullable=True)
     timestamp = Column(String, nullable=True)
+    fecha = Column(Date, nullable=True, index=True)
     telefono = Column(String, nullable=True)
     tipo_entrega = Column(String, nullable=True)
     direccion = Column(String, nullable=True)

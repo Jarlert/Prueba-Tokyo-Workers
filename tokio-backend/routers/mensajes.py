@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database import get_db
+from auth import requiere_staff
 import models
 
 router = APIRouter(
@@ -9,13 +10,13 @@ router = APIRouter(
 )
 
 @router.get("/")
-def obtener_mensajes(db: Session = Depends(get_db)):
+def obtener_mensajes(db: Session = Depends(get_db), staff: dict = Depends(requiere_staff)):
     mensajes = db.query(models.MensajeWhatsapp).all()
     # Retornamos la data como una lista simple para el JS
     return [{"id": m.id, "texto": m.texto} for m in mensajes]
 
 @router.post("/guardar")
-def guardar_mensajes(datos: dict, db: Session = Depends(get_db)):
+def guardar_mensajes(datos: dict, db: Session = Depends(get_db), staff: dict = Depends(requiere_staff)):
     # El frontend manda un diccionario con las claves (recepcion, aprobado, etc.)
     for clave, texto in datos.items():
         mensaje = db.query(models.MensajeWhatsapp).filter(models.MensajeWhatsapp.id == clave).first()

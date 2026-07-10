@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from pydantic import BaseModel
 from datetime import datetime
+from auth import requiere_staff
 import requests
 import models
 
@@ -44,7 +45,7 @@ def obtener_tasa(db: Session = Depends(get_db)):
         return {"success": True, "tasa": registro.tasa if registro else 1.0}
 
 @router.post("/actualizar")
-def actualizar_tasa(datos: TasaRequest, db: Session = Depends(get_db)):
+def actualizar_tasa(datos: TasaRequest, db: Session = Depends(get_db), staff: dict = Depends(requiere_staff)):
     hoy = datetime.now().strftime("%Y-%m-%d")
     registro = db.query(models.TasaManual).first()
     

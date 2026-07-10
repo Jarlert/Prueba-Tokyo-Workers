@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database import get_db
+from auth import requiere_staff
 import models
 import schemas
 
@@ -10,12 +11,12 @@ router = APIRouter(
 )
 
 @router.get("/")
-def obtener_motorizados(t: str = None, db: Session = Depends(get_db)):
+def obtener_motorizados(t: str = None, db: Session = Depends(get_db), staff: dict = Depends(requiere_staff)):
     motorizados = db.query(models.Motorizado).all()
     return [{"id": m.id, "nombre": m.nombre} for m in motorizados]
 
 @router.post("/guardar")
-def guardar_motorizado(datos: schemas.MotorizadoGuardar, db: Session = Depends(get_db)):
+def guardar_motorizado(datos: schemas.MotorizadoGuardar, db: Session = Depends(get_db), staff: dict = Depends(requiere_staff)):
     try:
         if datos.id:
             motorizado = db.query(models.Motorizado).filter(models.Motorizado.id == datos.id).first()
@@ -32,7 +33,7 @@ def guardar_motorizado(datos: schemas.MotorizadoGuardar, db: Session = Depends(g
         return {"success": False, "error": str(e)}
 
 @router.post("/eliminar")
-def eliminar_motorizado(datos: dict, db: Session = Depends(get_db)):
+def eliminar_motorizado(datos: dict, db: Session = Depends(get_db), staff: dict = Depends(requiere_staff)):
     motorizado = db.query(models.Motorizado).filter(models.Motorizado.id == datos["id"]).first()
     if motorizado:
         db.delete(motorizado)

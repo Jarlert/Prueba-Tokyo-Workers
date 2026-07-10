@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database import get_db
+from auth import requiere_admin
 import models
+import schemas
 import json
 
 router = APIRouter(
@@ -26,17 +28,17 @@ def obtener_menu(db: Session = Depends(get_db)):
     }
 
 @router.post("/guardar-categoria")
-def guardar_categoria(datos: dict, db: Session = Depends(get_db)):
+def guardar_categoria(datos: schemas.CategoriaGuardar, db: Session = Depends(get_db), admin: dict = Depends(requiere_admin)):
     try:
-        if datos.get("id"):
-            cat = db.query(models.Categoria).filter(models.Categoria.id == datos["id"]).first()
+        if datos.id:
+            cat = db.query(models.Categoria).filter(models.Categoria.id == datos.id).first()
             if cat:
-                cat.nombre = datos["nombre"]
-                cat.imagen = datos.get("imagen", "")
+                cat.nombre = datos.nombre
+                cat.imagen = datos.imagen
         else:
-            nueva_cat = models.Categoria(nombre=datos["nombre"], imagen=datos.get("imagen", ""))
+            nueva_cat = models.Categoria(nombre=datos.nombre, imagen=datos.imagen)
             db.add(nueva_cat)
-            
+
         db.commit()
         return {"success": True}
     except Exception as e:
@@ -44,28 +46,28 @@ def guardar_categoria(datos: dict, db: Session = Depends(get_db)):
         return {"success": False, "error": str(e)}
 
 @router.post("/guardar-producto")
-def guardar_producto(datos: dict, db: Session = Depends(get_db)):
+def guardar_producto(datos: schemas.ProductoGuardar, db: Session = Depends(get_db), admin: dict = Depends(requiere_admin)):
     try:
-        if datos.get("id"):
-            prod = db.query(models.Producto).filter(models.Producto.id == datos["id"]).first()
+        if datos.id:
+            prod = db.query(models.Producto).filter(models.Producto.id == datos.id).first()
             if prod:
-                prod.nombre = datos["nombre"]
-                prod.categoria = datos["categoria"]
-                prod.precio = datos["precio"]
-                prod.imagen = datos.get("imagen", "")
-                prod.descripcion = datos.get("descripcion", "")
-                prod.disponible = datos["disponible"]
+                prod.nombre = datos.nombre
+                prod.categoria = datos.categoria
+                prod.precio = datos.precio
+                prod.imagen = datos.imagen
+                prod.descripcion = datos.descripcion
+                prod.disponible = datos.disponible
         else:
             nuevo_prod = models.Producto(
-                nombre=datos["nombre"],
-                categoria=datos["categoria"],
-                precio=datos["precio"],
-                imagen=datos.get("imagen", ""),
-                descripcion=datos.get("descripcion", ""),
-                disponible=datos["disponible"]
+                nombre=datos.nombre,
+                categoria=datos.categoria,
+                precio=datos.precio,
+                imagen=datos.imagen,
+                descripcion=datos.descripcion,
+                disponible=datos.disponible
             )
             db.add(nuevo_prod)
-            
+
         db.commit()
         return {"success": True}
     except Exception as e:
@@ -73,31 +75,31 @@ def guardar_producto(datos: dict, db: Session = Depends(get_db)):
         return {"success": False, "error": str(e)}
 
 @router.post("/guardar-combo")
-def guardar_combo(datos: dict, db: Session = Depends(get_db)):
+def guardar_combo(datos: schemas.ComboGuardar, db: Session = Depends(get_db), admin: dict = Depends(requiere_admin)):
     try:
         # Convertimos la lista de items a texto JSON para guardarlo en 1 sola columna
-        items_json_str = json.dumps(datos.get("items", []))
-        
-        if datos.get("id"):
-            combo = db.query(models.Combo).filter(models.Combo.id == datos["id"]).first()
+        items_json_str = json.dumps(datos.items)
+
+        if datos.id:
+            combo = db.query(models.Combo).filter(models.Combo.id == datos.id).first()
             if combo:
-                combo.nombre = datos["nombre"]
-                combo.precio = datos["precio"]
-                combo.imagen = datos.get("imagen", "")
-                combo.descripcion = datos.get("descripcion", "")
+                combo.nombre = datos.nombre
+                combo.precio = datos.precio
+                combo.imagen = datos.imagen
+                combo.descripcion = datos.descripcion
                 combo.items_json = items_json_str
-                combo.disponible = datos["disponible"]
+                combo.disponible = datos.disponible
         else:
             nuevo_combo = models.Combo(
-                nombre=datos["nombre"],
-                precio=datos["precio"],
-                imagen=datos.get("imagen", ""),
-                descripcion=datos.get("descripcion", ""),
+                nombre=datos.nombre,
+                precio=datos.precio,
+                imagen=datos.imagen,
+                descripcion=datos.descripcion,
                 items_json=items_json_str,
-                disponible=datos["disponible"]
+                disponible=datos.disponible
             )
             db.add(nuevo_combo)
-            
+
         db.commit()
         return {"success": True}
     except Exception as e:
@@ -105,25 +107,22 @@ def guardar_combo(datos: dict, db: Session = Depends(get_db)):
         return {"success": False, "error": str(e)}
 
 @router.post("/eliminar-item")
-def eliminar_item(datos: dict, db: Session = Depends(get_db)):
+def eliminar_item(datos: schemas.ItemEliminar, db: Session = Depends(get_db), admin: dict = Depends(requiere_admin)):
     try:
-        item_id = datos.get("id")
-        tipo = datos.get("tipo")
-        
         # Identificamos qué tabla debemos tocar dependiendo del tipo
-        if tipo == "categoria":
-            item = db.query(models.Categoria).filter(models.Categoria.id == item_id).first()
-        elif tipo == "producto":
-            item = db.query(models.Producto).filter(models.Producto.id == item_id).first()
-        elif tipo == "combo":
-            item = db.query(models.Combo).filter(models.Combo.id == item_id).first()
+        if datos.tipo == "categoria":
+            item = db.query(models.Categoria).filter(models.Categoria.id == datos.id).first()
+        elif datos.tipo == "producto":
+            item = db.query(models.Producto).filter(models.Producto.id == datos.id).first()
+        elif datos.tipo == "combo":
+            item = db.query(models.Combo).filter(models.Combo.id == datos.id).first()
         else:
             return {"success": False, "error": "Tipo desconocido"}
-            
+
         if item:
             db.delete(item)
             db.commit()
-            
+
         return {"success": True}
     except Exception as e:
         db.rollback()

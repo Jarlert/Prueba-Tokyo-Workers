@@ -3,12 +3,67 @@
 // =================================================================
 
 const API_ESTADISTICAS_PEDIDOS = "https://prueba-tokyo-workers-production.up.railway.app/api/pedidos/";
+const API_VALIDAR_ACCESO_ESTADISTICAS = "https://prueba-tokyo-workers-production.up.railway.app/api/usuarios/validar-acceso";
 let datosEstadisticas = [];
 let tasaEstadisticas = 1;
 let graficoTorta = null;
-let pedidosFiltradosActuales = []; 
+let pedidosFiltradosActuales = [];
 
-let filtroActivo = 'hoy'; 
+let filtroActivo = 'hoy';
+
+// --- ACCESO: reutiliza la sesión de index.html si ya existe en este navegador ---
+function verificarSesionEstadisticas() {
+    const token = localStorage.getItem('tokioAuthToken');
+    const vistaLogin = document.getElementById('vistaLoginEstadisticas');
+    const vistaContenido = document.getElementById('vistaEstadisticas');
+
+    if (token) {
+        if (vistaLogin) vistaLogin.classList.add('hidden');
+        if (vistaContenido) vistaContenido.classList.remove('hidden');
+        iniciarPantallaEstadisticas();
+    } else {
+        if (vistaLogin) vistaLogin.classList.remove('hidden');
+        if (vistaContenido) vistaContenido.classList.add('hidden');
+    }
+}
+
+async function iniciarSesionEstadisticas(event) {
+    if (event && typeof event.preventDefault === 'function') event.preventDefault();
+
+    const usernameInput = document.getElementById('loginUsernameEstadisticas').value.trim();
+    const pinInput = document.getElementById('loginPINEstadisticas').value.trim();
+    const errorMsg = document.getElementById('loginErrorEstadisticas');
+    const btnSubmit = document.querySelector('#formLoginEstadisticas button[type="submit"]');
+
+    if (errorMsg) errorMsg.classList.add('hidden');
+    if (!usernameInput || !pinInput) return;
+
+    if (btnSubmit) { btnSubmit.disabled = true; btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando...'; }
+
+    try {
+        const response = await fetch(API_VALIDAR_ACCESO_ESTADISTICAS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tipo: 'login_normal', username: usernameInput, pin: pinInput })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.usuario && data.token) {
+            localStorage.setItem('usuarioActivo', JSON.stringify(data.usuario));
+            localStorage.setItem('tokioAuthToken', data.token);
+            const formLogin = document.getElementById('formLoginEstadisticas');
+            if (formLogin) formLogin.reset();
+            verificarSesionEstadisticas();
+        } else {
+            if (errorMsg) { errorMsg.innerText = "Usuario o PIN incorrectos."; errorMsg.classList.remove('hidden'); }
+        }
+    } catch (error) {
+        if (errorMsg) { errorMsg.innerText = "Error de conexión con el servidor."; errorMsg.classList.remove('hidden'); }
+    } finally {
+        if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.innerHTML = 'Entrar al Sistema <i class="fa-solid fa-arrow-right-to-bracket ml-1"></i>'; }
+    }
+}
 
 // 🟢 LÓGICA: Calculadora de IDs Diarios
 function preprocesarIDsVisuales(pedidos) {
@@ -30,22 +85,52 @@ function preprocesarIDsVisuales(pedidos) {
     });
 }
 
+// Calcula el rango de fecha a pedirle al backend según el filtro activo,
+// para que el servidor devuelva exactamente esos pedidos en vez de un tope
+// fijo de 150 que podía dejar fuera datos de días ocupados.
+function calcularRangoFecha(tipo) {
+    const hoy = new Date();
+    const iso = d => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const dia = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${dia}`;
+    };
+
+    if (tipo === 'hoy') return { fecha: iso(hoy) };
+    if (tipo === 'ayer') {
+        const ayer = new Date(hoy); ayer.setDate(ayer.getDate() - 1);
+        return { fecha: iso(ayer) };
+    }
+    if (tipo === 'semana') {
+        const inicioSemana = new Date(hoy);
+        inicioSemana.setDate(hoy.getDate() - hoy.getDay() + 1);
+        return { fecha_desde: iso(inicioSemana), fecha_hasta: iso(hoy) };
+    }
+    if (tipo === 'mes') {
+        const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+        return { fecha_desde: iso(inicioMes), fecha_hasta: iso(hoy) };
+    }
+    if (tipo === 'custom') {
+        const fechaSeleccionada = document.getElementById('fechaCustom').value;
+        return fechaSeleccionada ? { fecha: fechaSeleccionada } : {};
+    }
+    return {};
+}
+
+function construirUrlPedidos(params) {
+    const usp = new URLSearchParams(params);
+    usp.set('_t', new Date().getTime());
+    return API_ESTADISTICAS_PEDIDOS + '?' + usp.toString();
+}
+
 async function iniciarPantallaEstadisticas() {
     if (!document.getElementById('graficoPagos')) return;
 
     tasaEstadisticas = parseFloat(localStorage.getItem('tasaBCV')) || 1;
-    
-    try {
-        const res = await fetch(API_ESTADISTICAS_PEDIDOS + "?_t=" + new Date().getTime());
-        const data = await res.json();
-        datosEstadisticas = Array.isArray(data) ? data : [];
-        
-        preprocesarIDsVisuales(datosEstadisticas); 
-        aplicarFiltroEstadisticas('hoy');
-        arrancarPusherEstadisticas(); 
-    } catch(e) {
-        console.error("Error descargando pedidos para estadísticas:", e);
-    }
+
+    await aplicarFiltroEstadisticas('hoy');
+    arrancarPusherEstadisticas();
 }
 
 function arrancarPusherEstadisticas() {
@@ -53,15 +138,15 @@ function arrancarPusherEstadisticas() {
         const pusher = new Pusher('88089dcd4800848c78dd', {
             cluster: 'us2'
         });
-        
+
         const channel = pusher.subscribe('canal-cocina');
         channel.bind('actualizar-tablero', async function(data) {
             try {
-                const res = await fetch(API_ESTADISTICAS_PEDIDOS + "?_t=" + new Date().getTime());
+                const res = await fetch(construirUrlPedidos(calcularRangoFecha(filtroActivo)), { headers: authHeaders() });
                 const freshData = await res.json();
                 datosEstadisticas = Array.isArray(freshData) ? freshData : [];
-                
-                preprocesarIDsVisuales(datosEstadisticas); 
+
+                preprocesarIDsVisuales(datosEstadisticas);
                 aplicarFiltroEstadisticas(filtroActivo, true);
             } catch (error) {
                 console.error("Error al actualizar estadísticas vía Pusher:", error);
@@ -108,7 +193,7 @@ async function aplicarFiltroEstadisticas(tipo, esSilencioso = false) {
 
     if (!esSilencioso) {
         try {
-            const res = await fetch(API_ESTADISTICAS_PEDIDOS + "?_t=" + new Date().getTime());
+            const res = await fetch(construirUrlPedidos(calcularRangoFecha(tipo)), { headers: authHeaders() });
             const data = await res.json();
             datosEstadisticas = Array.isArray(data) ? data : [];
             preprocesarIDsVisuales(datosEstadisticas);
@@ -117,37 +202,8 @@ async function aplicarFiltroEstadisticas(tipo, esSilencioso = false) {
         }
     }
 
-    const hoy = new Date();
-    hoy.setHours(0,0,0,0);
-    
-    const pedidosFiltrados = datosEstadisticas.filter(p => {
-        if (!p.timestamp) return false;
-        const fechaPedido = new Date(p.timestamp);
-        fechaPedido.setHours(0,0,0,0);
-
-        if (tipo === 'hoy') return fechaPedido.getTime() === hoy.getTime();
-        if (tipo === 'ayer') {
-            const ayer = new Date(hoy); ayer.setDate(ayer.getDate() - 1);
-            return fechaPedido.getTime() === ayer.getTime();
-        }
-        if (tipo === 'semana') {
-            const inicioSemana = new Date(hoy);
-            inicioSemana.setDate(hoy.getDate() - hoy.getDay() + 1);
-            return fechaPedido >= inicioSemana;
-        }
-        if (tipo === 'mes') {
-            return fechaPedido.getMonth() === hoy.getMonth() && fechaPedido.getFullYear() === hoy.getFullYear();
-        }
-        if (tipo === 'custom') {
-            const fechaSeleccionada = document.getElementById('fechaCustom').value;
-            if (!fechaSeleccionada) return true;
-            const partesFecha = fechaSeleccionada.split('-');
-            const fCustom = new Date(partesFecha[0], partesFecha[1] - 1, partesFecha[2]);
-            fCustom.setHours(0,0,0,0);
-            return fechaPedido.getTime() === fCustom.getTime();
-        }
-        return true;
-    });
+    // El backend ya devuelve solo los pedidos del rango de fecha pedido.
+    const pedidosFiltrados = datosEstadisticas;
 
     const finalizados = pedidosFiltrados.filter(p => String(p.estado || '').toLowerCase().replace(/\s+/g, '') === 'finalizado');
     pedidosFiltradosActuales = finalizados; 
@@ -409,28 +465,10 @@ function abrirModalDetalle(idPedido) {
     
     const tasaHistorica = pedido.tasa_bcv ? parseFloat(pedido.tasa_bcv) : tasaEstadisticas;
 
-    let seccionVES = '';
-    if (pago.toLowerCase().includes('pago') || pago.toLowerCase().includes('movil')) {
-        const totalBsFormateado = new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(monto * tasaHistorica);
-        seccionVES = `<div class="bg-amber-500/10 border border-amber-500/20 p-3 rounded-lg mt-2 text-amber-300 text-xs text-center font-bold">Total en Bolívares: Bs. ${totalBsFormateado} (Tasa: ${tasaHistorica.toFixed(2)} Bs/$)</div>`;
-    }
-    
-    let refHtml = ref ? `<p class="text-xs text-amber-400 mt-1 font-mono bg-slate-900 border border-slate-700 px-2 py-1 rounded inline-block">Ref: ${ref}</p>` : '';
-    
-    let btnImg = '';
-    if (img && String(img).trim() !== '' && String(img) !== 'undefined') {
-        btnImg = `
-            <div class="mt-4 pt-4 border-t border-slate-700/50 flex flex-col items-center justify-center w-full">
-                <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider mb-2">Comprobante Adjunto</span>
-                <a href="${img}" target="_blank" class="block border border-slate-600 rounded-lg overflow-hidden hover:border-emerald-500 transition shadow-lg max-w-[220px] w-full">
-                    <img src="${img}" class="w-full h-auto object-contain rounded-lg bg-slate-900" alt="Comprobante de Pago">
-                </a>
-                <span class="text-[10px] text-slate-500 mt-1 italic"><i class="fa-solid fa-magnifying-glass-plus"></i> Clic en la imagen para ampliar</span>
-            </div>
-        `;
-    }
-
-    document.getElementById('modalCuerpo').innerHTML = `<div class="space-y-3.5"><div class="flex justify-between"><div><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Cliente</span><p class="font-bold text-white text-base">${cliente}</p><p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-phone"></i> ${tel}</p></div><div class="text-right"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider block">Comandado por</span><p class="text-xs text-white bg-slate-900 border border-slate-700 px-2 py-1 rounded mt-1 font-semibold">${operador}</p></div></div><div class="border-t border-slate-700/50 pt-2.5"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Método de Distribución</span><p class="text-white text-xs mt-0.5 font-medium">${entrega}</p><p class="text-xs text-slate-400 mt-1 bg-slate-900/40 p-2 rounded border border-slate-700/30 italic">${dir}</p></div><div class="border-t border-slate-700/50 pt-2.5"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Productos</span><div class="text-xs bg-slate-900/40 p-2.5 rounded border border-slate-700/30 whitespace-pre-line max-h-32 overflow-y-auto text-slate-300 font-mono">${arts}</div></div><div class="border-t border-slate-700/50 pt-2.5 flex justify-between items-center"><div><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Forma de Pago</span><p class="text-white text-xs font-semibold">${pago}</p>${refHtml}</div><div class="text-right"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Total</span><p class="text-emerald-400 font-bold text-lg">$${monto.toFixed(2)}</p></div></div>${seccionVES}${btnImg}</div>`;
+    document.getElementById('modalCuerpo').innerHTML = construirHtmlModalPedido({
+        cliente, tel, operador, entrega, dir, arts, pago, ref, monto, tasaHistorica,
+        imagenPago: img
+    });
     document.getElementById('modalDetalle').classList.remove('hidden');
 }
 
@@ -497,6 +535,6 @@ function exportarCSV() {
 // =================================================================
 document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('graficoPagos')) {
-        iniciarPantallaEstadisticas();
+        verificarSesionEstadisticas();
     }
 });

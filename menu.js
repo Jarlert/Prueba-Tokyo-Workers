@@ -422,7 +422,7 @@ function prepareCheckout() {
         
         const noteHtml = item.note ? `
             <div class="flex items-center justify-between text-xs text-amber-900 bg-amber-100/70 px-2 py-1.5 rounded-xl mt-1 font-medium border border-amber-200 gap-2 shadow-xs">
-                <span class="truncate pr-1">📌 Nota: "${item.note}"</span>
+                <span class="truncate pr-1">📌 Nota: "${escapeHtml(item.note)}"</span>
                 <button type="button" onclick="removeNoteFromCheckout('${id}')" class="text-red-500 hover:text-red-700 font-bold p-1 cursor-pointer select-none text-[11px] flex-shrink-0 transition">❌</button>
             </div>` : '';
         
@@ -827,7 +827,7 @@ function renderizarDireccionesExtra() {
         const div = document.createElement('div');
         div.className = "flex items-center justify-between bg-white p-2.5 rounded-xl border border-gray-200 gap-3 shadow-sm";
         div.innerHTML = `
-            <p class="text-[13px] text-gray-700 line-clamp-2 flex-grow font-medium leading-snug">${dir}</p>
+            <p class="text-[13px] text-gray-700 line-clamp-2 flex-grow font-medium leading-snug">${escapeHtml(dir)}</p>
             <button type="button" onclick="eliminarDireccionExtra(${index})" class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg text-sm transition flex-shrink-0 cursor-pointer" title="Eliminar">🗑️</button>
         `;
         contenedor.appendChild(div);

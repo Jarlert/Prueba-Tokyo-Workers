@@ -252,10 +252,7 @@ async function enviarNuevoPedido() {
         const res = await fetch(URL_NUEVO_PEDIDO, { 
             method: 'POST', 
             body: JSON.stringify(payload), 
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer TokioSushi_App_2026_X' 
-            } 
+            headers: authHeaders()
         });
         if(res.ok) { 
             document.getElementById('formNuevoPedido').reset();
@@ -399,20 +396,20 @@ async function iniciarSesion(event) {
     if (btnSubmit) { btnSubmit.disabled = true; btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando...'; }
 
     try {
-        // Enviamos la carta por debajo de la puerta a n8n
         const response = await fetch(API_VALIDAR_ACCESO, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer TokioSushi_App_2026_X' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ tipo: 'login_normal', username: usernameInput, pin: pinInput })
         });
 
         const data = await response.json();
 
-        if (data.success && data.usuario) {
+        if (data.success && data.usuario && data.token) {
             // Guardamos al usuario PERO el PIN jamás llegó al navegador
             usuarioActivo = { username: data.usuario.username, nombre: data.usuario.nombre, rol: data.usuario.rol };
             localStorage.setItem('usuarioActivo', JSON.stringify(usuarioActivo));
-            
+            localStorage.setItem('tokioAuthToken', data.token);
+
             const formLogin = document.getElementById('formLogin');
             if (formLogin) formLogin.reset();
             
@@ -429,6 +426,7 @@ async function iniciarSesion(event) {
 
 function cerrarSesion() {
     localStorage.removeItem('usuarioActivo');
+    localStorage.removeItem('tokioAuthToken');
     verificarSesion();
 }
 
@@ -633,7 +631,7 @@ function guardarEdicionPedido() {
         referencia_pago: pedidoAnterior.referencia_pago || pedidoAnterior.Referencia_pago || "", imagen_pago: pedidoAnterior.imagen_pago || pedidoAnterior.Imagen_pago || "",
         tasa_bcv: tasaActual 
     };
-    fetch(API_ACTUALIZAR_ESTADO, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer TokioSushi_App_2026_X' }, body: JSON.stringify(payloadBD) }).catch(e => console.error("Error BD:", e));
+    fetch(API_ACTUALIZAR_ESTADO, { method: 'POST', headers: authHeaders(), body: JSON.stringify(payloadBD) }).catch(e => console.error("Error BD:", e));
 
     const metodoPago = String(pedidoAnterior.metodo_pago || pedidoAnterior['Método de pago'] || pedidoAnterior.Metodo_pago || '').toLowerCase();
     const esPagoMovil = metodoPago.includes('pago') || metodoPago.includes('movil') || metodoPago.includes('móvil');
@@ -654,7 +652,7 @@ function guardarEdicionPedido() {
     };
     
     fetch("https://prueba-tokyo-workers-production.up.railway.app/api/pedidos/notificar-edicion", { 
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer TokioSushi_App_2026_X' }, body: JSON.stringify(payloadNotificacion) 
+        method: 'POST', headers: authHeaders(), body: JSON.stringify(payloadNotificacion) 
     }).catch(e => console.error("Error enviando WhatsApp:", e));
 }
 
@@ -670,7 +668,7 @@ function cancelarPedido(idPedido) {
         procesado_por: operadorFirma, referencia_pago: pedido.referencia_pago || "", imagen_pago: pedido.imagen_pago || "",
         pedido_detallado: pedido.pedido_detallado || "", total_orden: parseFloat(pedido.total_orden || pedido['Total Orden']) || 0, tiempo_estimado: ""
     };
-    fetch(API_ACTUALIZAR_ESTADO, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer TokioSushi_App_2026_X' }, body: JSON.stringify(payload) }).catch(e => console.error(e));
+    fetch(API_ACTUALIZAR_ESTADO, { method: 'POST', headers: authHeaders(), body: JSON.stringify(payload) }).catch(e => console.error(e));
 }
 
 // --- COMPROBANTES Y TIEMPO ---
@@ -795,7 +793,7 @@ async function procesarPasoCocina(idPedido) {
 
     fetch("https://prueba-tokyo-workers-production.up.railway.app/api/pedidos/notificar-aprobado", {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer TokioSushi_App_2026_X' },
+        headers: authHeaders(),
         body: JSON.stringify(payloadAprobado)
     }).catch(e => console.error("Error enviando WhatsApp de aprobación:", e));
 }
@@ -822,7 +820,7 @@ function procesarPasoFinalizado(idPedido) {
 
     fetch("https://prueba-tokyo-workers-production.up.railway.app/api/pedidos/notificar-despacho", {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer TokioSushi_App_2026_X' },
+        headers: authHeaders(),
         body: JSON.stringify(payloadDespacho)
     }).catch(e => console.error("Error enviando WhatsApp de despacho:", e));
 }
@@ -853,7 +851,7 @@ function ejecutarActualizacion(id, estado, telefono, cliente, tipoEntrega, datos
         direccion: direccionGuardada,
         tasa_bcv: tasaActual // ENVIAMOS LA TASA A LA BASE DE DATOS
     };
-    fetch(API_ACTUALIZAR_ESTADO, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer TokioSushi_App_2026_X' }, body: JSON.stringify(payload) }).catch(e => console.error(e));
+    fetch(API_ACTUALIZAR_ESTADO, { method: 'POST', headers: authHeaders(), body: JSON.stringify(payload) }).catch(e => console.error(e));
 }
 
 // --- FECHAS Y RENDERIZADO ---
@@ -1157,28 +1155,10 @@ function abrirModalDetalle(idPedido) {
     const tasaPantalla = inputTasa ? (parseFloat(inputTasa.value) || 1.0) : 1.0;
     const tasaHistorica = pedido.tasa_bcv ? parseFloat(pedido.tasa_bcv) : tasaPantalla;
 
-    let seccionVES = '';
-    if (pago.toLowerCase().includes('pago') || pago.toLowerCase().includes('movil')) {
-        seccionVES = `<div class="bg-amber-500/10 border border-amber-500/20 p-3 rounded-lg mt-2 text-amber-300 text-xs text-center font-bold">Total en Bolívares: Bs. ${(monto * tasaHistorica).toFixed(2)} (Tasa: ${tasaHistorica.toFixed(2)} Bs/$)</div>`;
-    }
-    
-    let refHtml = ref ? `<p class="text-xs text-amber-400 mt-1 font-mono bg-slate-900 border border-slate-700 px-2 py-1 rounded inline-block">Ref: ${ref}</p>` : '';
-    
-    let btnImg = '';
-    // 🔥 FILTRO DEFINITIVO: Solo mostrar la sección si el texto empieza estrictamente con "http"
-    if (pedido.imagen_pago && String(pedido.imagen_pago).trim().startsWith('http')) {
-        btnImg = `
-            <div class="mt-4 pt-4 border-t border-slate-700/50 flex flex-col items-center justify-center w-full">
-                <span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider mb-2">Comprobante Adjunto</span>
-                <a href="${pedido.imagen_pago}" target="_blank" class="block border border-slate-600 rounded-lg overflow-hidden hover:border-emerald-500 transition shadow-lg max-w-[220px] w-full">
-                    <img src="${pedido.imagen_pago}" class="w-full h-auto object-contain rounded-lg bg-slate-900" alt="Comprobante de Pago" onerror="this.style.display='none'">
-                </a>
-                <span class="text-[10px] text-slate-500 mt-1 italic"><i class="fa-solid fa-magnifying-glass-plus"></i> Clic en la imagen para ampliar</span>
-            </div>
-        `;
-    }
-
-    document.getElementById('modalCuerpo').innerHTML = `<div class="space-y-3.5"><div class="flex justify-between"><div><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Cliente</span><p class="font-bold text-white text-base">${cliente}</p><p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-phone"></i> ${tel}</p></div><div class="text-right"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider block">Comandado por</span><p class="text-xs text-white bg-slate-900 border border-slate-700 px-2 py-1 rounded mt-1 font-semibold">${operador}</p></div></div><div class="border-t border-slate-700/50 pt-2.5"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Método de Distribución</span><p class="text-white text-xs mt-0.5 font-medium">${entrega}</p><p class="text-xs text-slate-400 mt-1 bg-slate-900/40 p-2 rounded border border-slate-700/30 italic">${dir}</p></div><div class="border-t border-slate-700/50 pt-2.5"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Productos</span><div class="text-xs bg-slate-900/40 p-2.5 rounded border border-slate-700/30 whitespace-pre-line max-h-32 overflow-y-auto text-slate-300 font-mono">${arts}</div></div><div class="border-t border-slate-700/50 pt-2.5 flex justify-between items-center"><div><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Forma de Pago</span><p class="text-white text-xs font-semibold">${pago}</p>${refHtml}</div><div class="text-right"><span class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Total</span><p class="text-emerald-400 font-bold text-lg">$${monto.toFixed(2)}</p></div></div>${seccionVES}${btnImg}</div>`;
+    document.getElementById('modalCuerpo').innerHTML = construirHtmlModalPedido({
+        cliente, tel, operador, entrega, dir, arts, pago, ref, monto, tasaHistorica,
+        imagenPago: pedido.imagen_pago
+    });
     document.getElementById('modalDetalle').classList.remove('hidden');
 }
 
@@ -1308,7 +1288,7 @@ async function procesarPrecioDelivery(idPedido) {
     // 1. Actualizamos el estado en la base de datos
     fetch(API_ACTUALIZAR_ESTADO, { 
         method: 'POST', 
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer TokioSushi_App_2026_X' }, 
+        headers: authHeaders(), 
         body: JSON.stringify(payload) 
     }).catch(e => console.error("Error BD:", e));
 
@@ -1324,7 +1304,7 @@ async function procesarPrecioDelivery(idPedido) {
 
     fetch("https://prueba-tokyo-workers-production.up.railway.app/api/pedidos/notificar-cobro", { 
         method: 'POST', 
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer TokioSushi_App_2026_X' }, 
+        headers: authHeaders(), 
         body: JSON.stringify(payloadCobro) 
     }).catch(e => console.error("Error enviando WhatsApp de cobro:", e));
 }
@@ -1399,7 +1379,7 @@ function guardarRepartidor() {
 
     fetch(API_ACTUALIZAR_ESTADO, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer TokioSushi_App_2026_X' },
+        headers: authHeaders(),
         body: JSON.stringify(payload)
     }).catch(e => console.error("Error BD:", e));
     

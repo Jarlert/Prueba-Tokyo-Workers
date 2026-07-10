@@ -76,9 +76,36 @@ class UsuarioGuardar(BaseModel):
     id: Optional[int] = None
     nombre: str
     username: str
-    pin: str
+    pin: Optional[str] = None
     rol: str
 
 class MotorizadoGuardar(BaseModel):
     id: Optional[int] = None
     nombre: str
+
+class CategoriaGuardar(BaseModel):
+    id: Optional[int] = None
+    nombre: str
+    imagen: Optional[str] = ""
+
+class ProductoGuardar(BaseModel):
+    id: Optional[int] = None
+    nombre: str
+    categoria: str
+    precio: float
+    imagen: Optional[str] = ""
+    descripcion: Optional[str] = ""
+    disponible: bool = True
+
+class ComboGuardar(BaseModel):
+    id: Optional[int] = None
+    nombre: str
+    precio: float
+    imagen: Optional[str] = ""
+    descripcion: Optional[str] = ""
+    items: list = []
+    disponible: bool = True
+
+class ItemEliminar(BaseModel):
+    id: int
+    tipo: str

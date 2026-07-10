@@ -65,8 +65,10 @@ async function desbloquearAdmin() {
         const data = await response.json();
 
         if (data.success && data.usuario) {
-            adminToken = pinIngresado; 
-            
+            adminToken = data.token;
+            localStorage.setItem('tokioAuthToken', data.token);
+            localStorage.setItem('usuarioActivo', JSON.stringify(data.usuario));
+
             document.getElementById('pantalla-bloqueo-admin').style.opacity = '0';
             setTimeout(() => { document.getElementById('pantalla-bloqueo-admin').classList.add('hidden'); }, 300);
             
@@ -205,7 +207,7 @@ function renderListaUsuarios() {
             <div class="list-item">
                 <div class="item-info">
                     <p class="item-title">👤 ${u.nombre}</p>
-                    <p class="item-meta">User: <span style="color:#38bdf8; font-weight:bold;">${u.username}</span> | Rol: ${u.rol} | Clave: ${esAdmin ? '••••' : u.pin}</p>
+                    <p class="item-meta">User: <span style="color:#38bdf8; font-weight:bold;">${u.username}</span> | Rol: ${u.rol}</p>
                 </div>
                 <div class="item-actions">${botones}</div>
             </div>`;
@@ -216,11 +218,18 @@ if (document.getElementById('form-usuario')) {
     document.getElementById('form-usuario').addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = document.getElementById('usr-id').value;
-        const payload = { 
-            id: id ? parseInt(id) : null, 
+        const pinIngresado = document.getElementById('usr-pin').value.trim();
+
+        if (!id && !pinIngresado) {
+            alert('El PIN es obligatorio al crear un usuario nuevo.');
+            return;
+        }
+
+        const payload = {
+            id: id ? parseInt(id) : null,
             nombre: document.getElementById('usr-nombre').value.trim(),
             username: document.getElementById('usr-username').value.trim(),
-            pin: document.getElementById('usr-pin').value.trim(),
+            pin: pinIngresado || null,
             rol: document.getElementById('usr-rol').value
         };
         try {
@@ -244,10 +253,14 @@ if (document.getElementById('form-usuario')) {
 
 function editarUsuario(id) {
     const u = USUARIOS_SISTEMA.find(x => x.id === id); if(!u) return;
-    document.getElementById('usr-id').value = u.id; 
+    document.getElementById('usr-id').value = u.id;
     document.getElementById('usr-nombre').value = u.nombre;
     document.getElementById('usr-username').value = u.username;
-    document.getElementById('usr-pin').value = u.pin;
+    // El PIN nunca vuelve del backend (queda hasheado) — se deja vacío,
+    // solo se sobreescribe si el admin escribe uno nuevo.
+    const inputPin = document.getElementById('usr-pin');
+    inputPin.value = '';
+    inputPin.placeholder = 'Dejar en blanco para no cambiar el PIN';
     document.getElementById('usr-rol').value = u.rol;
     document.getElementById('titulo-form-usr').innerText = "Editar Usuario";
     document.getElementById('btn-save-usr').innerText = "💾 Actualizar Usuario";
@@ -255,8 +268,9 @@ function editarUsuario(id) {
 }
 
 function resetFormUsr() {
-    document.getElementById('form-usuario').reset(); 
+    document.getElementById('form-usuario').reset();
     document.getElementById('usr-id').value = "";
+    document.getElementById('usr-pin').placeholder = 'Ej: 1234';
     document.getElementById('titulo-form-usr').innerText = "Crear Usuario";
     document.getElementById('btn-save-usr').innerText = "💾 Guardar Usuario";
     document.getElementById('btn-cancel-usr').style.display = "none";

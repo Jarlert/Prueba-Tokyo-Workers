@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
+from rate_limit import limitador
 import models
 import schemas
 
@@ -9,9 +10,13 @@ router = APIRouter(
     tags=["Clientes"]
 )
 
+# Endpoint público (los clientes no tienen login) — rate limit más permisivo
+# solo para frenar scraping agresivo de teléfonos, no tráfico real.
+rate_limit_verificar = limitador(max_intentos=20, ventana_seg=60)
+
 # Cambiamos a GET para coincidir con tu fetch de menu.js
 @router.get("/verificar")
-def verificar_cliente(telefono: str, db: Session = Depends(get_db)):
+def verificar_cliente(telefono: str, db: Session = Depends(get_db), _rl=Depends(rate_limit_verificar)):
     cliente = db.query(models.Cliente).filter(models.Cliente.telefono == telefono).first()
     
     # El JS espera un array. Si existe, devolvemos una lista con 1 objeto.
