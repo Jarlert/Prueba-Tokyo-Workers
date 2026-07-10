@@ -1360,6 +1360,10 @@ function guardarRepartidor() {
     renderizarTablero();
 
     const operadorFirma = usuarioActivo ? `${usuarioActivo.nombre} (${usuarioActivo.rol})` : "No registrado";
+    
+    // 🌟 RESCATAMOS LA TASA INTACTA QUE YA TENÍA EL PEDIDO 🌟
+    const tasaIntacta = pedido.tasa_bcv || parseFloat(document.getElementById('tasaBCV').value) || 1;
+
     const payload = {
         id_pedido: idSeguro,
         id: idSeguro,
@@ -1374,7 +1378,8 @@ function guardarRepartidor() {
         referencia_pago: pedido.referencia_pago || "",
         imagen_pago: pedido.imagen_pago || "",
         repartidor: nombreRepartidor,
-        actualizacion_silenciosa: true 
+        actualizacion_silenciosa: true,
+        tasa_bcv: tasaIntacta // <-- AHORA ENVIAMOS LA TASA DE VUELTA PARA QUE NO SE BORRE
     };
 
     fetch(API_ACTUALIZAR_ESTADO, {
