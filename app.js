@@ -270,7 +270,7 @@ async function enviarNuevoPedido() {
 
 async function cargarMotorizadosDesdeDB() {
     try {
-        const response = await fetch(URL_OBTENER_MOTORIZADOS + "?t=" + new Date().getTime());
+        const response = await fetch(URL_OBTENER_MOTORIZADOS + "?t=" + new Date().getTime(), { headers: authHeaders() });
         if (!response.ok) throw new Error('Error al conectar con servidor de motorizados');
         const data = await response.json();
         MOTORIZADOS_SISTEMA = Array.isArray(data) ? data : (data.data || []);
@@ -885,7 +885,7 @@ async function cargarPedidos() {
         let urlFetch = API_OBTENER_PEDIDOS + '?_t=' + new Date().getTime();
         if (fechaCalendario) urlFetch += '&fecha=' + fechaCalendario;
         
-        const response = await fetch(urlFetch); 
+        const response = await fetch(urlFetch, { headers: authHeaders() });
         if (!response.ok) throw new Error('Error API');
         
         const datos = await response.json(); 

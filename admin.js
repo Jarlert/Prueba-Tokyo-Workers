@@ -129,7 +129,7 @@ async function cargarMensajesWP() {
 
     try {
         txtRecepcion.value = "Cargando plantillas desde la base de datos...";
-        const res = await fetch(URL_OBTENER_MSJ);
+        const res = await fetch(URL_OBTENER_MSJ, { headers: authHeaders() });
         const data = await res.json();
         const mensajes = Array.isArray(data) ? data : (data.data || []);
         
@@ -180,7 +180,7 @@ if(formMensajes) {
 // ==========================================
 async function cargarUsuariosDesdeDB() {
     try {
-        const response = await fetch(URL_OBTENER_USUARIOS_ADMIN);
+        const response = await fetch(URL_OBTENER_USUARIOS_ADMIN, { headers: authHeaders() });
         const data = await response.json();
         USUARIOS_SISTEMA = Array.isArray(data) ? data : (data.data || []);
         renderListaUsuarios();
@@ -293,7 +293,7 @@ async function eliminarUsuario(id) {
 // ==========================================
 async function cargarMotorizadosDesdeDB() {
     try {
-        const res = await fetch(URL_OBTENER_MOTORIZADOS + "?t=" + new Date().getTime());
+        const res = await fetch(URL_OBTENER_MOTORIZADOS + "?t=" + new Date().getTime(), { headers: authHeaders() });
         const data = await res.json();
         MOTORIZADOS_SISTEMA = Array.isArray(data) ? data : (data.data || []);
         renderListaMotorizados();
