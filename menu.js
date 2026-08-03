@@ -5,10 +5,12 @@
 const URL_OBTENER_MENU = "https://prueba-tokyo-workers-production.up.railway.app/api/menu/";
 const URL_VERIFICAR_CLIENTE = "https://prueba-tokyo-workers-production.up.railway.app/api/clientes/verificar";
 const URL_REGISTRAR_CLIENTE = "https://prueba-tokyo-workers-production.up.railway.app/api/clientes/registrar";
+const URL_OBTENER_HORARIOS = "https://prueba-tokyo-workers-production.up.railway.app/api/horarios/";
 
 let menuData = { combos: [], cocina: [], sushi: [], extras: [] };
 let cart = {};
-let datosClienteLogueado = null; 
+let datosClienteLogueado = null;
+let horariosAtencion = [];
 
 // --- 1. ARRANQUE Y CONTROL DE ESTADOS ---
 window.onload = async function() {
@@ -37,7 +39,7 @@ function goToStep(stepNumber, pushState = true) {
     document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
     document.getElementById(`step-${stepNumber}`).classList.add('active');
     window.scrollTo(0, 0);
-    
+
     const backBtn = document.getElementById('header-back-btn');
     if (stepNumber !== 'auth' && stepNumber !== 'registro' && stepNumber > 1 && stepNumber < 4) {
         backBtn.classList.remove('invisible');
@@ -47,9 +49,79 @@ function goToStep(stepNumber, pushState = true) {
 
     updateStickyBarVisibility(stepNumber);
 
+    if (stepNumber === 3) {
+        const banner = document.getElementById('banner-cerrado');
+        if (banner) {
+            if (estaAbiertoAhora()) banner.classList.add('hidden');
+            else mostrarBannerCerrado();
+        }
+    }
+
     if (pushState) {
         history.pushState({ step: stepNumber }, `Paso ${stepNumber}`);
     }
+}
+
+// --- HORARIO DE ATENCIÓN: los clientes pueden ver el menú siempre, pero solo pedir dentro del horario ---
+async function cargarHorariosAtencion() {
+    try {
+        const response = await fetch(URL_OBTENER_HORARIOS);
+        if (!response.ok) throw new Error('Error al obtener horarios');
+        const data = await response.json();
+        horariosAtencion = Array.isArray(data) ? data : (data.data || []);
+    } catch (error) {
+        console.error("Error obteniendo horario de atención:", error);
+    }
+}
+
+function obtenerFechaHoraCaracas() {
+    const ahora = new Date();
+    const fechaCaracas = ahora.toLocaleDateString('en-CA', { timeZone: 'America/Caracas' }); // "YYYY-MM-DD"
+    const [anio, mes, dia] = fechaCaracas.split('-').map(Number);
+    const diaSemanaJS = new Date(anio, mes - 1, dia).getDay(); // 0=domingo...6=sábado
+    const diaSemana = (diaSemanaJS + 6) % 7; // 0=lunes...6=domingo (igual que el backend)
+    const horaActual = ahora.toLocaleTimeString('en-GB', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit' });
+    return { diaSemana, horaActual };
+}
+
+function estaAbiertoAhora() {
+    if (!Array.isArray(horariosAtencion) || horariosAtencion.length === 0) return true; // sin config cargada, no bloqueamos
+    const { diaSemana, horaActual } = obtenerFechaHoraCaracas();
+    const hoy = horariosAtencion.find(h => h.dia_semana === diaSemana);
+    if (!hoy || !hoy.activo || !hoy.hora_apertura || !hoy.hora_cierre) return false;
+    return horaActual >= hoy.hora_apertura && horaActual <= hoy.hora_cierre;
+}
+
+function formatearHorarioTexto() {
+    if (!Array.isArray(horariosAtencion) || horariosAtencion.length === 0) return "nuestro horario habitual";
+    const nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+    const ordenados = [...horariosAtencion].sort((a, b) => a.dia_semana - b.dia_semana);
+
+    const grupos = [];
+    ordenados.forEach(h => {
+        const clave = h.activo ? `${h.hora_apertura}-${h.hora_cierre}` : 'cerrado';
+        const ultimo = grupos[grupos.length - 1];
+        if (ultimo && ultimo.clave === clave) {
+            ultimo.diaFin = h.dia_semana;
+        } else {
+            grupos.push({ clave, activo: h.activo, diaInicio: h.dia_semana, diaFin: h.dia_semana, apertura: h.hora_apertura, cierre: h.hora_cierre });
+        }
+    });
+
+    const texto = grupos.filter(g => g.activo).map(g => {
+        const rango = g.diaInicio === g.diaFin ? nombres[g.diaInicio] : `${nombres[g.diaInicio]} a ${nombres[g.diaFin]}`;
+        return `${rango} de ${g.apertura} a ${g.cierre}`;
+    }).join(', ');
+
+    return texto || "nuestro horario habitual";
+}
+
+function mostrarBannerCerrado() {
+    const banner = document.getElementById('banner-cerrado');
+    if (!banner) return;
+    banner.innerText = `⏰ En este momento no nos encontramos laborando. Prueba hacer tu pedido en nuestro horario laboral: ${formatearHorarioTexto()}. También puedes escribirnos por WhatsApp si deseas más información.`;
+    banner.classList.remove('hidden');
+    banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 // --- 2. AUTENTICACIÓN Y REGISTRO ---
@@ -136,6 +208,7 @@ function cerrarSesionCliente() {
 
 // --- 1. CARGA DINÁMICA DE LA BASE DE DATOS ---
 async function cargarMenuDesdeDB() {
+    cargarHorariosAtencion(); // en paralelo, no bloquea el render del catálogo
     try {
         const urlFresca = URL_OBTENER_MENU + "?t=" + new Date().getTime();
         const response = await fetch(urlFresca);
@@ -562,6 +635,8 @@ async function sendOrder(event) {
     
     const itemsInCart = Object.values(cart);
     if (itemsInCart.length === 0) { alert("⚠️ Tu carrito está vacío."); goToStep(1); return; }
+
+    if (!estaAbiertoAhora()) { mostrarBannerCerrado(); return; }
 
     const submitBtn = document.getElementById('submit-btn');
     submitBtn.innerText = "Enviando Orden..."; submitBtn.disabled = true;

@@ -83,6 +83,15 @@ class MotorizadoGuardar(BaseModel):
     id: Optional[int] = None
     nombre: str
 
+class HorarioDia(BaseModel):
+    dia_semana: int
+    activo: bool
+    hora_apertura: str
+    hora_cierre: str
+
+class HorariosGuardar(BaseModel):
+    horarios: List[HorarioDia]
+
 class CategoriaGuardar(BaseModel):
     id: Optional[int] = None
     nombre: str

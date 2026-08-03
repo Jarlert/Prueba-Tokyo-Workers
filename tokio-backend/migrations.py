@@ -24,3 +24,15 @@ def ejecutar_migraciones(engine: Engine):
         """))
         if resultado.rowcount:
             print(f"[migracion] Backfill 'fecha': {resultado.rowcount} pedidos actualizados.")
+
+        conteo_horarios = conn.execute(text("SELECT COUNT(*) FROM horarios_atencion")).scalar()
+        if conteo_horarios == 0:
+            print("[migracion] Sembrando horario de atención por defecto (todos los días 11:00-21:00)...")
+            for dia in range(7):
+                conn.execute(
+                    text("""
+                        INSERT INTO horarios_atencion (dia_semana, activo, hora_apertura, hora_cierre)
+                        VALUES (:dia, true, '11:00', '21:00')
+                    """),
+                    {"dia": dia}
+                )

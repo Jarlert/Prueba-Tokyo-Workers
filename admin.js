@@ -22,6 +22,9 @@ const ADMIN_URL_ELIMINAR_MOT = "https://prueba-tokyo-workers-production.up.railw
 const URL_OBTENER_MSJ = "https://prueba-tokyo-workers-production.up.railway.app/api/mensajes/";
 const URL_GUARDAR_MSJ = "https://prueba-tokyo-workers-production.up.railway.app/api/mensajes/guardar";
 
+const URL_OBTENER_HORARIOS = "https://prueba-tokyo-workers-production.up.railway.app/api/horarios/";
+const URL_GUARDAR_HORARIOS = "https://prueba-tokyo-workers-production.up.railway.app/api/horarios/guardar";
+
 // --- MEMORIA DEL ADMINISTRADOR ---
 let adminCategorias = [];
 let adminProductos = [];
@@ -74,6 +77,7 @@ async function desbloquearAdmin() {
             
             cargarDatosAdmin();
             cargarMensajesWP();
+            cargarHorarios();
         } else {
             lanzarErrorBloqueo(errorMsg, boton, "Usuario/PIN incorrecto o sin privilegios.");
         }
@@ -372,6 +376,68 @@ async function eliminarMotorizado(id) {
         });
         await cargarMotorizadosDesdeDB();
     } catch(e) { alert('Error al eliminar.'); }
+}
+
+// ==========================================
+// GESTIÓN DEL HORARIO DE ATENCIÓN
+// ==========================================
+async function cargarHorarios() {
+    try {
+        const res = await fetch(URL_OBTENER_HORARIOS, { headers: authHeaders() });
+        const data = await res.json();
+        const horarios = Array.isArray(data) ? data : (data.data || []);
+        horarios.forEach(h => {
+            const chk = document.getElementById(`hor-activo-${h.dia_semana}`);
+            const inicio = document.getElementById(`hor-inicio-${h.dia_semana}`);
+            const fin = document.getElementById(`hor-fin-${h.dia_semana}`);
+            if (!chk || !inicio || !fin) return;
+            chk.checked = h.activo;
+            inicio.value = h.hora_apertura || '';
+            fin.value = h.hora_cierre || '';
+            inicio.disabled = !h.activo;
+            fin.disabled = !h.activo;
+        });
+    } catch (error) { console.error("Error obteniendo horarios:", error); }
+}
+
+function toggleHorarioDia(dia) {
+    const activo = document.getElementById(`hor-activo-${dia}`).checked;
+    document.getElementById(`hor-inicio-${dia}`).disabled = !activo;
+    document.getElementById(`hor-fin-${dia}`).disabled = !activo;
+}
+
+async function guardarHorarios() {
+    const btn = document.getElementById('btn-save-horarios');
+    const horarios = [];
+    for (let dia = 0; dia <= 6; dia++) {
+        const activo = document.getElementById(`hor-activo-${dia}`).checked;
+        const inicio = document.getElementById(`hor-inicio-${dia}`).value;
+        const fin = document.getElementById(`hor-fin-${dia}`).value;
+        if (activo && (!inicio || !fin)) {
+            alert('Falta la hora de apertura o cierre en un día marcado como abierto.');
+            return;
+        }
+        horarios.push({ dia_semana: dia, activo, hora_apertura: inicio || '00:00', hora_cierre: fin || '00:00' });
+    }
+
+    btn.disabled = true; btn.innerText = "Guardando...";
+    try {
+        const res = await fetch(URL_GUARDAR_HORARIOS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+            body: JSON.stringify({ horarios })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert("✅ Horario de atención actualizado.");
+        } else {
+            alert("Error al guardar: " + (data.detail || data.error || "desconocido"));
+        }
+    } catch (error) {
+        alert('Error de red al guardar el horario.');
+    } finally {
+        btn.disabled = false; btn.innerText = "💾 Guardar Horario";
+    }
 }
 
 // ==========================================

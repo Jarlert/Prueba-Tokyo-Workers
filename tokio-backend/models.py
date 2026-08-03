@@ -23,6 +23,14 @@ class Pedido(Base):
     repartidor = Column(String, nullable=True)
     tasa_bcv = Column(Float, nullable=True)
 
+class HorarioAtencion(Base):
+    __tablename__ = "horarios_atencion"
+    id = Column(Integer, primary_key=True, index=True)
+    dia_semana = Column(Integer, unique=True, nullable=False, index=True)  # 0=lunes ... 6=domingo
+    activo = Column(Boolean, default=True)
+    hora_apertura = Column(String, nullable=True)  # formato "HH:MM"
+    hora_cierre = Column(String, nullable=True)    # formato "HH:MM"
+
 class TasaManual(Base):
     __tablename__ = "tasa_manual"
     id = Column(Integer, primary_key=True, index=True)
