@@ -2,8 +2,8 @@
 // --- LÓGICA EXCLUSIVA DEL PANEL DE ESTADÍSTICAS ---
 // =================================================================
 
-const API_ESTADISTICAS_PEDIDOS = "https://prueba-tokyo-workers-production.up.railway.app/api/pedidos/";
-const API_VALIDAR_ACCESO_ESTADISTICAS = "https://prueba-tokyo-workers-production.up.railway.app/api/usuarios/validar-acceso";
+const API_ESTADISTICAS_PEDIDOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/";
+const API_VALIDAR_ACCESO_ESTADISTICAS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/usuarios/validar-acceso";
 let datosEstadisticas = [];
 let tasaEstadisticas = 1;
 let graficoTorta = null;

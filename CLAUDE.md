@@ -41,7 +41,7 @@ There is no automated test suite (frontend or backend) and no linter configured.
 
 ## Architecture notes
 
-**Deployment split**: static frontend pages (deployed separately, e.g. GitHub Pages) call a backend deployed on Railway. All frontend API base URLs are **hardcoded absolute URLs** to `https://prueba-tokyo-workers-production.up.railway.app` at the top of each JS file (`app.js`, `admin.js`, `menu.js`, `estadisticas.js`) — there's no env-based config, so changing backend environments means editing every JS file.
+**Deployment split**: static frontend pages (deployed separately, e.g. GitHub Pages) call a backend deployed on Railway. All frontend API base URLs are **hardcoded absolute URLs** to `https://prueba-tokyo-workers-production-76cf.up.railway.app` at the top of each JS file (`app.js`, `admin.js`, `menu.js`, `estadisticas.js`) — there's no env-based config, so changing backend environments means editing every JS file.
 
 **Auth is not actually enforced server-side.** The frontend sends `Authorization: Bearer TokioSushi_App_2026_X` (a hardcoded static string in `app.js`) or `Bearer ${adminToken}` (in `admin.js`) on write requests, but no FastAPI dependency validates these headers anywhere in `routers/`. Real access control is just the login check in `routers/usuarios.py` (`validar-acceso`, plaintext PIN comparison against the `usuarios` table) gating the SPA's client-side view state. Don't assume the Bearer header provides any actual protection when reasoning about security.
 

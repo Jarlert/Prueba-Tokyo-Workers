@@ -2,10 +2,10 @@
 // TOKIO SUSHI - LÓGICA DEL CLIENTE (FRONTEND)
 // ==========================================
 
-const URL_OBTENER_MENU = "https://prueba-tokyo-workers-production.up.railway.app/api/menu/";
-const URL_VERIFICAR_CLIENTE = "https://prueba-tokyo-workers-production.up.railway.app/api/clientes/verificar";
-const URL_REGISTRAR_CLIENTE = "https://prueba-tokyo-workers-production.up.railway.app/api/clientes/registrar";
-const URL_OBTENER_HORARIOS = "https://prueba-tokyo-workers-production.up.railway.app/api/horarios/";
+const URL_OBTENER_MENU = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/menu/";
+const URL_VERIFICAR_CLIENTE = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/clientes/verificar";
+const URL_REGISTRAR_CLIENTE = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/clientes/registrar";
+const URL_OBTENER_HORARIOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/horarios/";
 
 let menuData = { combos: [], cocina: [], sushi: [], extras: [] };
 let cart = {};
@@ -660,7 +660,7 @@ async function sendOrder(event) {
                     datosClienteLogueado.direcciones_extra = JSON.stringify(extras);
                     localStorage.setItem('sesionCliente', JSON.stringify(datosClienteLogueado));
                     
-                    fetch("https://prueba-tokyo-workers-production.up.railway.app/api/clientes/actualizar-direcciones-cliente", {
+                    fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/clientes/actualizar-direcciones-cliente", {
                         method: 'POST', 
                         headers: { 
                             'Content-Type': 'application/json',
@@ -688,7 +688,7 @@ async function sendOrder(event) {
         pedido_detallado: "Generado por Backend" // Validacion Pydantic FastAPI
     };
 
-    const urlBackendPedidos = "https://prueba-tokyo-workers-production.up.railway.app/api/pedidos/"; 
+    const urlBackendPedidos = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/"; 
 
     try {
         const response = await fetch(urlBackendPedidos, {
@@ -937,7 +937,7 @@ async function guardarEdicionDatos() {
     cargarSelectorDirecciones();
 
     try {
-        await fetch("https://prueba-tokyo-workers-production.up.railway.app/api/clientes/actualizar-direcciones-cliente", {
+        await fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/clientes/actualizar-direcciones-cliente", {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',

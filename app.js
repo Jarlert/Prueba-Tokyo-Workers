@@ -2,12 +2,12 @@
 // Tokio Sushi - Núcleo de Operaciones y Control del Sistema (app.js)
 // =====================================================================
 
-const URL_OBTENER_MOTORIZADOS = "https://prueba-tokyo-workers-production.up.railway.app/api/motorizados/";
-const API_OBTENER_PEDIDOS = "https://prueba-tokyo-workers-production.up.railway.app/api/pedidos/";
-const API_ACTUALIZAR_ESTADO = "https://prueba-tokyo-workers-production.up.railway.app/api/pedidos/actualizar-estado";
-const URL_NUEVO_PEDIDO = "https://prueba-tokyo-workers-production.up.railway.app/api/pedidos/";
-const URL_OBTENER_MENU = "https://prueba-tokyo-workers-production.up.railway.app/api/menu/";
-const URL_OBTENER_USUARIOS = "https://prueba-tokyo-workers-production.up.railway.app/api/usuarios/";
+const URL_OBTENER_MOTORIZADOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/motorizados/";
+const API_OBTENER_PEDIDOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/";
+const API_ACTUALIZAR_ESTADO = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/actualizar-estado";
+const URL_NUEVO_PEDIDO = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/";
+const URL_OBTENER_MENU = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/menu/";
+const URL_OBTENER_USUARIOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/usuarios/";
 
 let MOTORIZADOS_SISTEMA = []; 
 let USUARIOS_SISTEMA = [];
@@ -287,7 +287,7 @@ async function actualizarTasaBCV() {
     if (!inputTasa) return;
 
     try {
-        const response = await fetch('https://prueba-tokyo-workers-production.up.railway.app/api/bcv/');
+        const response = await fetch('https://prueba-tokyo-workers-production-76cf.up.railway.app/api/bcv/');
         if (!response.ok) throw new Error('Error BD');
         
         const data = await response.json();
@@ -312,7 +312,7 @@ if (document.getElementById('tasaBCV')) {
         if (isNaN(nuevaTasa) || nuevaTasa <= 0) return;
 
         try {
-            const response = await fetch('https://prueba-tokyo-workers-production.up.railway.app/api/bcv/actualizar', {
+            const response = await fetch('https://prueba-tokyo-workers-production-76cf.up.railway.app/api/bcv/actualizar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tasa: nuevaTasa })
@@ -380,7 +380,7 @@ function verificarSesion() {
     }
 }
 
-const API_VALIDAR_ACCESO = "https://prueba-tokyo-workers-production.up.railway.app/api/usuarios/validar-acceso";
+const API_VALIDAR_ACCESO = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/usuarios/validar-acceso";
 
 async function iniciarSesion(event) {
     if (event && typeof event.preventDefault === 'function') event.preventDefault();
@@ -651,7 +651,7 @@ function guardarEdicionPedido() {
         texto_bolivares: textoAdicionalBs 
     };
     
-    fetch("https://prueba-tokyo-workers-production.up.railway.app/api/pedidos/notificar-edicion", { 
+    fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/notificar-edicion", { 
         method: 'POST', headers: authHeaders(), body: JSON.stringify(payloadNotificacion) 
     }).catch(e => console.error("Error enviando WhatsApp:", e));
 }
@@ -791,7 +791,7 @@ async function procesarPasoCocina(idPedido) {
         tiempo_estimado: tiempoEstimado
     };
 
-    fetch("https://prueba-tokyo-workers-production.up.railway.app/api/pedidos/notificar-aprobado", {
+    fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/notificar-aprobado", {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(payloadAprobado)
@@ -818,7 +818,7 @@ function procesarPasoFinalizado(idPedido) {
         direccion: pedido.direccion || pedido.Direccion || 'Dirección no especificada'
     };
 
-    fetch("https://prueba-tokyo-workers-production.up.railway.app/api/pedidos/notificar-despacho", {
+    fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/notificar-despacho", {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(payloadDespacho)
@@ -1302,7 +1302,7 @@ async function procesarPrecioDelivery(idPedido) {
         total_bs: totalBsFormateado
     };
 
-    fetch("https://prueba-tokyo-workers-production.up.railway.app/api/pedidos/notificar-cobro", { 
+    fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/notificar-cobro", { 
         method: 'POST', 
         headers: authHeaders(), 
         body: JSON.stringify(payloadCobro) 
