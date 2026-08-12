@@ -648,7 +648,8 @@ function guardarEdicionPedido() {
         cliente: nuevoCliente,
         pedido_detallado: nuevoDetalle,
         total_orden: totalEdicionUSD,
-        texto_bolivares: textoAdicionalBs 
+        texto_bolivares: textoAdicionalBs,
+        id_visual: String(idReal)
     };
     
     fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/notificar-edicion", { 
@@ -788,7 +789,8 @@ async function procesarPasoCocina(idPedido) {
     const payloadAprobado = {
         telefono: telefono,
         cliente: cliente,
-        tiempo_estimado: tiempoEstimado
+        tiempo_estimado: tiempoEstimado,
+        id_visual: String(pedido.id_pedido || pedido.ID || idPedido)
     };
 
     fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/notificar-aprobado", {
@@ -1299,7 +1301,8 @@ async function procesarPrecioDelivery(idPedido) {
         pedido_detallado: payload.pedido_detallado,
         total_orden: payload.total_orden,
         metodo_pago: payload.metodo_pago,
-        total_bs: totalBsFormateado
+        total_bs: totalBsFormateado,
+        id_visual: String(idPedido)
     };
 
     fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/notificar-cobro", { 
