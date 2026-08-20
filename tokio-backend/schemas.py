@@ -51,6 +51,7 @@ class NotificacionEdicion(BaseModel):
     pedido_detallado: str
     total_orden: float
     texto_bolivares: str = ""
+    id_visual: str = ""
 
 class NotificacionCobro(BaseModel):
     telefono: str
@@ -59,11 +60,13 @@ class NotificacionCobro(BaseModel):
     total_orden: float
     metodo_pago: str
     total_bs: str = ""
+    id_visual: str = ""
 
 class NotificacionAprobado(BaseModel):
     telefono: str
     cliente: str
     tiempo_estimado: str
+    id_visual: str = ""
 
 class NotificacionDespacho(BaseModel):
     telefono: str
