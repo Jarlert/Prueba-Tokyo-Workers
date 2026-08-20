@@ -25,6 +25,74 @@ const URL_GUARDAR_MSJ = "https://prueba-tokyo-workers-production-76cf.up.railway
 const URL_OBTENER_HORARIOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/horarios/";
 const URL_GUARDAR_HORARIOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/horarios/guardar";
 
+const API_KEY_IMGBB = "627e932e53c3f448bbd8594d59042b6b";
+
+// ==========================================
+// SUBIDA DE IMÁGENES DE MENÚ (redimensiona antes de subir a ImgBB)
+// ==========================================
+function redimensionarImagen(file, maxDimension = 700, calidad = 0.8) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        img.onload = () => {
+            let { width, height } = img;
+            if (width > maxDimension || height > maxDimension) {
+                if (width > height) {
+                    height = Math.round(height * (maxDimension / width));
+                    width = maxDimension;
+                } else {
+                    width = Math.round(width * (maxDimension / height));
+                    height = maxDimension;
+                }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            canvas.toBlob(blob => {
+                URL.revokeObjectURL(objectUrl);
+                if (blob) resolve(blob); else reject(new Error('No se pudo procesar la imagen'));
+            }, 'image/jpeg', calidad);
+        };
+        img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('No se pudo leer la imagen')); };
+        img.src = objectUrl;
+    });
+}
+
+async function manejarSeleccionImagen(event, inputUrlId, statusId) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const inputUrl = document.getElementById(inputUrlId);
+    const statusEl = document.getElementById(statusId);
+    if (statusEl) statusEl.innerText = "⏳ Optimizando y subiendo...";
+
+    try {
+        const blobRedimensionado = await redimensionarImagen(file);
+        const formData = new FormData();
+        formData.append("image", blobRedimensionado, "imagen.jpg");
+
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY_IMGBB}`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            inputUrl.value = data.data.url;
+            const pesoKB = Math.round(blobRedimensionado.size / 1024);
+            if (statusEl) statusEl.innerText = `✅ Imagen lista (${pesoKB} KB)`;
+        } else {
+            if (statusEl) statusEl.innerText = "❌ Error al subir la imagen a ImgBB.";
+        }
+    } catch (error) {
+        console.error("Error redimensionando/subiendo imagen:", error);
+        if (statusEl) statusEl.innerText = "❌ No se pudo procesar la imagen.";
+    } finally {
+        event.target.value = "";
+    }
+}
+
 // --- MEMORIA DEL ADMINISTRADOR ---
 let adminCategorias = [];
 let adminProductos = [];
@@ -492,6 +560,7 @@ function editarCategoria(id) {
 function resetFormCat() {
     document.getElementById('form-categoria').reset(); document.getElementById('cat-id').value = "";
     if (document.getElementById('cat-imagen')) document.getElementById('cat-imagen').value = "";
+    if (document.getElementById('cat-imagen-status')) document.getElementById('cat-imagen-status').innerText = "O sube una foto: se redimensiona y comprime automáticamente antes de subirla.";
     document.getElementById('titulo-form-cat').innerText = "Crear Categoría"; document.getElementById('btn-save-cat').innerText = "💾 Guardar Categoría"; document.getElementById('btn-cancel-cat').style.display = "none";
     if(document.getElementById('buscador-categorias-admin')) document.getElementById('buscador-categorias-admin').value = '';
 }
@@ -567,6 +636,7 @@ function editarProducto(id) {
 function resetFormProd() {
     document.getElementById('form-producto').reset(); document.getElementById('prod-id').value = "";
     if (document.getElementById('prod-imagen')) document.getElementById('prod-imagen').value = "";
+    if (document.getElementById('prod-imagen-status')) document.getElementById('prod-imagen-status').innerText = "O sube una foto: se redimensiona y comprime automáticamente antes de subirla.";
     document.getElementById('titulo-form-prod').innerText = "Crear Producto"; document.getElementById('btn-save-prod').innerText = "💾 Guardar Producto"; document.getElementById('btn-cancel-prod').style.display = "none";
 }
 
@@ -727,6 +797,7 @@ function editarCombo(id) {
 
 function resetFormCombo() {
     document.getElementById('form-combo').reset(); document.getElementById('combo-id').value = ""; document.getElementById('lista-items-combo').innerHTML = '';
+    if (document.getElementById('combo-imagen-status')) document.getElementById('combo-imagen-status').innerText = "O sube una foto: se redimensiona y comprime automáticamente antes de subirla.";
     agregarFilaProductoCombo(); document.getElementById('titulo-form-combo').innerText = "Crear Combo"; document.getElementById('btn-save-combo').innerText = "🍱 Guardar Combo"; document.getElementById('btn-cancel-combo').style.display = "none";
     if(document.getElementById('buscador-combos-admin')) document.getElementById('buscador-combos-admin').value = '';
 }

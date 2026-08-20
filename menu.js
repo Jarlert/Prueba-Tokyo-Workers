@@ -272,7 +272,7 @@ function renderizarCategorias() {
         
         let arteVisual = '';
         if (catInfo.imagen && catInfo.imagen.startsWith('http')) {
-            arteVisual = `<img src="${catInfo.imagen}" alt="${catInfo.titulo}" class="w-full h-full object-cover">`;
+            arteVisual = `<img src="${catInfo.imagen}" alt="${catInfo.titulo}" loading="lazy" class="w-full h-full object-cover">`;
         } else {
             arteVisual = iconosRespado[index % iconosRespado.length];
         }
@@ -311,7 +311,7 @@ function selectCategory(categoryKey) {
         
         const esEnlace = item.image && item.image.startsWith('http');
         const vistaImagen = esEnlace 
-            ? `<img src="${item.image}" alt="${item.name}" class="w-20 h-20 object-cover rounded-xl flex-shrink-0 bg-gray-100 border border-gray-100 shadow-sm">`
+            ? `<img src="${item.image}" alt="${item.name}" loading="lazy" class="w-20 h-20 object-cover rounded-xl flex-shrink-0 bg-gray-100 border border-gray-100 shadow-sm">`
             : `<div class="w-20 h-20 rounded-xl flex-shrink-0 bg-red-50 text-red-500 border border-red-100 flex items-center justify-center text-4xl shadow-sm">${item.image || '🍣'}</div>`;
 
         const itemHtml = `

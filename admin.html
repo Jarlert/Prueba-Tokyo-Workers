@@ -225,8 +225,10 @@
                         <input type="hidden" id="cat-id">
                         <label>Nombre de la Categoría</label>
                         <input type="text" id="cat-nombre" placeholder="Ej: Postres" required>
-                        <label>URL de la Imagen</label>
+                        <label>Imagen</label>
                         <input type="text" id="cat-imagen" placeholder="URL .jpg o .png (ej: ImgBB)">
+                        <input type="file" accept="image/*" onchange="manejarSeleccionImagen(event, 'cat-imagen', 'cat-imagen-status')" style="margin-top: 6px;">
+                        <span id="cat-imagen-status" style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px;">O sube una foto: se redimensiona y comprime automáticamente antes de subirla.</span>
                         <button type="submit" class="btn-submit" id="btn-save-cat">💾 Guardar Categoría</button>
                         <button type="button" class="btn-submit btn-cancel" id="btn-cancel-cat" onclick="resetFormCat()">❌ Cancelar Edición</button>
                     </form>
@@ -255,8 +257,10 @@
                         <label>Precio ($)</label>
                         <input type="number" id="prod-precio" step="0.01" placeholder="0.00" required>
 
-                        <label>URL de la Imagen</label>
+                        <label>Imagen</label>
                         <input type="text" id="prod-imagen" placeholder="URL .jpg o .png">
+                        <input type="file" accept="image/*" onchange="manejarSeleccionImagen(event, 'prod-imagen', 'prod-imagen-status')" style="margin-top: 6px;">
+                        <span id="prod-imagen-status" style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px;">O sube una foto: se redimensiona y comprime automáticamente antes de subirla.</span>
                         
                         <label>Descripción Corta</label>
                         <textarea id="prod-descripcion" rows="2" placeholder="Detalles del producto..."></textarea>
@@ -289,8 +293,10 @@
                         <label>Precio Especial ($)</label>
                         <input type="number" id="combo-precio" step="0.01" placeholder="0.00" required>
                         
-                        <label>URL de la Imagen</label>
+                        <label>Imagen</label>
                         <input type="text" id="combo-imagen" placeholder="URL .jpg o .png">
+                        <input type="file" accept="image/*" onchange="manejarSeleccionImagen(event, 'combo-imagen', 'combo-imagen-status')" style="margin-top: 6px;">
+                        <span id="combo-imagen-status" style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px;">O sube una foto: se redimensiona y comprime automáticamente antes de subirla.</span>
 
                         <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">
                             <label style="margin-top: 0; color: white;">🛒 Productos incluidos:</label>
