@@ -225,7 +225,6 @@ async function cargarMenuDesdeDB() {
         const categoriasDeBaseDatos = data.menu ? (data.menu.categorias || []) : []; 
 
         const procesarItem = (prod, esCombo = false) => {
-            if (prod.disponible === false) return;
             const categoriaRaw = String(prod.categoria || (esCombo ? 'Combos' : 'Otros')).trim();
             const categoriaKey = categoriaRaw.toLowerCase().replace(/\s+/g, '_');
 
@@ -241,12 +240,13 @@ async function cargarMenuDesdeDB() {
             const idUnico = esCombo ? 'c_' + prod.id : 'p_' + prod.id;
 
             menuData[categoriaKey].items.push({
-                id: idUnico, 
+                id: idUnico,
                 name: prod.nombre,
                 price: parseFloat(prod.precio),
                 desc: prod.descripcion || "",
                 image: prod.imagen || "",
-                opciones_combo: esCombo ? (prod.items_json || prod.items || null) : null 
+                opciones_combo: esCombo ? (prod.items_json || prod.items || null) : null,
+                disponible: prod.disponible !== false
             });
         };
 
@@ -269,7 +269,9 @@ function renderizarCategorias() {
 
     Object.keys(menuData).forEach((catKey, index) => {
         const catInfo = menuData[catKey];
-        
+        const itemsVisibles = catInfo.items.filter(i => i.disponible !== false);
+        if (itemsVisibles.length === 0) return; // categoría solo con ítems de uso interno (ej. componentes de combos)
+
         let arteVisual = '';
         if (catInfo.imagen && catInfo.imagen.startsWith('http')) {
             arteVisual = `<img src="${catInfo.imagen}" alt="${catInfo.titulo}" loading="lazy" class="w-full h-full object-cover">`;
@@ -284,7 +286,7 @@ function renderizarCategorias() {
                 </div>
                 <div>
                     <h3 class="font-bold text-gray-800 text-lg">${catInfo.titulo}</h3>
-                    <p class="text-xs text-gray-400">${catInfo.items.length} platos disponibles</p>
+                    <p class="text-xs text-gray-400">${itemsVisibles.length} platos disponibles</p>
                 </div>
             </button>
         `;
@@ -299,7 +301,7 @@ function selectCategory(categoryKey) {
     
     document.getElementById('category-title').innerText = menuData[categoryKey].titulo;
 
-    menuData[categoryKey].items.forEach(item => {
+    menuData[categoryKey].items.filter(item => item.disponible !== false).forEach(item => {
         let currentQty = 0;
         Object.keys(cart).forEach(key => {
             if (key === String(item.id) || key.startsWith(item.id + "_")) {
