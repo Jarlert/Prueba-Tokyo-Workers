@@ -318,10 +318,13 @@ function selectCategory(categoryKey) {
             <div class="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm flex flex-col gap-2">
                 <div class="flex items-center justify-between gap-3">
                     
-                    ${vistaImagen} <div class="flex-grow min-w-0 pr-1">
-                        <h4 class="text-sm font-bold text-gray-800 leading-snug">${item.name}</h4>
-                        <p class="text-xs text-gray-400 my-0.5 line-clamp-2">${item.desc}</p>
-                        <span class="text-red-600 font-bold text-sm block mt-0.5">$${item.price.toFixed(2)}</span>
+                    <div class="flex items-center gap-3 flex-grow min-w-0 cursor-pointer" onclick="abrirDetalleProducto('${item.id}')">
+                        ${vistaImagen}
+                        <div class="flex-grow min-w-0 pr-1">
+                            <h4 class="text-sm font-bold text-gray-800 leading-snug">${item.name}</h4>
+                            <p class="text-xs text-gray-400 my-0.5 line-clamp-2">${item.desc}</p>
+                            <span class="text-red-600 font-bold text-sm block mt-0.5">$${item.price.toFixed(2)}</span>
+                        </div>
                     </div>
                     <div class="flex items-center space-x-1 bg-gray-100 p-1 rounded-xl flex-shrink-0 border border-gray-200">
                         <button type="button" onclick="updateQty('${item.id}', '${item.name}', ${item.price}, -1)" class="w-8 h-8 bg-white rounded-lg font-bold text-lg text-gray-700 shadow-sm select-none cursor-pointer">-</button>
@@ -341,6 +344,35 @@ function selectCategory(categoryKey) {
     });
     
     goToStep(2);
+}
+
+// --- MODAL DE DETALLE DE PRODUCTO (foto grande + descripción completa) ---
+function abrirDetalleProducto(itemId) {
+    let encontrado = null;
+    Object.values(menuData).forEach(cat => {
+        const match = cat.items.find(i => i.id === itemId);
+        if (match) encontrado = match;
+    });
+    if (!encontrado) return;
+
+    const esEnlace = encontrado.image && encontrado.image.startsWith('http');
+    document.getElementById('modal-detalle-producto-imagen-wrap').innerHTML = esEnlace
+        ? `<img src="${encontrado.image}" alt="${escapeHtml(encontrado.name)}" class="w-full h-full object-cover">`
+        : `<div class="w-full h-full flex items-center justify-center text-7xl bg-red-50 text-red-500">${encontrado.image || '🍣'}</div>`;
+
+    document.getElementById('modal-detalle-producto-nombre').innerText = encontrado.name;
+    document.getElementById('modal-detalle-producto-desc').innerText = encontrado.desc || 'Sin descripción disponible.';
+    document.getElementById('modal-detalle-producto-precio').innerText = `$${encontrado.price.toFixed(2)}`;
+
+    const modal = document.getElementById('modal-detalle-producto');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function cerrarModalDetalleProducto() {
+    const modal = document.getElementById('modal-detalle-producto');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
 }
 
 // --- 4. LÓGICA DEL CARRITO ---
