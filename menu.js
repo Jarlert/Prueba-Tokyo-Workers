@@ -357,7 +357,12 @@ function abrirDetalleProducto(itemId) {
 
     const esEnlace = encontrado.image && encontrado.image.startsWith('http');
     document.getElementById('modal-detalle-producto-imagen-wrap').innerHTML = esEnlace
-        ? `<img src="${encontrado.image}" alt="${escapeHtml(encontrado.name)}" class="w-full h-full object-cover">`
+        ? `<div class="relative w-full h-full">
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <div class="w-8 h-8 border-4 border-gray-300 border-t-red-500 rounded-full animate-spin"></div>
+                </div>
+                <img src="${encontrado.image}" alt="${escapeHtml(encontrado.name)}" class="relative w-full h-full object-cover opacity-0 transition-opacity duration-300" onload="this.classList.remove('opacity-0')" onerror="this.closest('.relative').innerHTML='<div class=&quot;w-full h-full flex items-center justify-center text-7xl bg-red-50 text-red-500&quot;>🍣</div>'">
+           </div>`
         : `<div class="w-full h-full flex items-center justify-center text-7xl bg-red-50 text-red-500">${encontrado.image || '🍣'}</div>`;
 
     document.getElementById('modal-detalle-producto-nombre').innerText = encontrado.name;
