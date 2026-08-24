@@ -268,6 +268,10 @@
                         <label style="display: flex; align-items: center; margin-top: 15px; cursor: pointer;">
                             <input type="checkbox" id="prod-disponible" checked> Producto Disponible en Menú
                         </label>
+                        <label style="display: flex; align-items: center; margin-top: 10px; cursor: pointer; color: #f87171;">
+                            <input type="checkbox" id="prod-agotado"> Agotado / sin stock por el momento
+                        </label>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Marca esto cuando no puedas preparar el producto hoy (ej. se acabó un ingrediente). A diferencia de "no disponible", esto también lo bloquea dentro de los combos que lo incluyen.</p>
 
                         <button type="submit" class="btn-submit" id="btn-save-prod">💾 Guardar Producto</button>
                         <button type="button" class="btn-submit btn-cancel" id="btn-cancel-prod" onclick="resetFormProd()">❌ Cancelar Edición</button>

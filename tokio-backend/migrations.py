@@ -8,13 +8,18 @@ def ejecutar_migraciones(engine: Engine):
     Se corren en cada arranque; después de la primera vez son no-ops baratos.
     """
     inspector = inspect(engine)
-    columnas = [c["name"] for c in inspector.get_columns("pedidos")]
+    columnas_pedidos = [c["name"] for c in inspector.get_columns("pedidos")]
+    columnas_productos = [c["name"] for c in inspector.get_columns("productos")]
 
     with engine.begin() as conn:
-        if "fecha" not in columnas:
+        if "fecha" not in columnas_pedidos:
             print("[migracion] Agregando columna 'fecha' a pedidos...")
             conn.execute(text("ALTER TABLE pedidos ADD COLUMN fecha DATE"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_pedidos_fecha ON pedidos (fecha)"))
+
+        if "agotado" not in columnas_productos:
+            print("[migracion] Agregando columna 'agotado' a productos...")
+            conn.execute(text("ALTER TABLE productos ADD COLUMN agotado BOOLEAN DEFAULT FALSE"))
 
         resultado = conn.execute(text("""
             UPDATE pedidos

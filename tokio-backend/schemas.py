@@ -108,6 +108,7 @@ class ProductoGuardar(BaseModel):
     imagen: Optional[str] = ""
     descripcion: Optional[str] = ""
     disponible: bool = True
+    agotado: bool = False
 
 class ComboGuardar(BaseModel):
     id: Optional[int] = None

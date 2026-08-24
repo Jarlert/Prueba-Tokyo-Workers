@@ -246,7 +246,8 @@ async function cargarMenuDesdeDB() {
                 desc: prod.descripcion || "",
                 image: prod.imagen || "",
                 opciones_combo: esCombo ? (prod.items_json || prod.items || null) : null,
-                disponible: prod.disponible !== false
+                disponible: prod.disponible !== false,
+                agotado: prod.agotado === true
             });
         };
 
@@ -269,7 +270,7 @@ function renderizarCategorias() {
 
     Object.keys(menuData).forEach((catKey, index) => {
         const catInfo = menuData[catKey];
-        const itemsVisibles = catInfo.items.filter(i => i.disponible !== false);
+        const itemsVisibles = catInfo.items.filter(i => i.disponible !== false && !i.agotado);
         if (itemsVisibles.length === 0) return; // categoría solo con ítems de uso interno (ej. componentes de combos)
 
         let arteVisual = '';
@@ -301,7 +302,7 @@ function selectCategory(categoryKey) {
     
     document.getElementById('category-title').innerText = menuData[categoryKey].titulo;
 
-    menuData[categoryKey].items.filter(item => item.disponible !== false).forEach(item => {
+    menuData[categoryKey].items.filter(item => item.disponible !== false && !item.agotado).forEach(item => {
         let currentQty = 0;
         Object.keys(cart).forEach(key => {
             if (key === String(item.id) || key.startsWith(item.id + "_")) {
@@ -776,7 +777,7 @@ function abrirModalCombo(item) {
             let opcionesCat = [];
             for(let key in menuData) {
                 if(menuData[key].titulo.toLowerCase() === grupo.valor.toLowerCase()) {
-                    opcionesCat = menuData[key].items;
+                    opcionesCat = menuData[key].items.filter(i => !i.agotado);
                     break;
                 }
             }
@@ -805,19 +806,26 @@ function abrirModalCombo(item) {
                 selectIndex++;
             }
         } else if (grupo.tipo === 'producto') {
-            let prodName = grupo.nombre_producto; 
-            let descFija = "";
-
-            if (!prodName) {
-                for(let key in menuData) {
-                    if (menuData[key].items) {
-                        let p = menuData[key].items.find(x => String(x.id) === String(grupo.valor));
-                        if(p) { prodName = p.name || p.nombre; descFija = p.desc || ""; break; }
-                    }
-                }
-                if (!prodName) prodName = isNaN(grupo.valor) ? grupo.valor : "Producto Fijo";
+            let prodOriginal = null;
+            for (let key in menuData) {
+                const encontrado = menuData[key].items.find(x => x.id === 'p_' + grupo.valor);
+                if (encontrado) { prodOriginal = encontrado; break; }
             }
-            
+
+            let prodName = grupo.nombre_producto || (prodOriginal ? prodOriginal.name : null) || (isNaN(grupo.valor) ? grupo.valor : "Producto Fijo");
+            let descFija = prodOriginal ? prodOriginal.desc : "";
+
+            if (prodOriginal && prodOriginal.agotado) {
+                container.insertAdjacentHTML('beforeend', `
+                    <div class="space-y-1 mb-3">
+                        <div class="w-full p-3 rounded-xl text-xs bg-red-50 border border-red-200 text-red-700 font-medium leading-relaxed">
+                            ⚠️ Por los momentos no tenemos <strong>${escapeHtml(prodName)}</strong> disponible, para que sea tomado en cuenta a la hora de ordenar.
+                        </div>
+                    </div>
+                `);
+                return;
+            }
+
             let htmlDescFija = descFija ? `<p class="text-[10px] text-gray-400 italic px-1 mt-0.5">${descFija}</p>` : '';
 
             let fijoHtml = `

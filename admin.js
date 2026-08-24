@@ -573,10 +573,11 @@ function renderListaProductos(lista = adminProductos) {
 
     lista.forEach(p => {
         const opacityClass = p.disponible ? '' : 'deshabilitado';
+        const badgeAgotado = p.agotado ? ' <span style="color:#f87171; font-weight:bold;">🚫 Agotado</span>' : '';
         cont.innerHTML += `
             <div class="list-item ${opacityClass}">
                 <div class="item-info">
-                    <p class="item-title">${p.nombre} <span style="color:#10b981">$${p.precio}</span></p>
+                    <p class="item-title">${p.nombre} <span style="color:#10b981">$${p.precio}</span>${badgeAgotado}</p>
                     <p class="item-meta">Cat: ${p.categoria} | Disp: ${p.disponible ? 'Sí' : 'No'}</p>
                 </div>
                 <div class="item-actions">
@@ -613,7 +614,8 @@ if (document.getElementById('form-producto')) {
         if (imgFinalProd === '') imgFinalProd = obtenerEmojiPlato();
         const payload = {
             id: id ? parseInt(id) : null, nombre: document.getElementById('prod-nombre').value.trim(), categoria: document.getElementById('prod-categoria').value,
-            precio: parseFloat(document.getElementById('prod-precio').value), imagen: imgFinalProd, descripcion: document.getElementById('prod-descripcion').value.trim(), disponible: document.getElementById('prod-disponible').checked
+            precio: parseFloat(document.getElementById('prod-precio').value), imagen: imgFinalProd, descripcion: document.getElementById('prod-descripcion').value.trim(), disponible: document.getElementById('prod-disponible').checked,
+            agotado: document.getElementById('prod-agotado').checked
         };
         try {
             await fetch(ADMIN_URL_GUARDAR_PROD, { 
@@ -630,6 +632,7 @@ function editarProducto(id) {
     const p = adminProductos.find(x => x.id === id); if(!p) return;
     document.getElementById('prod-id').value = p.id; document.getElementById('prod-nombre').value = p.nombre; document.getElementById('prod-categoria').value = p.categoria;
     document.getElementById('prod-precio').value = p.precio; document.getElementById('prod-imagen').value = p.imagen || ''; document.getElementById('prod-descripcion').value = p.descripcion; document.getElementById('prod-disponible').checked = p.disponible;
+    document.getElementById('prod-agotado').checked = !!p.agotado;
     document.getElementById('titulo-form-prod').innerText = "Editar Producto"; document.getElementById('btn-save-prod').innerText = "💾 Actualizar Producto"; document.getElementById('btn-cancel-prod').style.display = "block";
 }
 

@@ -61,6 +61,7 @@ class Producto(Base):
     precio = Column(Float, nullable=False)
     descripcion = Column(String, nullable=True)
     disponible = Column(Boolean, default=True)
+    agotado = Column(Boolean, default=False)
     imagen = Column(String, nullable=True)
 
 class Combo(Base):
