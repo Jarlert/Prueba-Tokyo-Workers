@@ -247,8 +247,7 @@ async function cargarMenuDesdeDB() {
                 image: prod.imagen || "",
                 opciones_combo: esCombo ? (prod.items_json || prod.items || null) : null,
                 disponible: prod.disponible !== false,
-                agotado: prod.agotado === true,
-                piezas: parseInt(prod.piezas) || 1
+                agotado: prod.agotado === true
             });
         };
 
@@ -961,7 +960,6 @@ function renderSaboresPiezas(pgIndex) {
                 ${construirMiniaturaComboHtml(item.image)}
                 <div class="flex-grow min-w-0">
                     <p class="text-xs font-bold text-gray-800 truncate">${escapeHtml(item.name)}</p>
-                    <p class="text-[10px] text-gray-400">${item.piezas || 1} pz c/u</p>
                 </div>
                 <div class="flex items-center gap-2 flex-shrink-0">
                     <button type="button" onclick="ajustarCantidadPiezas(${pgIndex}, '${item.id}', -1)" class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm cursor-pointer">−</button>
@@ -993,8 +991,7 @@ function calcularPiezasSeleccionadas(estado) {
     const alt = estado.alternativas[estado.alternativaActiva];
     let total = 0;
     Object.keys(estado.seleccion).forEach(itemId => {
-        const item = alt.opciones.find(o => o.id === itemId);
-        total += (item ? (item.piezas || 1) : 0) * estado.seleccion[itemId];
+        total += estado.seleccion[itemId];
     });
     return { total, objetivo: alt.piezas_objetivo };
 }

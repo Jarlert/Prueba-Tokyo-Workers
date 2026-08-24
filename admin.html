@@ -257,10 +257,6 @@
                         <label>Precio ($)</label>
                         <input type="number" id="prod-precio" step="0.01" placeholder="0.00" required>
 
-                        <label>Piezas por unidad</label>
-                        <input type="number" id="prod-piezas" min="1" step="1" value="1" required>
-                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Solo se usa en combos donde el cliente combina sabores hasta completar una cantidad de piezas (ej. un rollo = 4 piezas). Para todo lo demás déjalo en 1.</p>
-
                         <label>Imagen</label>
                         <input type="text" id="prod-imagen" placeholder="URL .jpg o .png">
                         <input type="file" accept="image/*" onchange="manejarSeleccionImagen(event, 'prod-imagen', 'prod-imagen-status')" style="margin-top: 6px;">

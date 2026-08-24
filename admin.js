@@ -615,8 +615,7 @@ if (document.getElementById('form-producto')) {
         const payload = {
             id: id ? parseInt(id) : null, nombre: document.getElementById('prod-nombre').value.trim(), categoria: document.getElementById('prod-categoria').value,
             precio: parseFloat(document.getElementById('prod-precio').value), imagen: imgFinalProd, descripcion: document.getElementById('prod-descripcion').value.trim(), disponible: document.getElementById('prod-disponible').checked,
-            agotado: document.getElementById('prod-agotado').checked,
-            piezas: parseInt(document.getElementById('prod-piezas').value) || 1
+            agotado: document.getElementById('prod-agotado').checked
         };
         try {
             await fetch(ADMIN_URL_GUARDAR_PROD, { 
@@ -634,7 +633,6 @@ function editarProducto(id) {
     document.getElementById('prod-id').value = p.id; document.getElementById('prod-nombre').value = p.nombre; document.getElementById('prod-categoria').value = p.categoria;
     document.getElementById('prod-precio').value = p.precio; document.getElementById('prod-imagen').value = p.imagen || ''; document.getElementById('prod-descripcion').value = p.descripcion; document.getElementById('prod-disponible').checked = p.disponible;
     document.getElementById('prod-agotado').checked = !!p.agotado;
-    document.getElementById('prod-piezas').value = p.piezas || 1;
     document.getElementById('titulo-form-prod').innerText = "Editar Producto"; document.getElementById('btn-save-prod').innerText = "💾 Actualizar Producto"; document.getElementById('btn-cancel-prod').style.display = "block";
 }
 

@@ -22,7 +22,7 @@ def obtener_menu(db: Session = Depends(get_db)):
     return {
         "menu": {
             "categorias": [{"id": c.id, "nombre": c.nombre, "imagen": c.imagen} for c in categorias],
-            "productos": [{"id": p.id, "nombre": p.nombre, "categoria": p.categoria, "precio": p.precio, "imagen": p.imagen, "descripcion": p.descripcion, "disponible": p.disponible, "agotado": p.agotado, "piezas": p.piezas or 1} for p in productos],
+            "productos": [{"id": p.id, "nombre": p.nombre, "categoria": p.categoria, "precio": p.precio, "imagen": p.imagen, "descripcion": p.descripcion, "disponible": p.disponible, "agotado": p.agotado} for p in productos],
             "combos": [{"id": cb.id, "nombre": cb.nombre, "precio": cb.precio, "imagen": cb.imagen, "descripcion": cb.descripcion, "disponible": cb.disponible, "items_json": cb.items_json} for cb in combos]
         }
     }
@@ -58,7 +58,6 @@ def guardar_producto(datos: schemas.ProductoGuardar, db: Session = Depends(get_d
                 prod.descripcion = datos.descripcion
                 prod.disponible = datos.disponible
                 prod.agotado = datos.agotado
-                prod.piezas = datos.piezas
         else:
             nuevo_prod = models.Producto(
                 nombre=datos.nombre,
@@ -67,8 +66,7 @@ def guardar_producto(datos: schemas.ProductoGuardar, db: Session = Depends(get_d
                 imagen=datos.imagen,
                 descripcion=datos.descripcion,
                 disponible=datos.disponible,
-                agotado=datos.agotado,
-                piezas=datos.piezas
+                agotado=datos.agotado
             )
             db.add(nuevo_prod)
 
