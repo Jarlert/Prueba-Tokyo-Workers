@@ -960,6 +960,7 @@ function renderSaboresPiezas(pgIndex) {
                 ${construirMiniaturaComboHtml(item.image)}
                 <div class="flex-grow min-w-0">
                     <p class="text-xs font-bold text-gray-800 truncate">${escapeHtml(item.name)}</p>
+                    ${item.desc ? `<p class="text-[10px] text-gray-400 italic leading-snug mt-0.5">${escapeHtml(item.desc)}</p>` : ''}
                 </div>
                 <div class="flex items-center gap-2 flex-shrink-0">
                     <button type="button" onclick="ajustarCantidadPiezas(${pgIndex}, '${item.id}', -1)" class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm cursor-pointer">−</button>
