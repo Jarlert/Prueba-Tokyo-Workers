@@ -364,7 +364,7 @@ function abrirDetalleProducto(itemId) {
                 <div class="absolute inset-0 flex items-center justify-center">
                     <div class="w-8 h-8 border-4 border-gray-300 border-t-red-500 rounded-full animate-spin"></div>
                 </div>
-                <img src="${encontrado.image}" alt="${escapeHtml(encontrado.name)}" class="relative w-full h-full object-cover opacity-0 transition-opacity duration-300" onload="this.classList.remove('opacity-0')" onerror="this.closest('.relative').innerHTML='<div class=&quot;w-full h-full flex items-center justify-center text-7xl bg-red-50 text-red-500&quot;>🍣</div>'">
+                <img src="${encontrado.image}" alt="${escapeHtml(encontrado.name)}" class="relative w-full h-full object-contain opacity-0 transition-opacity duration-300" onload="this.classList.remove('opacity-0')" onerror="this.closest('.relative').innerHTML='<div class=&quot;w-full h-full flex items-center justify-center text-7xl bg-red-50 text-red-500&quot;>🍣</div>'">
            </div>`
         : `<div class="w-full h-full flex items-center justify-center text-7xl bg-red-50 text-red-500">${encontrado.image || '🍣'}</div>`;
 
@@ -787,19 +787,25 @@ function abrirModalCombo(item) {
                 return;
             }
 
-            let optionsHtml = opcionesCat.map(opt => `<option value="${opt.name}" data-desc="${opt.desc || ''}">${opt.name}</option>`).join('');
-            let primeraDesc = opcionesCat[0] && opcionesCat[0].desc ? opcionesCat[0].desc : '';
-            
+            let optionsHtml = opcionesCat.map(opt => `<option value="${opt.name}" data-desc="${escapeHtml(opt.desc || '')}" data-img="${escapeHtml(opt.image || '')}">${opt.name}</option>`).join('');
+            let primeraOpcion = opcionesCat[0];
+            let primeraDesc = primeraOpcion && primeraOpcion.desc ? primeraOpcion.desc : '';
+
             for(let i=0; i < grupo.cantidad; i++) {
                 let tituloVisual = grupo.cantidad > 1 ? `Elige tu ${grupo.valor} (${i+1} de ${grupo.cantidad})` : `Elige tu ${grupo.valor}`;
-                
+
                 let grupoHtml = `
                     <div class="space-y-1 mb-3">
                         <label class="block text-gray-500 font-bold text-[10px] uppercase tracking-wider">${tituloVisual}</label>
-                        <select id="select-combo-grupo-${selectIndex}" onchange="actualizarDescripcionCombo(this, 'desc-combo-${selectIndex}')" class="w-full p-2.5 border border-gray-300 rounded-xl text-xs bg-gray-50 focus:outline-none focus:border-red-500 font-medium text-gray-800 shadow-sm cursor-pointer">
-                            ${optionsHtml}
-                        </select>
-                        <p id="desc-combo-${selectIndex}" class="text-[10px] text-gray-400 italic px-1 min-h-[15px]">${primeraDesc}</p>
+                        <div class="flex items-center gap-2">
+                            <div id="img-combo-${selectIndex}" class="flex-shrink-0">${construirMiniaturaComboHtml(primeraOpcion ? primeraOpcion.image : '')}</div>
+                            <div class="flex-grow min-w-0">
+                                <select id="select-combo-grupo-${selectIndex}" onchange="actualizarDescripcionCombo(this, 'desc-combo-${selectIndex}', 'img-combo-${selectIndex}')" class="w-full p-2.5 border border-gray-300 rounded-xl text-xs bg-gray-50 focus:outline-none focus:border-red-500 font-medium text-gray-800 shadow-sm cursor-pointer">
+                                    ${optionsHtml}
+                                </select>
+                                <p id="desc-combo-${selectIndex}" class="text-[10px] text-gray-400 italic px-1 min-h-[15px] mt-1">${primeraDesc}</p>
+                            </div>
+                        </div>
                     </div>
                 `;
                 container.insertAdjacentHTML('beforeend', grupoHtml);
@@ -831,9 +837,12 @@ function abrirModalCombo(item) {
             let fijoHtml = `
                 <div class="space-y-1 mb-3">
                     <label class="block text-gray-500 font-bold text-[10px] uppercase tracking-wider">Incluido Fijo</label>
-                    <div class="w-full p-2.5 border border-gray-200 rounded-xl text-xs bg-emerald-50 text-emerald-700 font-medium flex items-center justify-between shadow-sm">
-                        <span class="truncate pr-2">✔️ ${prodName}</span>
-                        <span class="font-black flex-shrink-0 bg-emerald-200 px-2 py-0.5 rounded">x${grupo.cantidad}</span>
+                    <div class="flex items-center gap-2">
+                        ${construirMiniaturaComboHtml(prodOriginal ? prodOriginal.image : '')}
+                        <div class="flex-grow min-w-0 p-2.5 border border-gray-200 rounded-xl text-xs bg-emerald-50 text-emerald-700 font-medium flex items-center justify-between shadow-sm">
+                            <span class="truncate pr-2">✔️ ${prodName}</span>
+                            <span class="font-black flex-shrink-0 bg-emerald-200 px-2 py-0.5 rounded">x${grupo.cantidad}</span>
+                        </div>
                     </div>
                     ${htmlDescFija}
                 </div>
@@ -853,13 +862,25 @@ function cerrarModalCombo() {
     comboEnPersonalizacion = null;
 }
 
-function actualizarDescripcionCombo(selectElement, idParrafo) {
+function construirMiniaturaComboHtml(valorImagen) {
+    if (valorImagen && valorImagen.startsWith('http')) {
+        return `<img src="${valorImagen}" alt="" loading="lazy" class="w-14 h-14 rounded-lg object-cover border border-gray-200 bg-gray-50 flex-shrink-0">`;
+    }
+    return `<div class="w-14 h-14 rounded-lg border border-gray-200 bg-red-50 text-red-400 flex-shrink-0 flex items-center justify-center text-2xl">${valorImagen || '🍣'}</div>`;
+}
+
+function actualizarDescripcionCombo(selectElement, idParrafo, idImgWrap) {
     const opcionSeleccionada = selectElement.options[selectElement.selectedIndex];
     const descripcion = opcionSeleccionada.getAttribute('data-desc');
     const parrafo = document.getElementById(idParrafo);
-    
+
     if (parrafo) {
         parrafo.innerText = descripcion || '';
+    }
+
+    if (idImgWrap) {
+        const imgWrap = document.getElementById(idImgWrap);
+        if (imgWrap) imgWrap.innerHTML = construirMiniaturaComboHtml(opcionSeleccionada.getAttribute('data-img'));
     }
 }
 
