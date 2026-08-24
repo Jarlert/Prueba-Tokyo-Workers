@@ -864,9 +864,24 @@ function cerrarModalCombo() {
 
 function construirMiniaturaComboHtml(valorImagen) {
     if (valorImagen && valorImagen.startsWith('http')) {
-        return `<img src="${valorImagen}" alt="" loading="lazy" class="w-14 h-14 rounded-lg object-cover border border-gray-200 bg-gray-50 flex-shrink-0">`;
+        return `<img src="${valorImagen}" alt="" loading="lazy" onclick="abrirLightboxImagen('${valorImagen.replace(/'/g, "\\'")}')" class="w-14 h-14 rounded-lg object-cover border border-gray-200 bg-gray-50 flex-shrink-0 cursor-zoom-in active:opacity-70 transition">`;
     }
     return `<div class="w-14 h-14 rounded-lg border border-gray-200 bg-red-50 text-red-400 flex-shrink-0 flex items-center justify-center text-2xl">${valorImagen || '🍣'}</div>`;
+}
+
+function abrirLightboxImagen(url) {
+    if (!url) return;
+    document.getElementById('lightbox-imagen-img').src = url;
+    const modal = document.getElementById('modal-lightbox-imagen');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function cerrarLightboxImagen() {
+    const modal = document.getElementById('modal-lightbox-imagen');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.getElementById('lightbox-imagen-img').src = '';
 }
 
 function actualizarDescripcionCombo(selectElement, idParrafo, idImgWrap) {
