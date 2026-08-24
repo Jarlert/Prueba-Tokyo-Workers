@@ -21,6 +21,10 @@ def ejecutar_migraciones(engine: Engine):
             print("[migracion] Agregando columna 'agotado' a productos...")
             conn.execute(text("ALTER TABLE productos ADD COLUMN agotado BOOLEAN DEFAULT FALSE"))
 
+        if "piezas" not in columnas_productos:
+            print("[migracion] Agregando columna 'piezas' a productos...")
+            conn.execute(text("ALTER TABLE productos ADD COLUMN piezas INTEGER DEFAULT 1"))
+
         resultado = conn.execute(text("""
             UPDATE pedidos
             SET fecha = SUBSTRING(timestamp FROM 1 FOR 10)::date

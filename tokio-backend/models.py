@@ -62,6 +62,7 @@ class Producto(Base):
     descripcion = Column(String, nullable=True)
     disponible = Column(Boolean, default=True)
     agotado = Column(Boolean, default=False)
+    piezas = Column(Integer, default=1)
     imagen = Column(String, nullable=True)
 
 class Combo(Base):

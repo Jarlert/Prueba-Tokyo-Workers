@@ -109,6 +109,7 @@ class ProductoGuardar(BaseModel):
     descripcion: Optional[str] = ""
     disponible: bool = True
     agotado: bool = False
+    piezas: int = 1
 
 class ComboGuardar(BaseModel):
     id: Optional[int] = None

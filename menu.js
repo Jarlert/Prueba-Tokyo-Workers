@@ -247,7 +247,8 @@ async function cargarMenuDesdeDB() {
                 image: prod.imagen || "",
                 opciones_combo: esCombo ? (prod.items_json || prod.items || null) : null,
                 disponible: prod.disponible !== false,
-                agotado: prod.agotado === true
+                agotado: prod.agotado === true,
+                piezas: parseInt(prod.piezas) || 1
             });
         };
 
@@ -756,6 +757,7 @@ async function sendOrder(event) {
 
 // --- CONTROL EXCLUSIVO DEL MODAL DE COMBOS ---
 let comboEnPersonalizacion = null;
+let estadoPiezasCombo = {};
 
 function abrirModalCombo(item) {
     comboEnPersonalizacion = item;
@@ -771,6 +773,10 @@ function abrirModalCombo(item) {
     const container = document.getElementById('modal-combo-options-container');
     container.innerHTML = '';
     let selectIndex = 0;
+    let piezasGroupIndex = 0;
+    estadoPiezasCombo = {};
+    const btnConfirmarCombo = document.getElementById('btn-confirmar-combo');
+    if (btnConfirmarCombo) { btnConfirmarCombo.disabled = false; btnConfirmarCombo.classList.remove('opacity-40', 'cursor-not-allowed'); }
 
     gruposOpciones.forEach((grupo) => {
         if (grupo.tipo === 'categoria') {
@@ -848,6 +854,38 @@ function abrirModalCombo(item) {
                 </div>
             `;
             container.insertAdjacentHTML('beforeend', fijoHtml);
+        } else if (grupo.tipo === 'piezas_alternativas') {
+            const pgIndex = piezasGroupIndex++;
+            const alternativasResueltas = (grupo.alternativas || []).map(alt => ({
+                nombre: alt.nombre,
+                piezas_objetivo: alt.piezas_objetivo,
+                opciones: resolverOpcionesCategoria(alt.categoria)
+            })).filter(alt => alt.piezas_objetivo > 0);
+
+            if (alternativasResueltas.length === 0) return;
+
+            estadoPiezasCombo[pgIndex] = { alternativas: alternativasResueltas, alternativaActiva: 0, seleccion: {} };
+
+            const botonesEstilo = alternativasResueltas.map((alt, i) => `
+                <button type="button" onclick="seleccionarEstiloPiezas(${pgIndex}, ${i})" data-idx="${i}"
+                    class="flex-1 py-2 rounded-xl text-xs font-bold border transition estilo-btn-${pgIndex} ${i === 0 ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 border-gray-300'}">
+                    ${escapeHtml(alt.nombre)} <span class="opacity-70">(${alt.piezas_objetivo}pz)</span>
+                </button>
+            `).join('');
+
+            const grupoPiezasHtml = `
+                <div class="space-y-2 mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                    <label class="block text-gray-600 font-bold text-[10px] uppercase tracking-wider">Elige tu estilo</label>
+                    <div class="flex gap-2">${botonesEstilo}</div>
+                    <div class="flex items-center justify-between mt-1">
+                        <span class="text-[10px] text-gray-400">Combina los sabores que quieras</span>
+                        <span id="contador-piezas-${pgIndex}" class="text-xs font-black px-2 py-0.5 rounded-full bg-red-100 text-red-600">0 / ${alternativasResueltas[0].piezas_objetivo} pz</span>
+                    </div>
+                    <div id="lista-sabores-piezas-${pgIndex}" class="space-y-2 mt-2"></div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', grupoPiezasHtml);
+            renderSaboresPiezas(pgIndex);
         }
     });
 
@@ -884,6 +922,113 @@ function cerrarLightboxImagen() {
     document.getElementById('lightbox-imagen-img').src = '';
 }
 
+// --- GRUPOS DE COMBO "ELIGE ESTILO + COMBINA SABORES POR PIEZAS" ---
+function resolverOpcionesCategoria(nombreCategoria) {
+    for (let key in menuData) {
+        if (menuData[key].titulo.toLowerCase() === (nombreCategoria || '').toLowerCase()) {
+            return menuData[key].items.filter(i => !i.agotado);
+        }
+    }
+    return [];
+}
+
+function seleccionarEstiloPiezas(pgIndex, altIndex) {
+    const estado = estadoPiezasCombo[pgIndex];
+    if (!estado) return;
+    estado.alternativaActiva = altIndex;
+    estado.seleccion = {};
+    renderSaboresPiezas(pgIndex);
+}
+
+function renderSaboresPiezas(pgIndex) {
+    const estado = estadoPiezasCombo[pgIndex];
+    if (!estado) return;
+    const alt = estado.alternativas[estado.alternativaActiva];
+
+    document.querySelectorAll(`.estilo-btn-${pgIndex}`).forEach(btn => {
+        const activo = parseInt(btn.dataset.idx) === estado.alternativaActiva;
+        btn.className = `flex-1 py-2 rounded-xl text-xs font-bold border transition estilo-btn-${pgIndex} ${activo ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 border-gray-300'}`;
+    });
+
+    const contenedor = document.getElementById(`lista-sabores-piezas-${pgIndex}`);
+    if (!contenedor) return;
+
+    if (alt.opciones.length === 0) {
+        contenedor.innerHTML = `<p class="text-xs text-red-500 font-bold px-1">⚠️ No hay sabores disponibles para "${escapeHtml(alt.nombre)}" en este momento.</p>`;
+    } else {
+        contenedor.innerHTML = alt.opciones.map(item => `
+            <div class="flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-200">
+                ${construirMiniaturaComboHtml(item.image)}
+                <div class="flex-grow min-w-0">
+                    <p class="text-xs font-bold text-gray-800 truncate">${escapeHtml(item.name)}</p>
+                    <p class="text-[10px] text-gray-400">${item.piezas || 1} pz c/u</p>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <button type="button" onclick="ajustarCantidadPiezas(${pgIndex}, '${item.id}', -1)" class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm cursor-pointer">−</button>
+                    <span id="cant-pieza-${pgIndex}-${item.id}" class="w-5 text-center text-xs font-bold">0</span>
+                    <button type="button" onclick="ajustarCantidadPiezas(${pgIndex}, '${item.id}', 1)" class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm cursor-pointer">+</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    actualizarContadorPiezas(pgIndex);
+}
+
+function ajustarCantidadPiezas(pgIndex, itemId, delta) {
+    const estado = estadoPiezasCombo[pgIndex];
+    if (!estado) return;
+    const actual = estado.seleccion[itemId] || 0;
+    const nuevo = Math.max(0, actual + delta);
+    if (nuevo === 0) delete estado.seleccion[itemId];
+    else estado.seleccion[itemId] = nuevo;
+
+    const span = document.getElementById(`cant-pieza-${pgIndex}-${itemId}`);
+    if (span) span.innerText = nuevo;
+
+    actualizarContadorPiezas(pgIndex);
+}
+
+function calcularPiezasSeleccionadas(estado) {
+    const alt = estado.alternativas[estado.alternativaActiva];
+    let total = 0;
+    Object.keys(estado.seleccion).forEach(itemId => {
+        const item = alt.opciones.find(o => o.id === itemId);
+        total += (item ? (item.piezas || 1) : 0) * estado.seleccion[itemId];
+    });
+    return { total, objetivo: alt.piezas_objetivo };
+}
+
+function actualizarContadorPiezas(pgIndex) {
+    const estado = estadoPiezasCombo[pgIndex];
+    if (!estado) return;
+    const { total, objetivo } = calcularPiezasSeleccionadas(estado);
+
+    const badge = document.getElementById(`contador-piezas-${pgIndex}`);
+    if (badge) {
+        badge.innerText = `${total} / ${objetivo} pz`;
+        badge.className = `text-xs font-black px-2 py-0.5 rounded-full ${total === objetivo ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`;
+    }
+
+    actualizarEstadoBotonConfirmar();
+}
+
+function todosLosGruposPiezasCompletos() {
+    return Object.values(estadoPiezasCombo).every(estado => {
+        const { total, objetivo } = calcularPiezasSeleccionadas(estado);
+        return total === objetivo;
+    });
+}
+
+function actualizarEstadoBotonConfirmar() {
+    const btn = document.getElementById('btn-confirmar-combo');
+    if (!btn) return;
+    const listo = todosLosGruposPiezasCompletos();
+    btn.disabled = !listo;
+    btn.classList.toggle('opacity-40', !listo);
+    btn.classList.toggle('cursor-not-allowed', !listo);
+}
+
 function actualizarDescripcionCombo(selectElement, idParrafo, idImgWrap) {
     const opcionSeleccionada = selectElement.options[selectElement.selectedIndex];
     const descripcion = opcionSeleccionada.getAttribute('data-desc');
@@ -902,15 +1047,36 @@ function actualizarDescripcionCombo(selectElement, idParrafo, idImgWrap) {
 function guardarSeleccionCombo() {
     if (!comboEnPersonalizacion) return;
 
+    if (!todosLosGruposPiezasCompletos()) {
+        alert('⚠️ Completa la cantidad exacta de piezas antes de continuar.');
+        return;
+    }
+
     let elecciones = [];
+    let clavesVariante = [];
     let selects = document.querySelectorAll('[id^="select-combo-grupo-"]');
-    
+
     selects.forEach(select => {
         elecciones.push(select.value);
+        clavesVariante.push(select.value);
     });
 
-    let descripcionVariante = elecciones.length > 0 ? elecciones.join(', ') : '';
-    let stringClave = elecciones.length > 0 ? elecciones.join('_').replace(/[^a-zA-Z0-9]/g, '') : 'fijo';
+    Object.keys(estadoPiezasCombo).forEach(pgIndex => {
+        const estado = estadoPiezasCombo[pgIndex];
+        const alt = estado.alternativas[estado.alternativaActiva];
+        const detalles = Object.keys(estado.seleccion).map(itemId => {
+            const item = alt.opciones.find(o => o.id === itemId);
+            const cant = estado.seleccion[itemId];
+            clavesVariante.push(`${itemId}x${cant}`);
+            return `${cant}x ${item ? item.name : itemId}`;
+        });
+        if (detalles.length > 0) {
+            elecciones.push(`${alt.nombre}: ${detalles.join(', ')}`);
+        }
+    });
+
+    let descripcionVariante = elecciones.length > 0 ? elecciones.join(' | ') : '';
+    let stringClave = clavesVariante.length > 0 ? clavesVariante.join('_').replace(/[^a-zA-Z0-9]/g, '') : 'fijo';
     let variantKey = comboEnPersonalizacion.id + "_" + stringClave;
 
     let cartName = elecciones.length > 0 ? `${comboEnPersonalizacion.name} (${descripcionVariante})` : comboEnPersonalizacion.name;

@@ -615,7 +615,8 @@ if (document.getElementById('form-producto')) {
         const payload = {
             id: id ? parseInt(id) : null, nombre: document.getElementById('prod-nombre').value.trim(), categoria: document.getElementById('prod-categoria').value,
             precio: parseFloat(document.getElementById('prod-precio').value), imagen: imgFinalProd, descripcion: document.getElementById('prod-descripcion').value.trim(), disponible: document.getElementById('prod-disponible').checked,
-            agotado: document.getElementById('prod-agotado').checked
+            agotado: document.getElementById('prod-agotado').checked,
+            piezas: parseInt(document.getElementById('prod-piezas').value) || 1
         };
         try {
             await fetch(ADMIN_URL_GUARDAR_PROD, { 
@@ -633,6 +634,7 @@ function editarProducto(id) {
     document.getElementById('prod-id').value = p.id; document.getElementById('prod-nombre').value = p.nombre; document.getElementById('prod-categoria').value = p.categoria;
     document.getElementById('prod-precio').value = p.precio; document.getElementById('prod-imagen').value = p.imagen || ''; document.getElementById('prod-descripcion').value = p.descripcion; document.getElementById('prod-disponible').checked = p.disponible;
     document.getElementById('prod-agotado').checked = !!p.agotado;
+    document.getElementById('prod-piezas').value = p.piezas || 1;
     document.getElementById('titulo-form-prod').innerText = "Editar Producto"; document.getElementById('btn-save-prod').innerText = "💾 Actualizar Producto"; document.getElementById('btn-cancel-prod').style.display = "block";
 }
 
@@ -703,6 +705,47 @@ function agregarFilaProductoCombo(valorSeleccionado = "", qty = 1) {
     contenedor.appendChild(fila);
 }
 
+function agregarGrupoPiezasAlternativas(alternativasExistentes = null) {
+    const contenedor = document.getElementById('lista-items-combo');
+    const grupo = document.createElement('div');
+    grupo.className = 'fila-piezas-alternativas';
+    grupo.style.cssText = 'border: 1px solid #b45309; background: #1e1608; border-radius: 6px; padding: 10px; margin-bottom: 10px;';
+    grupo.innerHTML = `
+        <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 8px; gap: 8px;">
+            <strong style="color:#fbbf24; font-size: 13px;">🍥 Elección por piezas: el cliente elige un estilo (ej. Tempura o Frío) y combina sabores de una categoría hasta sumar la cantidad de piezas indicada.</strong>
+            <button type="button" onclick="this.closest('.fila-piezas-alternativas').remove()" style="background:#e11d48; color:white; border:none; border-radius:4px; padding:2px 10px; cursor:pointer; font-weight:bold; flex-shrink:0;">X</button>
+        </div>
+        <div class="lista-alternativas-piezas"></div>
+        <button type="button" class="btn-add-alternativa" style="margin-top:6px; background:#334155; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:12px;">+ Agregar estilo</button>
+    `;
+    contenedor.appendChild(grupo);
+
+    const listaAlt = grupo.querySelector('.lista-alternativas-piezas');
+    grupo.querySelector('.btn-add-alternativa').onclick = () => agregarFilaAlternativaPiezas(listaAlt);
+
+    const datos = (alternativasExistentes && alternativasExistentes.length > 0) ? alternativasExistentes : [{}, {}];
+    datos.forEach(alt => agregarFilaAlternativaPiezas(listaAlt, alt));
+}
+
+function agregarFilaAlternativaPiezas(listaAlt, datos = {}) {
+    const fila = document.createElement('div');
+    fila.className = 'fila-alternativa-piezas';
+    fila.style.cssText = 'display:flex; gap:6px; margin-bottom:6px; align-items:center;';
+
+    const opcionesCategorias = adminCategorias.map(c => `<option value="${c.nombre}" ${datos.categoria === c.nombre ? 'selected' : ''}>${c.nombre}</option>`).join('');
+
+    fila.innerHTML = `
+        <input type="text" class="alt-nombre" placeholder="Nombre (ej. Tempura)" value="${datos.nombre || ''}" style="flex:1.2; padding:6px; background:#0f172a; border:1px solid #334155; color:white; border-radius:4px; font-size:12px;">
+        <select class="alt-categoria" style="flex:1.5; padding:6px; background:#0f172a; border:1px solid #334155; color:white; border-radius:4px; font-size:12px;">
+            <option value="">-- Categoría de sabores --</option>
+            ${opcionesCategorias}
+        </select>
+        <input type="number" class="alt-piezas" min="1" placeholder="Piezas" value="${datos.piezas_objetivo || ''}" style="width:70px; padding:6px; background:#0f172a; border:1px solid #334155; color:white; border-radius:4px; font-size:12px;">
+        <button type="button" onclick="this.closest('.fila-alternativa-piezas').remove()" style="background:#e11d48; color:white; border:none; border-radius:4px; padding:4px 8px; cursor:pointer;">X</button>
+    `;
+    listaAlt.appendChild(fila);
+}
+
 function buscarItemCombo(inputElement, idCaja) {
     const contenedor = document.getElementById(idCaja); const hiddenInput = inputElement.nextElementSibling; const texto = inputElement.value.toLowerCase().trim();
     hiddenInput.value = "";
@@ -758,7 +801,22 @@ if (formCombo) {
             }
         });
 
+        let faltaCompletarPiezas = false;
+        document.querySelectorAll('.fila-piezas-alternativas').forEach(grupoEl => {
+            const alternativas = [];
+            grupoEl.querySelectorAll('.fila-alternativa-piezas').forEach(fila => {
+                const nombre = fila.querySelector('.alt-nombre').value.trim();
+                const categoria = fila.querySelector('.alt-categoria').value;
+                const piezas = parseInt(fila.querySelector('.alt-piezas').value);
+                if (!nombre && !categoria && !piezas) return;
+                if (!nombre || !categoria || !(piezas > 0)) { faltaCompletarPiezas = true; return; }
+                alternativas.push({ nombre, categoria, piezas_objetivo: piezas });
+            });
+            if (alternativas.length > 0) itemsSeleccionados.push({ tipo: 'piezas_alternativas', alternativas });
+        });
+
         if (faltaHacerClic) { alert('⚠️ Importante: Debes HACER CLIC en una de las opciones flotantes.'); return; }
+        if (faltaCompletarPiezas) { alert('⚠️ En cada "Elección por piezas" completa nombre, categoría y cantidad de piezas de todos los estilos (o quítalos).'); return; }
         if (itemsSeleccionados.length === 0) { alert('Añade al menos 1 elemento válido al combo.'); return; }
 
         let imgFinalCombo = document.getElementById('combo-imagen').value.trim();
@@ -791,7 +849,8 @@ function editarCombo(id) {
     
     if (parsedItems && parsedItems.length > 0) {
         parsedItems.forEach(item => {
-            if (item.tipo) { const valorSelect = item.tipo === 'categoria' ? 'CAT_' + item.valor : 'PROD_' + item.valor; agregarFilaProductoCombo(valorSelect, item.cantidad); }
+            if (item.tipo === 'piezas_alternativas') { agregarGrupoPiezasAlternativas(item.alternativas); }
+            else if (item.tipo) { const valorSelect = item.tipo === 'categoria' ? 'CAT_' + item.valor : 'PROD_' + item.valor; agregarFilaProductoCombo(valorSelect, item.cantidad); }
         });
     } else agregarFilaProductoCombo(); 
 
