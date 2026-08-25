@@ -901,9 +901,16 @@ function cerrarModalCombo() {
 
 function construirMiniaturaComboHtml(valorImagen) {
     if (valorImagen && valorImagen.startsWith('http')) {
-        return `<img src="${valorImagen}" alt="" loading="lazy" onclick="abrirLightboxImagen('${valorImagen.replace(/'/g, "\\'")}')" class="w-14 h-14 rounded-lg object-cover border border-gray-200 bg-gray-50 flex-shrink-0 cursor-zoom-in active:opacity-70 transition">`;
+        return `<img src="${valorImagen}" alt="" loading="lazy" onclick="abrirLightboxImagen('${valorImagen.replace(/'/g, "\\'")}')" onerror="mostrarFallbackMiniatura(this)" class="w-14 h-14 rounded-lg object-cover border border-gray-200 bg-gray-50 flex-shrink-0 cursor-zoom-in active:opacity-70 transition">`;
     }
     return `<div class="w-14 h-14 rounded-lg border border-gray-200 bg-red-50 text-red-400 flex-shrink-0 flex items-center justify-center text-2xl">${valorImagen || '🍣'}</div>`;
+}
+
+function mostrarFallbackMiniatura(imgEl) {
+    const div = document.createElement('div');
+    div.className = 'w-14 h-14 rounded-lg border border-gray-200 bg-red-50 text-red-400 flex-shrink-0 flex items-center justify-center text-2xl';
+    div.textContent = '🍣';
+    imgEl.replaceWith(div);
 }
 
 function abrirLightboxImagen(url) {
