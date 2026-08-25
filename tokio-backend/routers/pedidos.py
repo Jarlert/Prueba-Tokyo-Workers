@@ -51,44 +51,50 @@ async def crear_pedido(pedido: schemas.PedidoCreate, db: Session = Depends(get_d
     registro_tasa = db.query(models.TasaManual).first()
     tasa_actual = registro_tasa.tasa if registro_tasa else 1.0
 
-    # 2. Calcular el total de forma segura consultando la BD
+    # 2. Calcular el total de forma segura consultando la BD, y de paso
+    # traer la descripcion de cada articulo para el resumen (punto 2.5)
     total_dolares = 0.0
+    resumen_articulos = []
     for item in pedido.articulos:
         precio_seguro = 0.0
-        
-        # Separamos el prefijo del ID real. 
+        descripcion_item = ""
+
+        # Separamos el prefijo del ID real.
         # Ej: De "p_5" sacamos ["p", "5"]. De "c_1_Roles_Bebidas" sacamos ["c", "1", "Roles", "Bebidas"]
         partes_id = item.id.split("_")
         tipo_item = partes_id[0]
         db_id = int(partes_id[1])
-        
+
         if tipo_item == "p":
             # Es un producto normal
             producto_db = db.query(models.Producto).filter(models.Producto.id == db_id).first()
             if producto_db:
                 precio_seguro = producto_db.precio
-                
+                descripcion_item = producto_db.descripcion or ""
+
         elif tipo_item == "c":
             # Es un combo
             combo_db = db.query(models.Combo).filter(models.Combo.id == db_id).first()
             if combo_db:
                 precio_seguro = combo_db.precio
-        
+                descripcion_item = combo_db.descripcion or ""
+
         # Sistema de respaldo: Si borraste el producto de la BD mientras el cliente compraba, usamos su precio temporal
         if precio_seguro == 0.0:
             precio_seguro = item.price
-            
+
         # Sumamos la cantidad multiplicada por el precio INHACKEABLE de tu base de datos
         total_dolares += (precio_seguro * item.qty)
 
-    # 2.5 Replicamos la lógica de n8n para armar el texto del resumen
-    resumen_articulos = []
-    for item in pedido.articulos:
+        # 2.5 Replicamos la lógica de n8n para armar el texto del resumen
         nota = f" (Nota: {item.note})" if item.note else ""
-        resumen_articulos.append(f"{item.qty}x {item.name} (${item.price:.2f}){nota}")
-        
-    # Unimos los platos con un guion o salto de línea (DBeaver suele mostrar los saltos como ese símbolo extraño de la imagen)
-    texto_detallado = " - ".join(resumen_articulos)
+        desc_texto = f"\n{descripcion_item}" if descripcion_item else ""
+        resumen_articulos.append(f"{item.qty}x {item.name} (${item.price:.2f}){nota}{desc_texto}")
+
+    # Un salto de línea por artículo (y otro más para su descripción, si tiene) para que
+    # tanto el tablero como el modal de edición ("Editar Pedido" en app.js parsea línea por
+    # línea buscando "Nx Nombre ($precio)") puedan diferenciar cada renglón.
+    texto_detallado = "\n".join(resumen_articulos)
 
     # 3. Guardar en la Base de Datos
     nuevo_pedido = models.Pedido(
