@@ -707,14 +707,17 @@ function agregarGrupoPiezasAlternativas(alternativasExistentes = null) {
     const contenedor = document.getElementById('lista-items-combo');
     const grupo = document.createElement('div');
     grupo.className = 'fila-piezas-alternativas';
-    grupo.style.cssText = 'border: 1px solid #b45309; background: #1e1608; border-radius: 6px; padding: 10px; margin-bottom: 10px;';
+    grupo.style.cssText = 'border: 1px solid #92400e; background: linear-gradient(#1c1509, #171310); border-radius: 10px; padding: 14px; margin-bottom: 12px;';
     grupo.innerHTML = `
-        <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 8px; gap: 8px;">
-            <strong style="color:#fbbf24; font-size: 13px;">🍥 Elección por piezas: agrega 1 fila si el cliente combina libremente sabores de una o varias categorías hasta sumar las piezas indicadas (ej. 76 piezas de sushi variado). Agrega 2+ filas si primero debe elegir un estilo excluyente (ej. Tempura 12pz o Frío 10pz).</strong>
-            <button type="button" onclick="this.closest('.fila-piezas-alternativas').remove()" style="background:#e11d48; color:white; border:none; border-radius:4px; padding:2px 10px; cursor:pointer; font-weight:bold; flex-shrink:0;">X</button>
+        <div style="display:flex; justify-content: space-between; align-items:flex-start; gap: 10px; margin-bottom: 12px;">
+            <div>
+                <p style="color:#fbbf24; font-size: 13px; font-weight: bold; margin: 0;">🍥 Elección por piezas</p>
+                <p style="color:#94a3b8; font-size: 11.5px; margin: 4px 0 0; line-height: 1.5;">1 fila = el cliente combina libremente sabores hasta sumar las piezas (ej. 76 piezas de sushi variado).<br>2+ filas = el cliente elige primero un estilo excluyente (ej. Tempura 12pz o Frío 10pz).</p>
+            </div>
+            <button type="button" onclick="this.closest('.fila-piezas-alternativas').remove()" style="flex-shrink:0; background:#e11d48; color:white; border:none; border-radius:6px; padding:6px 12px; cursor:pointer; font-weight:bold; font-size: 11px;">Quitar</button>
         </div>
-        <div class="lista-alternativas-piezas"></div>
-        <button type="button" class="btn-add-alternativa" style="margin-top:6px; background:#334155; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:12px;">+ Agregar fila</button>
+        <div class="lista-alternativas-piezas" style="display:flex; flex-direction:column; gap:10px;"></div>
+        <button type="button" class="btn-add-alternativa" style="margin-top:10px; background:#334155; color:white; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold;">+ Agregar fila</button>
     `;
     contenedor.appendChild(grupo);
 
@@ -725,23 +728,39 @@ function agregarGrupoPiezasAlternativas(alternativasExistentes = null) {
     datos.forEach(alt => agregarFilaAlternativaPiezas(listaAlt, alt));
 }
 
+function claseChipCategoria(activo) {
+    return activo
+        ? 'chip-categoria'
+        : 'chip-categoria chip-categoria-inactivo';
+}
+
 function agregarFilaAlternativaPiezas(listaAlt, datos = {}) {
     const fila = document.createElement('div');
     fila.className = 'fila-alternativa-piezas';
-    fila.style.cssText = 'display:flex; gap:6px; margin-bottom:6px; align-items:flex-start;';
+    fila.style.cssText = 'background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px;';
 
     const categoriasSeleccionadas = datos.categorias || (datos.categoria ? [datos.categoria] : []);
-    const opcionesCategorias = adminCategorias.map(c => `<option value="${c.nombre}" ${categoriasSeleccionadas.includes(c.nombre) ? 'selected' : ''}>${c.nombre}</option>`).join('');
+    const chipsCategorias = adminCategorias.map(c => {
+        const activo = categoriasSeleccionadas.includes(c.nombre);
+        return `<button type="button" class="${claseChipCategoria(activo)}" data-valor="${escapeHtml(c.nombre)}" data-activo="${activo ? '1' : '0'}" onclick="toggleChipCategoria(this)">${escapeHtml(c.nombre)}</button>`;
+    }).join('');
 
     fila.innerHTML = `
-        <input type="text" class="alt-nombre" placeholder="Nombre (ej. Tempura, o 'Sushi variado')" value="${datos.nombre || ''}" style="flex:1.2; padding:6px; background:#0f172a; border:1px solid #334155; color:white; border-radius:4px; font-size:12px;">
-        <select class="alt-categoria" multiple size="4" title="Ctrl/Cmd + clic para elegir varias categorías" style="flex:1.5; padding:6px; background:#0f172a; border:1px solid #334155; color:white; border-radius:4px; font-size:12px;">
-            ${opcionesCategorias}
-        </select>
-        <input type="number" class="alt-piezas" min="1" placeholder="Piezas" value="${datos.piezas_objetivo || ''}" style="width:70px; padding:6px; background:#0f172a; border:1px solid #334155; color:white; border-radius:4px; font-size:12px;">
-        <button type="button" onclick="this.closest('.fila-alternativa-piezas').remove()" style="background:#e11d48; color:white; border:none; border-radius:4px; padding:4px 8px; cursor:pointer;">X</button>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <input type="text" class="alt-nombre" placeholder="Nombre (ej. Tempura, o 'Sushi variado')" value="${escapeHtml(datos.nombre || '')}" style="flex:1; padding:8px; background:#0b1120; border:1px solid #334155; color:white; border-radius:6px; font-size:13px; margin:0;">
+            <input type="number" class="alt-piezas" min="1" placeholder="Piezas" value="${datos.piezas_objetivo || ''}" style="width:80px; padding:8px; background:#0b1120; border:1px solid #334155; color:white; border-radius:6px; font-size:13px; margin:0; text-align:center;">
+            <button type="button" onclick="this.closest('.fila-alternativa-piezas').remove()" title="Quitar esta fila" style="flex-shrink:0; background:transparent; color:#f87171; border:1px solid #7f1d1d; border-radius:6px; width:34px; height:34px; cursor:pointer; font-size:14px;"><i class="fa-solid fa-trash-can"></i></button>
+        </div>
+        <p style="font-size:10px; text-transform:uppercase; letter-spacing:0.03em; color:#64748b; font-weight:bold; margin:10px 0 6px;">Categorías de sabores (toca las que apliquen)</p>
+        <div class="chips-categorias" style="display:flex; flex-wrap:wrap; gap:6px;">${chipsCategorias}</div>
     `;
     listaAlt.appendChild(fila);
+}
+
+function toggleChipCategoria(btn) {
+    const activo = btn.dataset.activo === '1';
+    btn.dataset.activo = activo ? '0' : '1';
+    btn.className = claseChipCategoria(!activo);
 }
 
 function buscarItemCombo(inputElement, idCaja) {
@@ -804,7 +823,7 @@ if (formCombo) {
             const alternativas = [];
             grupoEl.querySelectorAll('.fila-alternativa-piezas').forEach(fila => {
                 const nombre = fila.querySelector('.alt-nombre').value.trim();
-                const categorias = Array.from(fila.querySelector('.alt-categoria').selectedOptions).map(o => o.value);
+                const categorias = Array.from(fila.querySelectorAll('.chip-categoria')).filter(b => b.dataset.activo === '1').map(b => b.dataset.valor);
                 const piezas = parseInt(fila.querySelector('.alt-piezas').value);
                 if (!nombre && categorias.length === 0 && !piezas) return;
                 if (!nombre || categorias.length === 0 || !(piezas > 0)) { faltaCompletarPiezas = true; return; }
