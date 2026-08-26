@@ -316,6 +316,19 @@
                         <label>Descripción del Combo</label>
                         <textarea id="combo-descripcion" rows="2"></textarea>
 
+                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">
+                            <label style="margin-top: 0; color: white;">🎁 Promoción por cantidad (opcional)</label>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin: 4px 0 10px;">Si el cliente compra varios de este combo, se le regala un producto automáticamente. Deja "Cada cuántos combos" en blanco para no aplicar ninguna promoción.</p>
+                            <label>Cada cuántos combos</label>
+                            <input type="number" id="combo-promo-cantidad-minima" min="1" placeholder="Ej: 2">
+                            <label>Producto de regalo</label>
+                            <select id="combo-promo-producto">
+                                <option value="">-- Ninguno --</option>
+                            </select>
+                            <label>Cantidad de regalo</label>
+                            <input type="number" id="combo-promo-producto-cantidad" min="1" placeholder="Ej: 2">
+                        </div>
+
                         <label style="display: flex; align-items: center; margin-top: 15px; cursor: pointer;">
                             <input type="checkbox" id="combo-disponible" checked> Combo Disponible en Menú
                         </label>

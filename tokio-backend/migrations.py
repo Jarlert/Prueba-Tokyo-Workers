@@ -10,6 +10,7 @@ def ejecutar_migraciones(engine: Engine):
     inspector = inspect(engine)
     columnas_pedidos = [c["name"] for c in inspector.get_columns("pedidos")]
     columnas_productos = [c["name"] for c in inspector.get_columns("productos")]
+    columnas_combos = [c["name"] for c in inspector.get_columns("combos")]
 
     with engine.begin() as conn:
         if "fecha" not in columnas_pedidos:
@@ -20,6 +21,12 @@ def ejecutar_migraciones(engine: Engine):
         if "agotado" not in columnas_productos:
             print("[migracion] Agregando columna 'agotado' a productos...")
             conn.execute(text("ALTER TABLE productos ADD COLUMN agotado BOOLEAN DEFAULT FALSE"))
+
+        if "promo_cantidad_minima" not in columnas_combos:
+            print("[migracion] Agregando columnas de promoción por cantidad a combos...")
+            conn.execute(text("ALTER TABLE combos ADD COLUMN promo_cantidad_minima INTEGER"))
+            conn.execute(text("ALTER TABLE combos ADD COLUMN promo_producto_id INTEGER"))
+            conn.execute(text("ALTER TABLE combos ADD COLUMN promo_producto_cantidad INTEGER"))
 
         resultado = conn.execute(text("""
             UPDATE pedidos

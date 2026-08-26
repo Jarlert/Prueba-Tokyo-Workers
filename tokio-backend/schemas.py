@@ -118,6 +118,9 @@ class ComboGuardar(BaseModel):
     descripcion: Optional[str] = ""
     items: list = []
     disponible: bool = True
+    promo_cantidad_minima: Optional[int] = None
+    promo_producto_id: Optional[int] = None
+    promo_producto_cantidad: Optional[int] = None
 
 class ItemEliminar(BaseModel):
     id: int

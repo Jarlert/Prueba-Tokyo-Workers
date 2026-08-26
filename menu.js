@@ -247,7 +247,10 @@ async function cargarMenuDesdeDB() {
                 image: prod.imagen || "",
                 opciones_combo: esCombo ? (prod.items_json || prod.items || null) : null,
                 disponible: prod.disponible !== false,
-                agotado: prod.agotado === true
+                agotado: prod.agotado === true,
+                promoCantidadMinima: esCombo ? (parseInt(prod.promo_cantidad_minima) || 0) : 0,
+                promoProductoId: esCombo ? (prod.promo_producto_id || null) : null,
+                promoProductoCantidad: esCombo ? (parseInt(prod.promo_producto_cantidad) || 0) : 0
             });
         };
 
@@ -496,7 +499,50 @@ function removeCartItem(id) {
     if (document.getElementById('step-3').classList.contains('active')) prepareCheckout();
 }
 
+function buscarProductoPorIdNumerico(idNumerico) {
+    let encontrado = null;
+    Object.values(menuData).forEach(cat => {
+        const match = cat.items.find(i => i.id === 'p_' + idNumerico);
+        if (match) encontrado = match;
+    });
+    return encontrado;
+}
+
+// --- PROMOCIONES "COMPRA N COMBOS, LLEVA M DE REGALO" ---
+function sincronizarPromocionesCarrito() {
+    Object.values(menuData).forEach(cat => {
+        cat.items.forEach(item => {
+            if (!item.id.startsWith('c_') || !item.promoCantidadMinima || !item.promoProductoId || !item.promoProductoCantidad) return;
+
+            const promoKey = 'promo_' + item.id;
+            let cantidadEnCarrito = 0;
+            Object.keys(cart).forEach(k => {
+                if (k === promoKey) return;
+                if (cart[k].id === item.id) cantidadEnCarrito += cart[k].qty;
+            });
+
+            const veces = Math.floor(cantidadEnCarrito / item.promoCantidadMinima);
+            const cantidadGratis = veces * item.promoProductoCantidad;
+
+            if (cantidadGratis > 0) {
+                const prodGratis = buscarProductoPorIdNumerico(item.promoProductoId);
+                cart[promoKey] = {
+                    id: 'p_' + item.promoProductoId,
+                    name: `🎁 ${prodGratis ? prodGratis.name : 'Regalo'} (cortesía)`,
+                    price: 0,
+                    qty: cantidadGratis,
+                    note: '',
+                    esRegalo: true
+                };
+            } else {
+                delete cart[promoKey];
+            }
+        });
+    });
+}
+
 function calculateTotals() {
+    sincronizarPromocionesCarrito();
     let total = 0; let count = 0;
     Object.values(cart).forEach(item => { total += item.price * item.qty; count += item.qty; });
     document.getElementById('sticky-cart-total').innerText = `$${total.toFixed(2)}`;
@@ -539,6 +585,17 @@ function prepareCheckout() {
                 <button type="button" onclick="removeNoteFromCheckout('${id}')" class="text-red-500 hover:text-red-700 font-bold p-1 cursor-pointer select-none text-[11px] flex-shrink-0 transition">❌</button>
             </div>` : '';
         
+        const controlesHtml = item.esRegalo ? `
+                    <span class="flex-shrink-0 bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-2 rounded-xl">x${item.qty} gratis</span>
+        ` : `
+                    <div class="flex items-center space-x-1.5 bg-white border border-amber-300 p-1 rounded-xl flex-shrink-0">
+                        <button type="button" onclick="updateQty('${id}', '${item.name}', ${item.price}, -1)" class="w-8 h-8 bg-amber-100 text-amber-900 rounded-lg font-bold text-md flex items-center justify-center cursor-pointer shadow-sm">-</button>
+                        <input type="number" value="${item.qty}" min="0" onchange="setExactQty('${id}', '${item.name}', ${item.price}, this.value)" class="w-10 text-center font-black text-sm text-gray-800 bg-transparent focus:outline-none">
+                        <button type="button" onclick="updateQty('${id}', '${item.name}', ${item.price}, 1)" class="w-8 h-8 bg-amber-100 text-amber-900 rounded-lg font-bold text-md flex items-center justify-center cursor-pointer shadow-sm">+</button>
+                    </div>
+                    <button type="button" onclick="removeCartItem('${id}')" class="text-red-500 hover:text-red-700 text-md p-1 cursor-pointer flex-shrink-0">❌</button>
+        `;
+
         const summaryRowHtml = `
             <div class="py-2 border-b border-amber-200">
                 <div class="flex items-center justify-between gap-2">
@@ -546,12 +603,7 @@ function prepareCheckout() {
                         <p class="font-bold text-gray-800 text-sm leading-tight">${item.name}</p>
                         <p class="text-xs text-amber-900 font-medium mt-0.5">$${item.price.toFixed(2)} c/u • Subtotal: <span class="font-bold">$${subtotal.toFixed(2)}</span></p>
                     </div>
-                    <div class="flex items-center space-x-1.5 bg-white border border-amber-300 p-1 rounded-xl flex-shrink-0">
-                        <button type="button" onclick="updateQty('${id}', '${item.name}', ${item.price}, -1)" class="w-8 h-8 bg-amber-100 text-amber-900 rounded-lg font-bold text-md flex items-center justify-center cursor-pointer shadow-sm">-</button>
-                        <input type="number" value="${item.qty}" min="0" onchange="setExactQty('${id}', '${item.name}', ${item.price}, this.value)" class="w-10 text-center font-black text-sm text-gray-800 bg-transparent focus:outline-none">
-                        <button type="button" onclick="updateQty('${id}', '${item.name}', ${item.price}, 1)" class="w-8 h-8 bg-amber-100 text-amber-900 rounded-lg font-bold text-md flex items-center justify-center cursor-pointer shadow-sm">+</button>
-                    </div>
-                    <button type="button" onclick="removeCartItem('${id}')" class="text-red-500 hover:text-red-700 text-md p-1 cursor-pointer flex-shrink-0">❌</button>
+                    ${controlesHtml}
                 </div>
                 ${noteHtml}
             </div>`;

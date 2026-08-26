@@ -23,7 +23,7 @@ def obtener_menu(db: Session = Depends(get_db)):
         "menu": {
             "categorias": [{"id": c.id, "nombre": c.nombre, "imagen": c.imagen} for c in categorias],
             "productos": [{"id": p.id, "nombre": p.nombre, "categoria": p.categoria, "precio": p.precio, "imagen": p.imagen, "descripcion": p.descripcion, "disponible": p.disponible, "agotado": p.agotado} for p in productos],
-            "combos": [{"id": cb.id, "nombre": cb.nombre, "precio": cb.precio, "imagen": cb.imagen, "descripcion": cb.descripcion, "disponible": cb.disponible, "items_json": cb.items_json} for cb in combos]
+            "combos": [{"id": cb.id, "nombre": cb.nombre, "precio": cb.precio, "imagen": cb.imagen, "descripcion": cb.descripcion, "disponible": cb.disponible, "items_json": cb.items_json, "promo_cantidad_minima": cb.promo_cantidad_minima, "promo_producto_id": cb.promo_producto_id, "promo_producto_cantidad": cb.promo_producto_cantidad} for cb in combos]
         }
     }
 
@@ -91,6 +91,9 @@ def guardar_combo(datos: schemas.ComboGuardar, db: Session = Depends(get_db), ad
                 combo.descripcion = datos.descripcion
                 combo.items_json = items_json_str
                 combo.disponible = datos.disponible
+                combo.promo_cantidad_minima = datos.promo_cantidad_minima
+                combo.promo_producto_id = datos.promo_producto_id
+                combo.promo_producto_cantidad = datos.promo_producto_cantidad
         else:
             nuevo_combo = models.Combo(
                 nombre=datos.nombre,
@@ -98,7 +101,10 @@ def guardar_combo(datos: schemas.ComboGuardar, db: Session = Depends(get_db), ad
                 imagen=datos.imagen,
                 descripcion=datos.descripcion,
                 items_json=items_json_str,
-                disponible=datos.disponible
+                disponible=datos.disponible,
+                promo_cantidad_minima=datos.promo_cantidad_minima,
+                promo_producto_id=datos.promo_producto_id,
+                promo_producto_cantidad=datos.promo_producto_cantidad
             )
             db.add(nuevo_combo)
 

@@ -73,6 +73,9 @@ class Combo(Base):
     imagen = Column(String, nullable=True)
     items_json = Column(String, nullable=True)
     disponible = Column(Boolean, default=True)
+    promo_cantidad_minima = Column(Integer, nullable=True)
+    promo_producto_id = Column(Integer, nullable=True)
+    promo_producto_cantidad = Column(Integer, nullable=True)
 
 class Motorizado(Base):
     __tablename__ = "motorizados"

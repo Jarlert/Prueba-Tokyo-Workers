@@ -181,6 +181,7 @@ async function cargarDatosAdmin() {
         renderListaCombos();
         actualizarSelectCategorias();
         actualizarSelectsCombos();
+        actualizarSelectPromoProducto();
 
         await cargarMotorizadosDesdeDB();
         await cargarUsuariosDesdeDB();
@@ -677,6 +678,14 @@ function actualizarSelectsCombos() {
     datalist.innerHTML = adminProductos.map(p => `<option value="${p.nombre} ($${p.precio})"></option>`).join('');
 }
 
+function actualizarSelectPromoProducto() {
+    const select = document.getElementById('combo-promo-producto');
+    if (!select) return;
+    const valorActual = select.value;
+    select.innerHTML = '<option value="">-- Ninguno --</option>' + adminProductos.map(p => `<option value="${p.id}">${p.nombre} ($${p.precio.toFixed(2)})</option>`).join('');
+    select.value = valorActual;
+}
+
 function agregarFilaProductoCombo(valorSeleccionado = "", qty = 1) {
     const contenedor = document.getElementById('lista-items-combo');
     const fila = document.createElement('div');
@@ -879,9 +888,20 @@ if (formCombo) {
         let imgFinalCombo = document.getElementById('combo-imagen').value.trim();
         if (imgFinalCombo === '' && typeof obtenerEmojiPlato === 'function') imgFinalCombo = obtenerEmojiPlato();
 
+        const promoCantidadMinima = parseInt(document.getElementById('combo-promo-cantidad-minima').value) || null;
+        const promoProductoIdVal = document.getElementById('combo-promo-producto').value;
+        const promoProductoId = promoProductoIdVal ? parseInt(promoProductoIdVal) : null;
+        const promoProductoCantidad = parseInt(document.getElementById('combo-promo-producto-cantidad').value) || null;
+
+        if (promoCantidadMinima && (!promoProductoId || !promoProductoCantidad)) {
+            alert('⚠️ Para la promoción por cantidad completa también el producto de regalo y la cantidad de regalo (o borra "Cada cuántos combos" para no aplicar ninguna).');
+            return;
+        }
+
         const payload = {
             id: id ? parseInt(id) : null, nombre: document.getElementById('combo-nombre').value.trim(), precio: parseFloat(document.getElementById('combo-precio').value),
-            imagen: imgFinalCombo, descripcion: document.getElementById('combo-descripcion').value.trim(), items: itemsSeleccionados, disponible: document.getElementById('combo-disponible').checked
+            imagen: imgFinalCombo, descripcion: document.getElementById('combo-descripcion').value.trim(), items: itemsSeleccionados, disponible: document.getElementById('combo-disponible').checked,
+            promo_cantidad_minima: promoCantidadMinima, promo_producto_id: promoProductoId, promo_producto_cantidad: promoProductoCantidad
         };
         
         try {
@@ -899,7 +919,10 @@ function editarCombo(id) {
     const c = adminCombos.find(x => x.id === id); if(!c) return;
     document.getElementById('combo-id').value = c.id; document.getElementById('combo-nombre').value = c.nombre; document.getElementById('combo-precio').value = c.precio;
     document.getElementById('combo-imagen').value = c.imagen || ''; document.getElementById('combo-descripcion').value = c.descripcion || ''; document.getElementById('combo-disponible').checked = c.disponible;
-    
+    document.getElementById('combo-promo-cantidad-minima').value = c.promo_cantidad_minima || '';
+    document.getElementById('combo-promo-producto').value = c.promo_producto_id || '';
+    document.getElementById('combo-promo-producto-cantidad').value = c.promo_producto_cantidad || '';
+
     document.getElementById('lista-items-combo').innerHTML = '';
     let parsedItems = [];
     try { parsedItems = typeof c.items_json === 'string' ? JSON.parse(c.items_json) : c.items_json; } catch(e){}
