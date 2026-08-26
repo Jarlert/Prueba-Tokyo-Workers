@@ -855,7 +855,7 @@ function abrirModalCombo(item) {
             container.insertAdjacentHTML('beforeend', fijoHtml);
         } else if (grupo.tipo === 'piezas_alternativas') {
             const pgIndex = piezasGroupIndex++;
-            const compartido = grupo.compartido === true;
+            const modo = grupo.modo || (grupo.compartido === true ? 'compartido' : 'excluyente');
             const alternativasResueltas = (grupo.alternativas || []).map(alt => ({
                 nombre: alt.nombre,
                 piezas_objetivo: alt.piezas_objetivo,
@@ -864,21 +864,22 @@ function abrirModalCombo(item) {
 
             if (alternativasResueltas.length === 0) return;
 
-            estadoPiezasCombo[pgIndex] = { alternativas: alternativasResueltas, alternativaActiva: 0, seleccion: {}, compartido };
+            estadoPiezasCombo[pgIndex] = { alternativas: alternativasResueltas, alternativaActiva: 0, seleccion: {}, modo };
 
             const hayVariosEstilos = alternativasResueltas.length > 1;
+            const tituloEstilos = modo === 'todas' ? 'Completa cada elección' : (modo === 'compartido' ? 'Navega por categoría' : 'Elige tu estilo');
             const selectorEstiloHtml = hayVariosEstilos ? `
-                <label class="block text-gray-600 font-bold text-[10px] uppercase tracking-wider">${compartido ? 'Navega por categoría' : 'Elige tu estilo'}</label>
-                <div class="flex gap-2 flex-wrap">${alternativasResueltas.map((alt, i) => `
+                <label class="block text-gray-600 font-bold text-[10px] uppercase tracking-wider">${tituloEstilos}</label>
+                <div class="flex gap-2 flex-wrap" id="estilos-piezas-${pgIndex}">${alternativasResueltas.map((alt, i) => `
                     <button type="button" onclick="seleccionarEstiloPiezas(${pgIndex}, ${i})" data-idx="${i}"
                         class="flex-1 py-2 rounded-xl text-xs font-bold border transition estilo-btn-${pgIndex} ${i === 0 ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 border-gray-300'}">
-                        ${escapeHtml(alt.nombre)}${compartido ? '' : ` <span class="opacity-70">(${alt.piezas_objetivo}pz)</span>`}
+                        <span class="chulo-estilo-${pgIndex}-${i}"></span>${escapeHtml(alt.nombre)}${modo === 'compartido' ? '' : ` <span class="opacity-70">(${alt.piezas_objetivo}pz)</span>`}
                     </button>
                 `).join('')}</div>
             ` : '';
 
             const subtituloHtml = hayVariosEstilos
-                ? `<span class="text-[10px] text-gray-400">Combina los sabores que quieras</span>`
+                ? `<span class="text-[10px] text-gray-400">${modo === 'compartido' ? 'Combina los sabores que quieras' : 'Completa esta elección antes de pasar a la siguiente'}</span>`
                 : `<label class="text-gray-600 font-bold text-[10px] uppercase tracking-wider">${escapeHtml(alternativasResueltas[0].nombre)}</label>`;
 
             const grupoPiezasHtml = `
@@ -964,8 +965,14 @@ function seleccionarEstiloPiezas(pgIndex, altIndex) {
     const estado = estadoPiezasCombo[pgIndex];
     if (!estado) return;
     estado.alternativaActiva = altIndex;
-    if (!estado.compartido) estado.seleccion = {};
+    if (estado.modo === 'excluyente') estado.seleccion = {};
     renderSaboresPiezas(pgIndex);
+}
+
+function subtotalParaAlt(estado, alt) {
+    let total = 0;
+    alt.opciones.forEach(item => { total += estado.seleccion[item.id] || 0; });
+    return total;
 }
 
 function renderSaboresPiezas(pgIndex) {
@@ -974,8 +981,17 @@ function renderSaboresPiezas(pgIndex) {
     const alt = estado.alternativas[estado.alternativaActiva];
 
     document.querySelectorAll(`.estilo-btn-${pgIndex}`).forEach(btn => {
-        const activo = parseInt(btn.dataset.idx) === estado.alternativaActiva;
-        btn.className = `flex-1 py-2 rounded-xl text-xs font-bold border transition estilo-btn-${pgIndex} ${activo ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 border-gray-300'}`;
+        const idx = parseInt(btn.dataset.idx);
+        const activo = idx === estado.alternativaActiva;
+        const altBtn = estado.alternativas[idx];
+        const completo = estado.modo === 'todas' && subtotalParaAlt(estado, altBtn) === altBtn.piezas_objetivo;
+        let clases = `flex-1 py-2 rounded-xl text-xs font-bold border transition estilo-btn-${pgIndex} `;
+        if (activo) clases += 'bg-red-600 text-white border-red-600';
+        else if (completo) clases += 'bg-emerald-50 text-emerald-700 border-emerald-300';
+        else clases += 'bg-white text-gray-600 border-gray-300';
+        btn.className = clases;
+        const chulo = btn.querySelector(`.chulo-estilo-${pgIndex}-${idx}`);
+        if (chulo) chulo.textContent = (completo && !activo) ? '✓ ' : '';
     });
 
     const contenedor = document.getElementById(`lista-sabores-piezas-${pgIndex}`);
@@ -1027,12 +1043,15 @@ function ajustarCantidadPiezas(pgIndex, itemId, delta) {
 }
 
 function calcularPiezasSeleccionadas(estado) {
-    const objetivo = estado.compartido ? estado.alternativas[0].piezas_objetivo : estado.alternativas[estado.alternativaActiva].piezas_objetivo;
-    let total = 0;
-    Object.keys(estado.seleccion).forEach(itemId => {
-        total += estado.seleccion[itemId];
-    });
-    return { total, objetivo };
+    if (estado.modo === 'compartido') {
+        const objetivo = estado.alternativas[0].piezas_objetivo;
+        let total = 0;
+        Object.keys(estado.seleccion).forEach(itemId => { total += estado.seleccion[itemId]; });
+        return { total, objetivo };
+    }
+    // 'excluyente' y 'todas' muestran/limitan el avance de la pestaña activa
+    const alt = estado.alternativas[estado.alternativaActiva];
+    return { total: subtotalParaAlt(estado, alt), objetivo: alt.piezas_objetivo };
 }
 
 function actualizarContadorPiezas(pgIndex) {
@@ -1051,11 +1070,16 @@ function actualizarContadorPiezas(pgIndex) {
     actualizarEstadoBotonConfirmar();
 }
 
+function grupoPiezasCompleto(estado) {
+    if (estado.modo === 'todas') {
+        return estado.alternativas.every(alt => subtotalParaAlt(estado, alt) === alt.piezas_objetivo);
+    }
+    const { total, objetivo } = calcularPiezasSeleccionadas(estado);
+    return total === objetivo;
+}
+
 function todosLosGruposPiezasCompletos() {
-    return Object.values(estadoPiezasCombo).every(estado => {
-        const { total, objetivo } = calcularPiezasSeleccionadas(estado);
-        return total === objetivo;
-    });
+    return Object.values(estadoPiezasCombo).every(grupoPiezasCompleto);
 }
 
 function actualizarEstadoBotonConfirmar() {
@@ -1101,16 +1125,25 @@ function guardarSeleccionCombo() {
 
     Object.keys(estadoPiezasCombo).forEach(pgIndex => {
         const estado = estadoPiezasCombo[pgIndex];
-        const alt = estado.alternativas[estado.alternativaActiva];
         const todasLasOpciones = estado.alternativas.flatMap(a => a.opciones);
-        const detalles = Object.keys(estado.seleccion).map(itemId => {
+        const formatearDetalles = (itemIds) => itemIds.map(itemId => {
             const item = todasLasOpciones.find(o => o.id === itemId);
             const cant = estado.seleccion[itemId];
             clavesVariante.push(`${itemId}x${cant}`);
             return `${cant}x ${item ? item.name : itemId}`;
-        });
-        if (detalles.length > 0) {
-            elecciones.push(estado.compartido ? detalles.join(', ') : `${alt.nombre}: ${detalles.join(', ')}`);
+        }).join(', ');
+
+        if (estado.modo === 'todas') {
+            estado.alternativas.forEach(alt => {
+                const idsDeEstaAlt = alt.opciones.map(o => o.id).filter(id => estado.seleccion[id] > 0);
+                if (idsDeEstaAlt.length > 0) elecciones.push(`${alt.nombre}: ${formatearDetalles(idsDeEstaAlt)}`);
+            });
+        } else {
+            const idsSeleccionados = Object.keys(estado.seleccion);
+            if (idsSeleccionados.length > 0) {
+                const texto = formatearDetalles(idsSeleccionados);
+                elecciones.push(estado.modo === 'compartido' ? texto : `${estado.alternativas[estado.alternativaActiva].nombre}: ${texto}`);
+            }
         }
     });
 
