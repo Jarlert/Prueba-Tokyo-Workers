@@ -855,6 +855,7 @@ function abrirModalCombo(item) {
             container.insertAdjacentHTML('beforeend', fijoHtml);
         } else if (grupo.tipo === 'piezas_alternativas') {
             const pgIndex = piezasGroupIndex++;
+            const compartido = grupo.compartido === true;
             const alternativasResueltas = (grupo.alternativas || []).map(alt => ({
                 nombre: alt.nombre,
                 piezas_objetivo: alt.piezas_objetivo,
@@ -863,15 +864,15 @@ function abrirModalCombo(item) {
 
             if (alternativasResueltas.length === 0) return;
 
-            estadoPiezasCombo[pgIndex] = { alternativas: alternativasResueltas, alternativaActiva: 0, seleccion: {} };
+            estadoPiezasCombo[pgIndex] = { alternativas: alternativasResueltas, alternativaActiva: 0, seleccion: {}, compartido };
 
             const hayVariosEstilos = alternativasResueltas.length > 1;
             const selectorEstiloHtml = hayVariosEstilos ? `
-                <label class="block text-gray-600 font-bold text-[10px] uppercase tracking-wider">Elige tu estilo</label>
-                <div class="flex gap-2">${alternativasResueltas.map((alt, i) => `
+                <label class="block text-gray-600 font-bold text-[10px] uppercase tracking-wider">${compartido ? 'Navega por categoría' : 'Elige tu estilo'}</label>
+                <div class="flex gap-2 flex-wrap">${alternativasResueltas.map((alt, i) => `
                     <button type="button" onclick="seleccionarEstiloPiezas(${pgIndex}, ${i})" data-idx="${i}"
                         class="flex-1 py-2 rounded-xl text-xs font-bold border transition estilo-btn-${pgIndex} ${i === 0 ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 border-gray-300'}">
-                        ${escapeHtml(alt.nombre)} <span class="opacity-70">(${alt.piezas_objetivo}pz)</span>
+                        ${escapeHtml(alt.nombre)}${compartido ? '' : ` <span class="opacity-70">(${alt.piezas_objetivo}pz)</span>`}
                     </button>
                 `).join('')}</div>
             ` : '';
@@ -959,7 +960,7 @@ function seleccionarEstiloPiezas(pgIndex, altIndex) {
     const estado = estadoPiezasCombo[pgIndex];
     if (!estado) return;
     estado.alternativaActiva = altIndex;
-    estado.seleccion = {};
+    if (!estado.compartido) estado.seleccion = {};
     renderSaboresPiezas(pgIndex);
 }
 
@@ -979,7 +980,9 @@ function renderSaboresPiezas(pgIndex) {
     if (alt.opciones.length === 0) {
         contenedor.innerHTML = `<p class="text-xs text-red-500 font-bold px-1">⚠️ No hay sabores disponibles para "${escapeHtml(alt.nombre)}" en este momento.</p>`;
     } else {
-        contenedor.innerHTML = alt.opciones.map(item => `
+        contenedor.innerHTML = alt.opciones.map(item => {
+            const cantActual = estado.seleccion[item.id] || 0;
+            return `
             <div class="flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-200">
                 ${construirMiniaturaComboHtml(item.image)}
                 <div class="flex-grow min-w-0">
@@ -988,11 +991,12 @@ function renderSaboresPiezas(pgIndex) {
                 </div>
                 <div class="flex items-center gap-2 flex-shrink-0">
                     <button type="button" onclick="ajustarCantidadPiezas(${pgIndex}, '${item.id}', -1)" class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm cursor-pointer">−</button>
-                    <span id="cant-pieza-${pgIndex}-${item.id}" class="w-5 text-center text-xs font-bold">0</span>
-                    <button type="button" onclick="ajustarCantidadPiezas(${pgIndex}, '${item.id}', 1)" class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm cursor-pointer">+</button>
+                    <span id="cant-pieza-${pgIndex}-${item.id}" class="w-5 text-center text-xs font-bold">${cantActual}</span>
+                    <button type="button" onclick="ajustarCantidadPiezas(${pgIndex}, '${item.id}', 1)" class="btn-mas-pieza-${pgIndex} w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed">+</button>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
     }
 
     actualizarContadorPiezas(pgIndex);
@@ -1001,6 +1005,12 @@ function renderSaboresPiezas(pgIndex) {
 function ajustarCantidadPiezas(pgIndex, itemId, delta) {
     const estado = estadoPiezasCombo[pgIndex];
     if (!estado) return;
+
+    if (delta > 0) {
+        const { total, objetivo } = calcularPiezasSeleccionadas(estado);
+        if (total >= objetivo) return;
+    }
+
     const actual = estado.seleccion[itemId] || 0;
     const nuevo = Math.max(0, actual + delta);
     if (nuevo === 0) delete estado.seleccion[itemId];
@@ -1013,12 +1023,12 @@ function ajustarCantidadPiezas(pgIndex, itemId, delta) {
 }
 
 function calcularPiezasSeleccionadas(estado) {
-    const alt = estado.alternativas[estado.alternativaActiva];
+    const objetivo = estado.compartido ? estado.alternativas[0].piezas_objetivo : estado.alternativas[estado.alternativaActiva].piezas_objetivo;
     let total = 0;
     Object.keys(estado.seleccion).forEach(itemId => {
         total += estado.seleccion[itemId];
     });
-    return { total, objetivo: alt.piezas_objetivo };
+    return { total, objetivo };
 }
 
 function actualizarContadorPiezas(pgIndex) {
@@ -1031,6 +1041,8 @@ function actualizarContadorPiezas(pgIndex) {
         badge.innerText = `${total} / ${objetivo} pz`;
         badge.className = `text-xs font-black px-2 py-0.5 rounded-full ${total === objetivo ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`;
     }
+
+    document.querySelectorAll(`.btn-mas-pieza-${pgIndex}`).forEach(btn => { btn.disabled = total >= objetivo; });
 
     actualizarEstadoBotonConfirmar();
 }
@@ -1086,14 +1098,15 @@ function guardarSeleccionCombo() {
     Object.keys(estadoPiezasCombo).forEach(pgIndex => {
         const estado = estadoPiezasCombo[pgIndex];
         const alt = estado.alternativas[estado.alternativaActiva];
+        const todasLasOpciones = estado.alternativas.flatMap(a => a.opciones);
         const detalles = Object.keys(estado.seleccion).map(itemId => {
-            const item = alt.opciones.find(o => o.id === itemId);
+            const item = todasLasOpciones.find(o => o.id === itemId);
             const cant = estado.seleccion[itemId];
             clavesVariante.push(`${itemId}x${cant}`);
             return `${cant}x ${item ? item.name : itemId}`;
         });
         if (detalles.length > 0) {
-            elecciones.push(`${alt.nombre}: ${detalles.join(', ')}`);
+            elecciones.push(estado.compartido ? detalles.join(', ') : `${alt.nombre}: ${detalles.join(', ')}`);
         }
     });
 

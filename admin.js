@@ -703,7 +703,7 @@ function agregarFilaProductoCombo(valorSeleccionado = "", qty = 1) {
     contenedor.appendChild(fila);
 }
 
-function agregarGrupoPiezasAlternativas(alternativasExistentes = null) {
+function agregarGrupoPiezasAlternativas(alternativasExistentes = null, compartidoExistente = false) {
     const contenedor = document.getElementById('lista-items-combo');
     const grupo = document.createElement('div');
     grupo.className = 'fila-piezas-alternativas';
@@ -712,10 +712,14 @@ function agregarGrupoPiezasAlternativas(alternativasExistentes = null) {
         <div style="display:flex; justify-content: space-between; align-items:flex-start; gap: 10px; margin-bottom: 12px;">
             <div>
                 <p style="color:#fbbf24; font-size: 13px; font-weight: bold; margin: 0;">🍥 Elección por piezas</p>
-                <p style="color:#94a3b8; font-size: 11.5px; margin: 4px 0 0; line-height: 1.5;">1 fila = el cliente combina libremente sabores hasta sumar las piezas (ej. 76 piezas de sushi variado).<br>2+ filas = el cliente elige primero un estilo excluyente (ej. Tempura 12pz o Frío 10pz).</p>
+                <p style="color:#94a3b8; font-size: 11.5px; margin: 4px 0 0; line-height: 1.5;">1 fila = el cliente combina libremente sabores hasta sumar las piezas (ej. 76 piezas de sushi variado).<br>2+ filas = el cliente elige primero un estilo (activa "comparten piezas" abajo si esas filas son solo pestañas para navegar categorías, o déjalo apagado si son excluyentes, ej. Tempura 12pz o Frío 10pz).</p>
             </div>
             <button type="button" onclick="this.closest('.fila-piezas-alternativas').remove()" style="flex-shrink:0; background:#e11d48; color:white; border:none; border-radius:6px; padding:6px 12px; cursor:pointer; font-weight:bold; font-size: 11px;">Quitar</button>
         </div>
+        <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; font-size:12px; color:#fbbf24; cursor:pointer; font-weight:normal; text-transform:none;">
+            <input type="checkbox" class="grupo-compartido-piezas" style="width:auto; margin:0;" ${compartidoExistente ? 'checked' : ''}>
+            Las filas comparten el mismo conteo de piezas (son pestañas para navegar categorías, no estilos excluyentes)
+        </label>
         <div class="lista-alternativas-piezas" style="display:flex; flex-direction:column; gap:10px;"></div>
         <button type="button" class="btn-add-alternativa" style="margin-top:10px; background:#334155; color:white; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold;">+ Agregar fila</button>
     `;
@@ -829,7 +833,8 @@ if (formCombo) {
                 if (!nombre || categorias.length === 0 || !(piezas > 0)) { faltaCompletarPiezas = true; return; }
                 alternativas.push({ nombre, categorias, piezas_objetivo: piezas });
             });
-            if (alternativas.length > 0) itemsSeleccionados.push({ tipo: 'piezas_alternativas', alternativas });
+            const compartido = grupoEl.querySelector('.grupo-compartido-piezas').checked;
+            if (alternativas.length > 0) itemsSeleccionados.push({ tipo: 'piezas_alternativas', alternativas, compartido });
         });
 
         if (faltaHacerClic) { alert('⚠️ Importante: Debes HACER CLIC en una de las opciones flotantes.'); return; }
@@ -866,7 +871,7 @@ function editarCombo(id) {
     
     if (parsedItems && parsedItems.length > 0) {
         parsedItems.forEach(item => {
-            if (item.tipo === 'piezas_alternativas') { agregarGrupoPiezasAlternativas(item.alternativas); }
+            if (item.tipo === 'piezas_alternativas') { agregarGrupoPiezasAlternativas(item.alternativas, item.compartido === true); }
             else if (item.tipo) { const valorSelect = item.tipo === 'categoria' ? 'CAT_' + item.valor : 'PROD_' + item.valor; agregarFilaProductoCombo(valorSelect, item.cantidad); }
         });
     } else agregarFilaProductoCombo(); 
