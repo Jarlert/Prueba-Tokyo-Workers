@@ -858,24 +858,27 @@ function abrirModalCombo(item) {
             const alternativasResueltas = (grupo.alternativas || []).map(alt => ({
                 nombre: alt.nombre,
                 piezas_objetivo: alt.piezas_objetivo,
-                opciones: resolverOpcionesCategoria(alt.categoria)
+                opciones: resolverOpcionesCategorias(alt.categorias || (alt.categoria ? [alt.categoria] : []))
             })).filter(alt => alt.piezas_objetivo > 0);
 
             if (alternativasResueltas.length === 0) return;
 
             estadoPiezasCombo[pgIndex] = { alternativas: alternativasResueltas, alternativaActiva: 0, seleccion: {} };
 
-            const botonesEstilo = alternativasResueltas.map((alt, i) => `
-                <button type="button" onclick="seleccionarEstiloPiezas(${pgIndex}, ${i})" data-idx="${i}"
-                    class="flex-1 py-2 rounded-xl text-xs font-bold border transition estilo-btn-${pgIndex} ${i === 0 ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 border-gray-300'}">
-                    ${escapeHtml(alt.nombre)} <span class="opacity-70">(${alt.piezas_objetivo}pz)</span>
-                </button>
-            `).join('');
+            const hayVariosEstilos = alternativasResueltas.length > 1;
+            const selectorEstiloHtml = hayVariosEstilos ? `
+                <label class="block text-gray-600 font-bold text-[10px] uppercase tracking-wider">Elige tu estilo</label>
+                <div class="flex gap-2">${alternativasResueltas.map((alt, i) => `
+                    <button type="button" onclick="seleccionarEstiloPiezas(${pgIndex}, ${i})" data-idx="${i}"
+                        class="flex-1 py-2 rounded-xl text-xs font-bold border transition estilo-btn-${pgIndex} ${i === 0 ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 border-gray-300'}">
+                        ${escapeHtml(alt.nombre)} <span class="opacity-70">(${alt.piezas_objetivo}pz)</span>
+                    </button>
+                `).join('')}</div>
+            ` : '';
 
             const grupoPiezasHtml = `
                 <div class="space-y-2 mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                    <label class="block text-gray-600 font-bold text-[10px] uppercase tracking-wider">Elige tu estilo</label>
-                    <div class="flex gap-2">${botonesEstilo}</div>
+                    ${selectorEstiloHtml}
                     <div class="flex items-center justify-between mt-1">
                         <span class="text-[10px] text-gray-400">Combina los sabores que quieras</span>
                         <span id="contador-piezas-${pgIndex}" class="text-xs font-black px-2 py-0.5 rounded-full bg-red-100 text-red-600">0 / ${alternativasResueltas[0].piezas_objetivo} pz</span>
@@ -936,6 +939,20 @@ function resolverOpcionesCategoria(nombreCategoria) {
         }
     }
     return [];
+}
+
+function resolverOpcionesCategorias(nombresCategorias) {
+    const vistos = new Set();
+    const resultado = [];
+    (nombresCategorias || []).forEach(nombre => {
+        resolverOpcionesCategoria(nombre).forEach(item => {
+            if (!vistos.has(item.id)) {
+                vistos.add(item.id);
+                resultado.push(item);
+            }
+        });
+    });
+    return resultado;
 }
 
 function seleccionarEstiloPiezas(pgIndex, altIndex) {

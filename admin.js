@@ -710,11 +710,11 @@ function agregarGrupoPiezasAlternativas(alternativasExistentes = null) {
     grupo.style.cssText = 'border: 1px solid #b45309; background: #1e1608; border-radius: 6px; padding: 10px; margin-bottom: 10px;';
     grupo.innerHTML = `
         <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 8px; gap: 8px;">
-            <strong style="color:#fbbf24; font-size: 13px;">🍥 Elección por piezas: el cliente elige un estilo (ej. Tempura o Frío) y combina sabores de una categoría hasta sumar la cantidad de piezas indicada.</strong>
+            <strong style="color:#fbbf24; font-size: 13px;">🍥 Elección por piezas: agrega 1 fila si el cliente combina libremente sabores de una o varias categorías hasta sumar las piezas indicadas (ej. 76 piezas de sushi variado). Agrega 2+ filas si primero debe elegir un estilo excluyente (ej. Tempura 12pz o Frío 10pz).</strong>
             <button type="button" onclick="this.closest('.fila-piezas-alternativas').remove()" style="background:#e11d48; color:white; border:none; border-radius:4px; padding:2px 10px; cursor:pointer; font-weight:bold; flex-shrink:0;">X</button>
         </div>
         <div class="lista-alternativas-piezas"></div>
-        <button type="button" class="btn-add-alternativa" style="margin-top:6px; background:#334155; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:12px;">+ Agregar estilo</button>
+        <button type="button" class="btn-add-alternativa" style="margin-top:6px; background:#334155; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:12px;">+ Agregar fila</button>
     `;
     contenedor.appendChild(grupo);
 
@@ -728,14 +728,14 @@ function agregarGrupoPiezasAlternativas(alternativasExistentes = null) {
 function agregarFilaAlternativaPiezas(listaAlt, datos = {}) {
     const fila = document.createElement('div');
     fila.className = 'fila-alternativa-piezas';
-    fila.style.cssText = 'display:flex; gap:6px; margin-bottom:6px; align-items:center;';
+    fila.style.cssText = 'display:flex; gap:6px; margin-bottom:6px; align-items:flex-start;';
 
-    const opcionesCategorias = adminCategorias.map(c => `<option value="${c.nombre}" ${datos.categoria === c.nombre ? 'selected' : ''}>${c.nombre}</option>`).join('');
+    const categoriasSeleccionadas = datos.categorias || (datos.categoria ? [datos.categoria] : []);
+    const opcionesCategorias = adminCategorias.map(c => `<option value="${c.nombre}" ${categoriasSeleccionadas.includes(c.nombre) ? 'selected' : ''}>${c.nombre}</option>`).join('');
 
     fila.innerHTML = `
-        <input type="text" class="alt-nombre" placeholder="Nombre (ej. Tempura)" value="${datos.nombre || ''}" style="flex:1.2; padding:6px; background:#0f172a; border:1px solid #334155; color:white; border-radius:4px; font-size:12px;">
-        <select class="alt-categoria" style="flex:1.5; padding:6px; background:#0f172a; border:1px solid #334155; color:white; border-radius:4px; font-size:12px;">
-            <option value="">-- Categoría de sabores --</option>
+        <input type="text" class="alt-nombre" placeholder="Nombre (ej. Tempura, o 'Sushi variado')" value="${datos.nombre || ''}" style="flex:1.2; padding:6px; background:#0f172a; border:1px solid #334155; color:white; border-radius:4px; font-size:12px;">
+        <select class="alt-categoria" multiple size="4" title="Ctrl/Cmd + clic para elegir varias categorías" style="flex:1.5; padding:6px; background:#0f172a; border:1px solid #334155; color:white; border-radius:4px; font-size:12px;">
             ${opcionesCategorias}
         </select>
         <input type="number" class="alt-piezas" min="1" placeholder="Piezas" value="${datos.piezas_objetivo || ''}" style="width:70px; padding:6px; background:#0f172a; border:1px solid #334155; color:white; border-radius:4px; font-size:12px;">
@@ -804,17 +804,17 @@ if (formCombo) {
             const alternativas = [];
             grupoEl.querySelectorAll('.fila-alternativa-piezas').forEach(fila => {
                 const nombre = fila.querySelector('.alt-nombre').value.trim();
-                const categoria = fila.querySelector('.alt-categoria').value;
+                const categorias = Array.from(fila.querySelector('.alt-categoria').selectedOptions).map(o => o.value);
                 const piezas = parseInt(fila.querySelector('.alt-piezas').value);
-                if (!nombre && !categoria && !piezas) return;
-                if (!nombre || !categoria || !(piezas > 0)) { faltaCompletarPiezas = true; return; }
-                alternativas.push({ nombre, categoria, piezas_objetivo: piezas });
+                if (!nombre && categorias.length === 0 && !piezas) return;
+                if (!nombre || categorias.length === 0 || !(piezas > 0)) { faltaCompletarPiezas = true; return; }
+                alternativas.push({ nombre, categorias, piezas_objetivo: piezas });
             });
             if (alternativas.length > 0) itemsSeleccionados.push({ tipo: 'piezas_alternativas', alternativas });
         });
 
         if (faltaHacerClic) { alert('⚠️ Importante: Debes HACER CLIC en una de las opciones flotantes.'); return; }
-        if (faltaCompletarPiezas) { alert('⚠️ En cada "Elección por piezas" completa nombre, categoría y cantidad de piezas de todos los estilos (o quítalos).'); return; }
+        if (faltaCompletarPiezas) { alert('⚠️ En cada "Elección por piezas" completa nombre, al menos 1 categoría y cantidad de piezas de todas las filas (o quítalas).'); return; }
         if (itemsSeleccionados.length === 0) { alert('Añade al menos 1 elemento válido al combo.'); return; }
 
         let imgFinalCombo = document.getElementById('combo-imagen').value.trim();
