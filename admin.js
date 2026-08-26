@@ -718,7 +718,7 @@ function agregarGrupoPiezasAlternativas(alternativasExistentes = null, modoExist
         </div>
         <label style="display:block; margin-bottom:12px; font-size:11px; color:#fbbf24; font-weight:normal; text-transform:none;">
             Con 2+ filas, ¿cómo se comportan las pestañas?
-            <select class="grupo-modo-piezas" style="width:100%; margin-top:4px; padding:8px; background:#0f172a; border:1px solid #334155; color:white; border-radius:6px; font-size:12px;">
+            <select class="grupo-modo-piezas" onchange="sincronizarModoPiezas(this.closest('.fila-piezas-alternativas'))" style="width:100%; margin-top:4px; padding:8px; background:#0f172a; border:1px solid #334155; color:white; border-radius:6px; font-size:12px;">
                 <option value="excluyente" ${modoExistente === 'excluyente' ? 'selected' : ''}>Excluyentes: el cliente elige SOLO una pestaña (ej. Tempura 12pz o Frío 10pz)</option>
                 <option value="compartido" ${modoExistente === 'compartido' ? 'selected' : ''}>Piezas compartidas: navega libremente entre pestañas hacia un mismo total (ej. 76 piezas variadas, usa el número de la 1ra fila)</option>
                 <option value="todas" ${modoExistente === 'todas' ? 'selected' : ''}>Todas obligatorias: el cliente debe completar cada pestaña por separado (ej. 1 roll clásico + 1 tempura + 1 individual + 1 guarnición)</option>
@@ -730,10 +730,35 @@ function agregarGrupoPiezasAlternativas(alternativasExistentes = null, modoExist
     contenedor.appendChild(grupo);
 
     const listaAlt = grupo.querySelector('.lista-alternativas-piezas');
-    grupo.querySelector('.btn-add-alternativa').onclick = () => agregarFilaAlternativaPiezas(listaAlt);
+    grupo.querySelector('.btn-add-alternativa').onclick = () => { agregarFilaAlternativaPiezas(listaAlt); sincronizarModoPiezas(grupo); };
 
     const datos = (alternativasExistentes && alternativasExistentes.length > 0) ? alternativasExistentes : [{}, {}];
     datos.forEach(alt => agregarFilaAlternativaPiezas(listaAlt, alt));
+    sincronizarModoPiezas(grupo);
+}
+
+function sincronizarModoPiezas(grupo) {
+    const modo = grupo.querySelector('.grupo-modo-piezas').value;
+    const filas = grupo.querySelectorAll('.fila-alternativa-piezas');
+    filas.forEach((fila, i) => {
+        const inputPiezas = fila.querySelector('.alt-piezas');
+        const ocultar = modo === 'compartido' && i > 0;
+        inputPiezas.style.display = ocultar ? 'none' : '';
+
+        let nota = fila.querySelector('.nota-piezas-compartidas');
+        if (ocultar) {
+            if (!nota) {
+                nota = document.createElement('span');
+                nota.className = 'nota-piezas-compartidas';
+                nota.style.cssText = 'width:80px; text-align:center; font-size:10px; color:#64748b;';
+                nota.textContent = '↳ usa el de arriba';
+                inputPiezas.insertAdjacentElement('afterend', nota);
+            }
+            nota.style.display = '';
+        } else if (nota) {
+            nota.style.display = 'none';
+        }
+    });
 }
 
 function claseChipCategoria(activo) {
@@ -828,16 +853,22 @@ if (formCombo) {
 
         let faltaCompletarPiezas = false;
         document.querySelectorAll('.fila-piezas-alternativas').forEach(grupoEl => {
+            const modo = grupoEl.querySelector('.grupo-modo-piezas').value;
             const alternativas = [];
-            grupoEl.querySelectorAll('.fila-alternativa-piezas').forEach(fila => {
+            let piezasCompartidas = null;
+            grupoEl.querySelectorAll('.fila-alternativa-piezas').forEach((fila, i) => {
                 const nombre = fila.querySelector('.alt-nombre').value.trim();
                 const categorias = Array.from(fila.querySelectorAll('.chip-categoria')).filter(b => b.dataset.activo === '1').map(b => b.dataset.valor);
-                const piezas = parseInt(fila.querySelector('.alt-piezas').value);
-                if (!nombre && categorias.length === 0 && !piezas) return;
+                const piezasInput = parseInt(fila.querySelector('.alt-piezas').value);
+                if (!nombre && categorias.length === 0 && !piezasInput) return;
+
+                // En modo "compartido" solo la 1ra fila define las piezas; las demás heredan ese número.
+                const piezas = (modo === 'compartido' && i > 0) ? piezasCompartidas : piezasInput;
+                if (i === 0) piezasCompartidas = piezasInput;
+
                 if (!nombre || categorias.length === 0 || !(piezas > 0)) { faltaCompletarPiezas = true; return; }
                 alternativas.push({ nombre, categorias, piezas_objetivo: piezas });
             });
-            const modo = grupoEl.querySelector('.grupo-modo-piezas').value;
             if (alternativas.length > 0) itemsSeleccionados.push({ tipo: 'piezas_alternativas', alternativas, modo });
         });
 
