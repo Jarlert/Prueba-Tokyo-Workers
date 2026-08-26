@@ -877,11 +877,15 @@ function abrirModalCombo(item) {
                 `).join('')}</div>
             ` : '';
 
+            const subtituloHtml = hayVariosEstilos
+                ? `<span class="text-[10px] text-gray-400">Combina los sabores que quieras</span>`
+                : `<label class="text-gray-600 font-bold text-[10px] uppercase tracking-wider">${escapeHtml(alternativasResueltas[0].nombre)}</label>`;
+
             const grupoPiezasHtml = `
                 <div class="space-y-2 mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
                     ${selectorEstiloHtml}
                     <div class="flex items-center justify-between mt-1">
-                        <span class="text-[10px] text-gray-400">Combina los sabores que quieras</span>
+                        ${subtituloHtml}
                         <span id="contador-piezas-${pgIndex}" class="text-xs font-black px-2 py-0.5 rounded-full bg-red-100 text-red-600">0 / ${alternativasResueltas[0].piezas_objetivo} pz</span>
                     </div>
                     <div id="lista-sabores-piezas-${pgIndex}" class="space-y-2 mt-2"></div>
