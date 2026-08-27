@@ -302,9 +302,11 @@
                         <input type="number" id="combo-precio" step="0.01" placeholder="0.00" required>
 
                         <label>Categoría del combo (dónde aparece en el menú)</label>
-                        <select id="combo-categoria">
-                            <option value="">Combos (por defecto)</option>
-                        </select>
+                        <div style="position: relative;">
+                            <input type="text" id="combo-categoria-visible" class="item-visible" onfocus="buscarCategoriaCombo(this)" oninput="buscarCategoriaCombo(this)" placeholder="🔍 Buscar categoría... (vacío = Combos)" autocomplete="off">
+                            <input type="hidden" id="combo-categoria">
+                            <div id="caja-sugerencias-categoria-combo" class="caja-sugerencias hidden" style="display: none; position: absolute; z-index: 50; width: 100%; margin-top: -4px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);"></div>
+                        </div>
 
                         <label>Imagen</label>
                         <input type="text" id="combo-imagen" placeholder="URL .jpg o .png">

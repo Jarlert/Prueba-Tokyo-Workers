@@ -596,18 +596,37 @@ function filtrarProductosAdmin() {
 
 function actualizarSelectCategorias() {
     const select = document.getElementById('prod-categoria');
-    if(select) {
-        select.innerHTML = '<option value="">-- Selecciona Categoría --</option>';
-        adminCategorias.forEach(cat => { select.innerHTML += `<option value="${cat.nombre}">${cat.nombre}</option>`; });
-    }
+    if(!select) return;
+    select.innerHTML = '<option value="">-- Selecciona Categoría --</option>';
+    adminCategorias.forEach(cat => { select.innerHTML += `<option value="${cat.nombre}">${cat.nombre}</option>`; });
+}
 
-    const selectCombo = document.getElementById('combo-categoria');
-    if(selectCombo) {
-        const valorActual = selectCombo.value;
-        selectCombo.innerHTML = '<option value="">Combos (por defecto)</option>';
-        adminCategorias.forEach(cat => { selectCombo.innerHTML += `<option value="${cat.nombre}">${cat.nombre}</option>`; });
-        selectCombo.value = valorActual;
+function buscarCategoriaCombo(inputElement) {
+    const contenedor = document.getElementById('caja-sugerencias-categoria-combo');
+    document.getElementById('combo-categoria').value = '';
+    const texto = inputElement.value.toLowerCase().trim();
+    const filtradas = adminCategorias.filter(c => c.nombre.toLowerCase().includes(texto));
+
+    let html = '';
+    if (texto === '' || 'combos'.includes(texto)) {
+        html += `<div data-valor="" data-nombre="" onclick="seleccionarCategoriaCombo(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: #94a3b8; font-style: italic; border-bottom: 1px solid #334155;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='transparent'">Combos (por defecto)</div>`;
     }
+    if (filtradas.length > 0) {
+        filtradas.forEach(c => {
+            html += `<div data-valor="${escapeHtml(c.nombre)}" data-nombre="${escapeHtml(c.nombre)}" onclick="seleccionarCategoriaCombo(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #334155;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='transparent'">${escapeHtml(c.nombre)}</div>`;
+        });
+    }
+    if (html === '') html = '<div style="padding: 10px; font-size: 13px; color: #94a3b8; font-style: italic;">No hay coincidencias...</div>';
+
+    document.querySelectorAll('.caja-sugerencias').forEach(caja => caja.style.display = 'none');
+    contenedor.innerHTML = html;
+    contenedor.style.display = 'block';
+}
+
+function seleccionarCategoriaCombo(elemento) {
+    document.getElementById('combo-categoria').value = elemento.dataset.valor;
+    document.getElementById('combo-categoria-visible').value = elemento.dataset.nombre || 'Combos (por defecto)';
+    document.getElementById('caja-sugerencias-categoria-combo').style.display = 'none';
 }
 
 function obtenerEmojiPlato() {
@@ -946,6 +965,7 @@ function editarCombo(id) {
     const c = adminCombos.find(x => x.id === id); if(!c) return;
     document.getElementById('combo-id').value = c.id; document.getElementById('combo-nombre').value = c.nombre; document.getElementById('combo-precio').value = c.precio;
     document.getElementById('combo-categoria').value = c.categoria || '';
+    document.getElementById('combo-categoria-visible').value = c.categoria || '';
     document.getElementById('combo-imagen').value = c.imagen || ''; document.getElementById('combo-descripcion').value = c.descripcion || ''; document.getElementById('combo-disponible').checked = c.disponible;
     document.getElementById('combo-promo-cantidad-minima').value = c.promo_cantidad_minima || '';
     document.getElementById('combo-promo-producto-cantidad').value = c.promo_producto_cantidad || '';
