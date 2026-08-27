@@ -28,6 +28,10 @@ def ejecutar_migraciones(engine: Engine):
             conn.execute(text("ALTER TABLE combos ADD COLUMN promo_producto_id INTEGER"))
             conn.execute(text("ALTER TABLE combos ADD COLUMN promo_producto_cantidad INTEGER"))
 
+        if "categoria" not in columnas_combos:
+            print("[migracion] Agregando columna 'categoria' a combos...")
+            conn.execute(text("ALTER TABLE combos ADD COLUMN categoria VARCHAR"))
+
         resultado = conn.execute(text("""
             UPDATE pedidos
             SET fecha = SUBSTRING(timestamp FROM 1 FOR 10)::date

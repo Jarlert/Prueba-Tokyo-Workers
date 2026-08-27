@@ -23,7 +23,7 @@ def obtener_menu(db: Session = Depends(get_db)):
         "menu": {
             "categorias": [{"id": c.id, "nombre": c.nombre, "imagen": c.imagen} for c in categorias],
             "productos": [{"id": p.id, "nombre": p.nombre, "categoria": p.categoria, "precio": p.precio, "imagen": p.imagen, "descripcion": p.descripcion, "disponible": p.disponible, "agotado": p.agotado} for p in productos],
-            "combos": [{"id": cb.id, "nombre": cb.nombre, "precio": cb.precio, "imagen": cb.imagen, "descripcion": cb.descripcion, "disponible": cb.disponible, "items_json": cb.items_json, "promo_cantidad_minima": cb.promo_cantidad_minima, "promo_producto_id": cb.promo_producto_id, "promo_producto_cantidad": cb.promo_producto_cantidad} for cb in combos]
+            "combos": [{"id": cb.id, "nombre": cb.nombre, "categoria": cb.categoria, "precio": cb.precio, "imagen": cb.imagen, "descripcion": cb.descripcion, "disponible": cb.disponible, "items_json": cb.items_json, "promo_cantidad_minima": cb.promo_cantidad_minima, "promo_producto_id": cb.promo_producto_id, "promo_producto_cantidad": cb.promo_producto_cantidad} for cb in combos]
         }
     }
 
@@ -86,6 +86,7 @@ def guardar_combo(datos: schemas.ComboGuardar, db: Session = Depends(get_db), ad
             combo = db.query(models.Combo).filter(models.Combo.id == datos.id).first()
             if combo:
                 combo.nombre = datos.nombre
+                combo.categoria = datos.categoria
                 combo.precio = datos.precio
                 combo.imagen = datos.imagen
                 combo.descripcion = datos.descripcion
@@ -97,6 +98,7 @@ def guardar_combo(datos: schemas.ComboGuardar, db: Session = Depends(get_db), ad
         else:
             nuevo_combo = models.Combo(
                 nombre=datos.nombre,
+                categoria=datos.categoria,
                 precio=datos.precio,
                 imagen=datos.imagen,
                 descripcion=datos.descripcion,

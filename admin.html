@@ -300,7 +300,12 @@
                         
                         <label>Precio Especial ($)</label>
                         <input type="number" id="combo-precio" step="0.01" placeholder="0.00" required>
-                        
+
+                        <label>Categoría del combo (dónde aparece en el menú)</label>
+                        <select id="combo-categoria">
+                            <option value="">Combos (por defecto)</option>
+                        </select>
+
                         <label>Imagen</label>
                         <input type="text" id="combo-imagen" placeholder="URL .jpg o .png">
                         <input type="file" accept="image/*" onchange="manejarSeleccionImagen(event, 'combo-imagen', 'combo-imagen-status')" style="margin-top: 6px;">

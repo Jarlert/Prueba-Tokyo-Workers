@@ -113,6 +113,7 @@ class ProductoGuardar(BaseModel):
 class ComboGuardar(BaseModel):
     id: Optional[int] = None
     nombre: str
+    categoria: Optional[str] = None
     precio: float
     imagen: Optional[str] = ""
     descripcion: Optional[str] = ""

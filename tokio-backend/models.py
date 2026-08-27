@@ -68,6 +68,7 @@ class Combo(Base):
     __tablename__ = "combos"
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String, nullable=False)
+    categoria = Column(String, nullable=True)
     precio = Column(Float, nullable=False)
     descripcion = Column(String, nullable=True)
     imagen = Column(String, nullable=True)

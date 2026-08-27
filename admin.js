@@ -596,9 +596,18 @@ function filtrarProductosAdmin() {
 
 function actualizarSelectCategorias() {
     const select = document.getElementById('prod-categoria');
-    if(!select) return;
-    select.innerHTML = '<option value="">-- Selecciona Categoría --</option>';
-    adminCategorias.forEach(cat => { select.innerHTML += `<option value="${cat.nombre}">${cat.nombre}</option>`; });
+    if(select) {
+        select.innerHTML = '<option value="">-- Selecciona Categoría --</option>';
+        adminCategorias.forEach(cat => { select.innerHTML += `<option value="${cat.nombre}">${cat.nombre}</option>`; });
+    }
+
+    const selectCombo = document.getElementById('combo-categoria');
+    if(selectCombo) {
+        const valorActual = selectCombo.value;
+        selectCombo.innerHTML = '<option value="">Combos (por defecto)</option>';
+        adminCategorias.forEach(cat => { selectCombo.innerHTML += `<option value="${cat.nombre}">${cat.nombre}</option>`; });
+        selectCombo.value = valorActual;
+    }
 }
 
 function obtenerEmojiPlato() {
@@ -917,7 +926,7 @@ if (formCombo) {
         }
 
         const payload = {
-            id: id ? parseInt(id) : null, nombre: document.getElementById('combo-nombre').value.trim(), precio: parseFloat(document.getElementById('combo-precio').value),
+            id: id ? parseInt(id) : null, nombre: document.getElementById('combo-nombre').value.trim(), categoria: document.getElementById('combo-categoria').value || null, precio: parseFloat(document.getElementById('combo-precio').value),
             imagen: imgFinalCombo, descripcion: document.getElementById('combo-descripcion').value.trim(), items: itemsSeleccionados, disponible: document.getElementById('combo-disponible').checked,
             promo_cantidad_minima: promoCantidadMinima, promo_producto_id: promoProductoId, promo_producto_cantidad: promoProductoCantidad
         };
@@ -936,6 +945,7 @@ if (formCombo) {
 function editarCombo(id) {
     const c = adminCombos.find(x => x.id === id); if(!c) return;
     document.getElementById('combo-id').value = c.id; document.getElementById('combo-nombre').value = c.nombre; document.getElementById('combo-precio').value = c.precio;
+    document.getElementById('combo-categoria').value = c.categoria || '';
     document.getElementById('combo-imagen').value = c.imagen || ''; document.getElementById('combo-descripcion').value = c.descripcion || ''; document.getElementById('combo-disponible').checked = c.disponible;
     document.getElementById('combo-promo-cantidad-minima').value = c.promo_cantidad_minima || '';
     document.getElementById('combo-promo-producto-cantidad').value = c.promo_producto_cantidad || '';
