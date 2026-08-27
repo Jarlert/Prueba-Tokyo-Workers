@@ -552,6 +552,38 @@ function renderListaAnuncios() {
     });
 }
 
+function buscarItemAnuncio(inputElement) {
+    const contenedor = document.getElementById('caja-sugerencias-anuncio-item');
+    document.getElementById('anuncio-item-ref').value = '';
+    const texto = inputElement.value.toLowerCase().trim();
+    const comboFiltrados = adminCombos.filter(c => c.nombre.toLowerCase().includes(texto));
+    const prodFiltrados = adminProductos.filter(p => p.nombre.toLowerCase().includes(texto));
+
+    let html = `<div data-ref="" data-nombre="" onclick="seleccionarItemAnuncio(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: #94a3b8; font-style: italic; border-bottom: 1px solid #334155;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='transparent'">Ninguno (anuncio solo informativo)</div>`;
+    if (comboFiltrados.length > 0) {
+        comboFiltrados.forEach(c => {
+            const nombreLegible = `🍱 ${c.nombre} ($${c.precio.toFixed(2)})`;
+            html += `<div data-ref="c_${c.id}" data-nombre="${escapeHtml(nombreLegible)}" onclick="seleccionarItemAnuncio(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #334155;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='transparent'">${escapeHtml(nombreLegible)}</div>`;
+        });
+    }
+    if (prodFiltrados.length > 0) {
+        prodFiltrados.forEach(p => {
+            const nombreLegible = `🍣 ${p.nombre} ($${p.precio.toFixed(2)})`;
+            html += `<div data-ref="p_${p.id}" data-nombre="${escapeHtml(nombreLegible)}" onclick="seleccionarItemAnuncio(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #334155;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='transparent'">${escapeHtml(nombreLegible)}</div>`;
+        });
+    }
+
+    document.querySelectorAll('.caja-sugerencias').forEach(caja => caja.style.display = 'none');
+    contenedor.innerHTML = html;
+    contenedor.style.display = 'block';
+}
+
+function seleccionarItemAnuncio(elemento) {
+    document.getElementById('anuncio-item-ref').value = elemento.dataset.ref;
+    document.getElementById('anuncio-item-visible').value = elemento.dataset.nombre || '';
+    document.getElementById('caja-sugerencias-anuncio-item').style.display = 'none';
+}
+
 if (document.getElementById('form-anuncio')) {
     document.getElementById('form-anuncio').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -564,7 +596,8 @@ if (document.getElementById('form-anuncio')) {
             titulo: document.getElementById('anuncio-titulo').value.trim(),
             texto: document.getElementById('anuncio-texto').value.trim(),
             activo: document.getElementById('anuncio-activo').checked,
-            orden: parseInt(document.getElementById('anuncio-orden').value) || 0
+            orden: parseInt(document.getElementById('anuncio-orden').value) || 0,
+            producto_ref: document.getElementById('anuncio-item-ref').value || null
         };
         try {
             const res = await fetch(ADMIN_URL_GUARDAR_ANUNCIO, {
@@ -587,6 +620,22 @@ function editarAnuncio(id) {
     document.getElementById('anuncio-texto').value = a.texto || '';
     document.getElementById('anuncio-orden').value = a.orden || 0;
     document.getElementById('anuncio-activo').checked = !!a.activo;
+
+    document.getElementById('anuncio-item-ref').value = a.producto_ref || '';
+    let nombreItemVinculado = '';
+    if (a.producto_ref) {
+        const [tipo, refId] = a.producto_ref.split('_');
+        const idNum = parseInt(refId);
+        if (tipo === 'c') {
+            const c = adminCombos.find(x => x.id === idNum);
+            if (c) nombreItemVinculado = `🍱 ${c.nombre} ($${c.precio.toFixed(2)})`;
+        } else if (tipo === 'p') {
+            const p = adminProductos.find(x => x.id === idNum);
+            if (p) nombreItemVinculado = `🍣 ${p.nombre} ($${p.precio.toFixed(2)})`;
+        }
+    }
+    document.getElementById('anuncio-item-visible').value = nombreItemVinculado;
+
     document.getElementById('titulo-form-anuncio').innerText = "Editar Anuncio"; document.getElementById('btn-save-anuncio').innerText = "💾 Actualizar Anuncio"; document.getElementById('btn-cancel-anuncio').style.display = "block";
 }
 

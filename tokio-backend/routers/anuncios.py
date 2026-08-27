@@ -13,7 +13,7 @@ router = APIRouter(
 @router.get("/")
 def obtener_anuncios(db: Session = Depends(get_db)):
     anuncios = db.query(models.Anuncio).order_by(models.Anuncio.orden).all()
-    return [{"id": a.id, "imagen": a.imagen, "titulo": a.titulo, "texto": a.texto, "activo": a.activo, "orden": a.orden} for a in anuncios]
+    return [{"id": a.id, "imagen": a.imagen, "titulo": a.titulo, "texto": a.texto, "activo": a.activo, "orden": a.orden, "producto_ref": a.producto_ref} for a in anuncios]
 
 @router.post("/guardar")
 def guardar_anuncio(datos: schemas.AnuncioGuardar, db: Session = Depends(get_db), admin: dict = Depends(requiere_admin)):
@@ -26,13 +26,15 @@ def guardar_anuncio(datos: schemas.AnuncioGuardar, db: Session = Depends(get_db)
                 anuncio.texto = datos.texto
                 anuncio.activo = datos.activo
                 anuncio.orden = datos.orden
+                anuncio.producto_ref = datos.producto_ref
         else:
             db.add(models.Anuncio(
                 imagen=datos.imagen,
                 titulo=datos.titulo,
                 texto=datos.texto,
                 activo=datos.activo,
-                orden=datos.orden
+                orden=datos.orden,
+                producto_ref=datos.producto_ref
             ))
 
         db.commit()

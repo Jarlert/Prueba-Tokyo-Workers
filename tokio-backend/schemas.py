@@ -136,6 +136,7 @@ class AnuncioGuardar(BaseModel):
     texto: Optional[str] = ""
     activo: bool = True
     orden: Optional[int] = 0
+    producto_ref: Optional[str] = None
 
 class ItemEliminar(BaseModel):
     id: int

@@ -44,6 +44,11 @@ def ejecutar_migraciones(engine: Engine):
             conn.execute(text("ALTER TABLE combos ADD COLUMN disponible_hasta VARCHAR"))
             conn.execute(text("ALTER TABLE combos ADD COLUMN dias_disponibles VARCHAR"))
 
+        columnas_anuncios = [c["name"] for c in inspector.get_columns("anuncios")]
+        if "producto_ref" not in columnas_anuncios:
+            print("[migracion] Agregando columna 'producto_ref' a anuncios...")
+            conn.execute(text("ALTER TABLE anuncios ADD COLUMN producto_ref VARCHAR"))
+
         resultado = conn.execute(text("""
             UPDATE pedidos
             SET fecha = SUBSTRING(timestamp FROM 1 FOR 10)::date

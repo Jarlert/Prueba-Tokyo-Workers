@@ -161,14 +161,26 @@ function mostrarAnuncioEnIndice(indice) {
     const anuncio = anunciosActivos[indice];
     if (!anuncio) return;
 
-    document.getElementById('anuncio-modal-imagen').src = anuncio.imagen || '';
+    const imgEl = document.getElementById('anuncio-modal-imagen');
+    imgEl.src = anuncio.imagen || '';
+    imgEl.style.cursor = anuncio.producto_ref ? 'pointer' : 'default';
+
     document.getElementById('anuncio-modal-titulo').innerText = anuncio.titulo || '';
     document.getElementById('anuncio-modal-titulo').classList.toggle('hidden', !anuncio.titulo);
     document.getElementById('anuncio-modal-texto').innerText = anuncio.texto || '';
     document.getElementById('anuncio-modal-texto').classList.toggle('hidden', !anuncio.texto);
 
+    const btnPedir = document.getElementById('anuncio-modal-btn-pedir');
+    btnPedir.classList.toggle('hidden', !anuncio.producto_ref);
+
     const hayMas = indice < anunciosActivos.length - 1;
-    document.getElementById('anuncio-modal-btn').innerText = hayMas ? 'Siguiente ➔' : 'Entendido, ver menú';
+    const btnEntendido = document.getElementById('anuncio-modal-btn');
+    btnEntendido.innerText = hayMas ? 'Siguiente ➔' : 'Entendido, ver menú';
+    if (anuncio.producto_ref) {
+        btnEntendido.className = 'mt-3 w-full font-bold py-3 rounded-xl transition cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700';
+    } else {
+        btnEntendido.className = 'mt-3 w-full font-bold py-3 rounded-xl transition cursor-pointer bg-red-600 hover:bg-red-700 text-white';
+    }
 
     const modal = document.getElementById('modal-anuncio');
     modal.classList.remove('hidden');
@@ -184,6 +196,43 @@ function cerrarAnuncioActual() {
     const modal = document.getElementById('modal-anuncio');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+}
+
+function irAItemDeAnuncio() {
+    const anuncio = anunciosActivos[anuncioIndiceActual];
+    if (!anuncio || !anuncio.producto_ref) return;
+
+    const modal = document.getElementById('modal-anuncio');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+
+    const itemId = anuncio.producto_ref;
+    let categoriaEncontrada = null;
+    let itemEncontrado = null;
+    Object.keys(menuData).forEach(catKey => {
+        const encontrado = menuData[catKey].items.find(i => i.id === itemId);
+        if (encontrado) { categoriaEncontrada = catKey; itemEncontrado = encontrado; }
+    });
+
+    if (!itemEncontrado) {
+        alert('Este producto o combo ya no está disponible.');
+        return;
+    }
+
+    selectCategory(categoriaEncontrada);
+
+    const esComboConOpciones = itemEncontrado.opciones_combo && itemEncontrado.opciones_combo !== '' && itemEncontrado.opciones_combo !== '[]';
+    if (esComboConOpciones) {
+        abrirModalCombo(itemEncontrado);
+    } else {
+        setTimeout(() => {
+            const cardEl = document.getElementById('item-card-' + itemId);
+            if (!cardEl) return;
+            cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            cardEl.classList.add('ring-4', 'ring-red-400');
+            setTimeout(() => cardEl.classList.remove('ring-4', 'ring-red-400'), 2000);
+        }, 100);
+    }
 }
 
 // --- 2. AUTENTICACIÓN Y REGISTRO ---
@@ -387,7 +436,7 @@ function selectCategory(categoryKey) {
             : `<div class="w-20 h-20 rounded-xl flex-shrink-0 bg-red-50 text-red-500 border border-red-100 flex items-center justify-center text-4xl shadow-sm">${item.image || '🍣'}</div>`;
 
         const itemHtml = `
-            <div class="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm flex flex-col gap-2">
+            <div id="item-card-${item.id}" class="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm flex flex-col gap-2 transition-all">
                 <div class="flex items-center justify-between gap-3">
                     
                     <div class="flex items-center gap-3 flex-grow min-w-0 cursor-pointer" onclick="abrirDetalleProducto('${item.id}')">

@@ -92,6 +92,7 @@ class Anuncio(Base):
     texto = Column(String, nullable=True)
     activo = Column(Boolean, default=True)
     orden = Column(Integer, default=0)
+    producto_ref = Column(String, nullable=True)  # "p_<id>" o "c_<id>"; NULL = anuncio solo informativo
 
 class Motorizado(Base):
     __tablename__ = "motorizados"
