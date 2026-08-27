@@ -181,7 +181,6 @@ async function cargarDatosAdmin() {
         renderListaCombos();
         actualizarSelectCategorias();
         actualizarSelectsCombos();
-        actualizarSelectPromoProducto();
 
         await cargarMotorizadosDesdeDB();
         await cargarUsuariosDesdeDB();
@@ -678,12 +677,31 @@ function actualizarSelectsCombos() {
     datalist.innerHTML = adminProductos.map(p => `<option value="${p.nombre} ($${p.precio})"></option>`).join('');
 }
 
-function actualizarSelectPromoProducto() {
-    const select = document.getElementById('combo-promo-producto');
-    if (!select) return;
-    const valorActual = select.value;
-    select.innerHTML = '<option value="">-- Ninguno --</option>' + adminProductos.map(p => `<option value="${p.id}">${p.nombre} ($${p.precio.toFixed(2)})</option>`).join('');
-    select.value = valorActual;
+function buscarProductoPromo(inputElement) {
+    const contenedor = document.getElementById('caja-sugerencias-promo');
+    document.getElementById('combo-promo-producto').value = '';
+    const texto = inputElement.value.toLowerCase().trim();
+    const filtrados = adminProductos.filter(p => p.nombre.toLowerCase().includes(texto));
+
+    let html = '';
+    if (filtrados.length > 0) {
+        filtrados.forEach(p => {
+            const nombreLegible = `${p.nombre} ($${p.precio.toFixed(2)})`;
+            html += `<div class="opcion-promo-producto" data-id="${p.id}" data-nombre="${escapeHtml(nombreLegible)}" onclick="seleccionarProductoPromo(this)" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='transparent'"><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;">${escapeHtml(p.nombre)}</span><span style="color:#10b981; font-weight: bold; flex-shrink: 0;">$${p.precio.toFixed(2)}</span></div>`;
+        });
+    } else {
+        html = '<div style="padding: 10px; font-size: 13px; color: #94a3b8; font-style: italic;">No hay coincidencias...</div>';
+    }
+
+    document.querySelectorAll('.caja-sugerencias').forEach(caja => caja.style.display = 'none');
+    contenedor.innerHTML = html;
+    contenedor.style.display = 'block';
+}
+
+function seleccionarProductoPromo(elemento) {
+    document.getElementById('combo-promo-producto').value = elemento.dataset.id;
+    document.getElementById('combo-promo-producto-visible').value = elemento.dataset.nombre;
+    document.getElementById('caja-sugerencias-promo').style.display = 'none';
 }
 
 function agregarFilaProductoCombo(valorSeleccionado = "", qty = 1) {
@@ -920,8 +938,10 @@ function editarCombo(id) {
     document.getElementById('combo-id').value = c.id; document.getElementById('combo-nombre').value = c.nombre; document.getElementById('combo-precio').value = c.precio;
     document.getElementById('combo-imagen').value = c.imagen || ''; document.getElementById('combo-descripcion').value = c.descripcion || ''; document.getElementById('combo-disponible').checked = c.disponible;
     document.getElementById('combo-promo-cantidad-minima').value = c.promo_cantidad_minima || '';
-    document.getElementById('combo-promo-producto').value = c.promo_producto_id || '';
     document.getElementById('combo-promo-producto-cantidad').value = c.promo_producto_cantidad || '';
+    const prodPromo = c.promo_producto_id ? adminProductos.find(p => p.id === c.promo_producto_id) : null;
+    document.getElementById('combo-promo-producto').value = c.promo_producto_id || '';
+    document.getElementById('combo-promo-producto-visible').value = prodPromo ? `${prodPromo.nombre} ($${prodPromo.precio.toFixed(2)})` : '';
 
     document.getElementById('lista-items-combo').innerHTML = '';
     let parsedItems = [];
