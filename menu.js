@@ -6,11 +6,14 @@ const URL_OBTENER_MENU = "https://prueba-tokyo-workers-production-76cf.up.railwa
 const URL_VERIFICAR_CLIENTE = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/clientes/verificar";
 const URL_REGISTRAR_CLIENTE = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/clientes/registrar";
 const URL_OBTENER_HORARIOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/horarios/";
+const URL_OBTENER_ANUNCIOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/anuncios/";
 
 let menuData = { combos: [], cocina: [], sushi: [], extras: [] };
 let cart = {};
 let datosClienteLogueado = null;
 let horariosAtencion = [];
+let anunciosActivos = [];
+let anuncioIndiceActual = 0;
 
 // --- 1. ARRANQUE Y CONTROL DE ESTADOS ---
 window.onload = async function() {
@@ -124,6 +127,65 @@ function mostrarBannerCerrado() {
     banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+// --- DISPONIBILIDAD PROGRAMADA POR HORARIO/DÍA (productos y combos individuales) ---
+function itemDentroDeHorarioProgramado(item) {
+    if (!item.disponible_desde && !item.disponible_hasta && !item.dias_disponibles) return true;
+    const { diaSemana, horaActual } = obtenerFechaHoraCaracas();
+
+    if (item.dias_disponibles) {
+        const dias = String(item.dias_disponibles).split(',').map(d => parseInt(d.trim()));
+        if (!dias.includes(diaSemana)) return false;
+    }
+    if (item.disponible_desde && item.disponible_hasta) {
+        if (!(horaActual >= item.disponible_desde && horaActual <= item.disponible_hasta)) return false;
+    }
+    return true;
+}
+
+// --- ANUNCIOS/POPUPS DE PROMOCIONES AL ABRIR EL MENÚ ---
+async function cargarYMostrarAnuncios() {
+    try {
+        const response = await fetch(URL_OBTENER_ANUNCIOS + "?t=" + new Date().getTime());
+        if (!response.ok) throw new Error('Error al obtener anuncios');
+        const data = await response.json();
+        const anuncios = Array.isArray(data) ? data : (data.data || []);
+        anunciosActivos = anuncios.filter(a => a.activo).sort((a, b) => (a.orden || 0) - (b.orden || 0));
+        anuncioIndiceActual = 0;
+        if (anunciosActivos.length > 0) mostrarAnuncioEnIndice(0);
+    } catch (error) {
+        console.error("Error obteniendo anuncios:", error);
+    }
+}
+
+function mostrarAnuncioEnIndice(indice) {
+    const anuncio = anunciosActivos[indice];
+    if (!anuncio) return;
+
+    document.getElementById('anuncio-modal-imagen').src = anuncio.imagen || '';
+    document.getElementById('anuncio-modal-titulo').innerText = anuncio.titulo || '';
+    document.getElementById('anuncio-modal-titulo').classList.toggle('hidden', !anuncio.titulo);
+    document.getElementById('anuncio-modal-texto').innerText = anuncio.texto || '';
+    document.getElementById('anuncio-modal-texto').classList.toggle('hidden', !anuncio.texto);
+
+    const hayMas = indice < anunciosActivos.length - 1;
+    document.getElementById('anuncio-modal-btn').innerText = hayMas ? 'Siguiente ➔' : 'Entendido, ver menú';
+
+    const modal = document.getElementById('modal-anuncio');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function cerrarAnuncioActual() {
+    if (anuncioIndiceActual < anunciosActivos.length - 1) {
+        anuncioIndiceActual++;
+        mostrarAnuncioEnIndice(anuncioIndiceActual);
+        return;
+    }
+    const modal = document.getElementById('modal-anuncio');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
 // --- 2. AUTENTICACIÓN Y REGISTRO ---
 async function procesarVerificacionTelefono(event) {
     event.preventDefault();
@@ -209,6 +271,7 @@ function cerrarSesionCliente() {
 // --- 1. CARGA DINÁMICA DE LA BASE DE DATOS ---
 async function cargarMenuDesdeDB() {
     cargarHorariosAtencion(); // en paralelo, no bloquea el render del catálogo
+    cargarYMostrarAnuncios(); // popup de promociones, en paralelo
     try {
         const urlFresca = URL_OBTENER_MENU + "?t=" + new Date().getTime();
         const response = await fetch(urlFresca);
@@ -250,7 +313,10 @@ async function cargarMenuDesdeDB() {
                 agotado: prod.agotado === true,
                 promoCantidadMinima: esCombo ? (parseInt(prod.promo_cantidad_minima) || 0) : 0,
                 promoProductoId: esCombo ? (prod.promo_producto_id || null) : null,
-                promoProductoCantidad: esCombo ? (parseInt(prod.promo_producto_cantidad) || 0) : 0
+                promoProductoCantidad: esCombo ? (parseInt(prod.promo_producto_cantidad) || 0) : 0,
+                disponible_desde: prod.disponible_desde || null,
+                disponible_hasta: prod.disponible_hasta || null,
+                dias_disponibles: prod.dias_disponibles || null
             });
         };
 
@@ -273,7 +339,7 @@ function renderizarCategorias() {
 
     Object.keys(menuData).forEach((catKey, index) => {
         const catInfo = menuData[catKey];
-        const itemsVisibles = catInfo.items.filter(i => i.disponible !== false && !i.agotado);
+        const itemsVisibles = catInfo.items.filter(i => i.disponible !== false && !i.agotado && itemDentroDeHorarioProgramado(i));
         if (itemsVisibles.length === 0) return; // categoría solo con ítems de uso interno (ej. componentes de combos)
 
         let arteVisual = '';
@@ -305,7 +371,7 @@ function selectCategory(categoryKey) {
     
     document.getElementById('category-title').innerText = menuData[categoryKey].titulo;
 
-    menuData[categoryKey].items.filter(item => item.disponible !== false && !item.agotado).forEach(item => {
+    menuData[categoryKey].items.filter(item => item.disponible !== false && !item.agotado && itemDentroDeHorarioProgramado(item)).forEach(item => {
         let currentQty = 0;
         Object.keys(cart).forEach(key => {
             if (key === String(item.id) || key.startsWith(item.id + "_")) {

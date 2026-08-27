@@ -32,6 +32,18 @@ def ejecutar_migraciones(engine: Engine):
             print("[migracion] Agregando columna 'categoria' a combos...")
             conn.execute(text("ALTER TABLE combos ADD COLUMN categoria VARCHAR"))
 
+        if "disponible_desde" not in columnas_productos:
+            print("[migracion] Agregando columnas de disponibilidad programada a productos...")
+            conn.execute(text("ALTER TABLE productos ADD COLUMN disponible_desde VARCHAR"))
+            conn.execute(text("ALTER TABLE productos ADD COLUMN disponible_hasta VARCHAR"))
+            conn.execute(text("ALTER TABLE productos ADD COLUMN dias_disponibles VARCHAR"))
+
+        if "disponible_desde" not in columnas_combos:
+            print("[migracion] Agregando columnas de disponibilidad programada a combos...")
+            conn.execute(text("ALTER TABLE combos ADD COLUMN disponible_desde VARCHAR"))
+            conn.execute(text("ALTER TABLE combos ADD COLUMN disponible_hasta VARCHAR"))
+            conn.execute(text("ALTER TABLE combos ADD COLUMN dias_disponibles VARCHAR"))
+
         resultado = conn.execute(text("""
             UPDATE pedidos
             SET fecha = SUBSTRING(timestamp FROM 1 FOR 10)::date

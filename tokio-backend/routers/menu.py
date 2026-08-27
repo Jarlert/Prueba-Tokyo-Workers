@@ -22,8 +22,8 @@ def obtener_menu(db: Session = Depends(get_db)):
     return {
         "menu": {
             "categorias": [{"id": c.id, "nombre": c.nombre, "imagen": c.imagen} for c in categorias],
-            "productos": [{"id": p.id, "nombre": p.nombre, "categoria": p.categoria, "precio": p.precio, "imagen": p.imagen, "descripcion": p.descripcion, "disponible": p.disponible, "agotado": p.agotado} for p in productos],
-            "combos": [{"id": cb.id, "nombre": cb.nombre, "categoria": cb.categoria, "precio": cb.precio, "imagen": cb.imagen, "descripcion": cb.descripcion, "disponible": cb.disponible, "items_json": cb.items_json, "promo_cantidad_minima": cb.promo_cantidad_minima, "promo_producto_id": cb.promo_producto_id, "promo_producto_cantidad": cb.promo_producto_cantidad} for cb in combos]
+            "productos": [{"id": p.id, "nombre": p.nombre, "categoria": p.categoria, "precio": p.precio, "imagen": p.imagen, "descripcion": p.descripcion, "disponible": p.disponible, "agotado": p.agotado, "disponible_desde": p.disponible_desde, "disponible_hasta": p.disponible_hasta, "dias_disponibles": p.dias_disponibles} for p in productos],
+            "combos": [{"id": cb.id, "nombre": cb.nombre, "categoria": cb.categoria, "precio": cb.precio, "imagen": cb.imagen, "descripcion": cb.descripcion, "disponible": cb.disponible, "items_json": cb.items_json, "promo_cantidad_minima": cb.promo_cantidad_minima, "promo_producto_id": cb.promo_producto_id, "promo_producto_cantidad": cb.promo_producto_cantidad, "disponible_desde": cb.disponible_desde, "disponible_hasta": cb.disponible_hasta, "dias_disponibles": cb.dias_disponibles} for cb in combos]
         }
     }
 
@@ -58,6 +58,9 @@ def guardar_producto(datos: schemas.ProductoGuardar, db: Session = Depends(get_d
                 prod.descripcion = datos.descripcion
                 prod.disponible = datos.disponible
                 prod.agotado = datos.agotado
+                prod.disponible_desde = datos.disponible_desde
+                prod.disponible_hasta = datos.disponible_hasta
+                prod.dias_disponibles = datos.dias_disponibles
         else:
             nuevo_prod = models.Producto(
                 nombre=datos.nombre,
@@ -66,7 +69,10 @@ def guardar_producto(datos: schemas.ProductoGuardar, db: Session = Depends(get_d
                 imagen=datos.imagen,
                 descripcion=datos.descripcion,
                 disponible=datos.disponible,
-                agotado=datos.agotado
+                agotado=datos.agotado,
+                disponible_desde=datos.disponible_desde,
+                disponible_hasta=datos.disponible_hasta,
+                dias_disponibles=datos.dias_disponibles
             )
             db.add(nuevo_prod)
 
@@ -95,6 +101,9 @@ def guardar_combo(datos: schemas.ComboGuardar, db: Session = Depends(get_db), ad
                 combo.promo_cantidad_minima = datos.promo_cantidad_minima
                 combo.promo_producto_id = datos.promo_producto_id
                 combo.promo_producto_cantidad = datos.promo_producto_cantidad
+                combo.disponible_desde = datos.disponible_desde
+                combo.disponible_hasta = datos.disponible_hasta
+                combo.dias_disponibles = datos.dias_disponibles
         else:
             nuevo_combo = models.Combo(
                 nombre=datos.nombre,
@@ -106,7 +115,10 @@ def guardar_combo(datos: schemas.ComboGuardar, db: Session = Depends(get_db), ad
                 disponible=datos.disponible,
                 promo_cantidad_minima=datos.promo_cantidad_minima,
                 promo_producto_id=datos.promo_producto_id,
-                promo_producto_cantidad=datos.promo_producto_cantidad
+                promo_producto_cantidad=datos.promo_producto_cantidad,
+                disponible_desde=datos.disponible_desde,
+                disponible_hasta=datos.disponible_hasta,
+                dias_disponibles=datos.dias_disponibles
             )
             db.add(nuevo_combo)
 

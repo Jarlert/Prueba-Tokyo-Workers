@@ -109,6 +109,9 @@ class ProductoGuardar(BaseModel):
     descripcion: Optional[str] = ""
     disponible: bool = True
     agotado: bool = False
+    disponible_desde: Optional[str] = None
+    disponible_hasta: Optional[str] = None
+    dias_disponibles: Optional[str] = None
 
 class ComboGuardar(BaseModel):
     id: Optional[int] = None
@@ -122,6 +125,17 @@ class ComboGuardar(BaseModel):
     promo_cantidad_minima: Optional[int] = None
     promo_producto_id: Optional[int] = None
     promo_producto_cantidad: Optional[int] = None
+    disponible_desde: Optional[str] = None
+    disponible_hasta: Optional[str] = None
+    dias_disponibles: Optional[str] = None
+
+class AnuncioGuardar(BaseModel):
+    id: Optional[int] = None
+    imagen: str
+    titulo: Optional[str] = ""
+    texto: Optional[str] = ""
+    activo: bool = True
+    orden: Optional[int] = 0
 
 class ItemEliminar(BaseModel):
     id: int

@@ -63,6 +63,9 @@ class Producto(Base):
     disponible = Column(Boolean, default=True)
     agotado = Column(Boolean, default=False)
     imagen = Column(String, nullable=True)
+    disponible_desde = Column(String, nullable=True)  # "HH:MM", junto con disponible_hasta limita el horario diario
+    disponible_hasta = Column(String, nullable=True)  # "HH:MM"
+    dias_disponibles = Column(String, nullable=True)  # CSV "0,1,2" (0=lunes...6=domingo); NULL/"" = todos los días
 
 class Combo(Base):
     __tablename__ = "combos"
@@ -77,6 +80,18 @@ class Combo(Base):
     promo_cantidad_minima = Column(Integer, nullable=True)
     promo_producto_id = Column(Integer, nullable=True)
     promo_producto_cantidad = Column(Integer, nullable=True)
+    disponible_desde = Column(String, nullable=True)  # "HH:MM"
+    disponible_hasta = Column(String, nullable=True)  # "HH:MM"
+    dias_disponibles = Column(String, nullable=True)  # CSV "0,1,2" (0=lunes...6=domingo); NULL/"" = todos los días
+
+class Anuncio(Base):
+    __tablename__ = "anuncios"
+    id = Column(Integer, primary_key=True, index=True)
+    imagen = Column(String, nullable=False)
+    titulo = Column(String, nullable=True)
+    texto = Column(String, nullable=True)
+    activo = Column(Boolean, default=True)
+    orden = Column(Integer, default=0)
 
 class Motorizado(Base):
     __tablename__ = "motorizados"

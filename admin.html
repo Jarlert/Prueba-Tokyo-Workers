@@ -124,6 +124,7 @@
             <button class="tab-btn" onclick="switchTab('usuarios')">👥 Usuarios</button>
             <button class="tab-btn" onclick="switchTab('mensajes')">💬 Mensajes WP</button>
             <button class="tab-btn" onclick="switchTab('horarios')">🕒 Horario de Atención</button>
+            <button class="tab-btn" onclick="switchTab('anuncios')">📢 Anuncios</button>
         </div>
 
         <div id="tab-mensajes" class="tab-content">
@@ -277,6 +278,23 @@
                         </label>
                         <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Marca esto cuando no puedas preparar el producto hoy (ej. se acabó un ingrediente). A diferencia de "no disponible", esto también lo bloquea dentro de los combos que lo incluyen.</p>
 
+                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">
+                            <label style="margin-top: 0; color: white;">⏰ Disponibilidad programada (opcional)</label>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin: 4px 0 10px;">Para promociones por tiempo limitado (ej. solo de 2:00pm a 10:00pm, o solo ciertos días). Deja todo vacío/sin marcar para que esté disponible siempre.</p>
+                            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                                <div style="flex:1; min-width:120px;">
+                                    <label style="font-size:0.8rem;">Desde</label>
+                                    <input type="time" id="prod-disponible-desde">
+                                </div>
+                                <div style="flex:1; min-width:120px;">
+                                    <label style="font-size:0.8rem;">Hasta</label>
+                                    <input type="time" id="prod-disponible-hasta">
+                                </div>
+                            </div>
+                            <label style="font-size:0.8rem; margin-top:10px; display:block;">Días de la semana (ninguno marcado = todos los días)</label>
+                            <div class="chips-dias" id="prod-chips-dias" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
+                        </div>
+
                         <button type="submit" class="btn-submit" id="btn-save-prod">💾 Guardar Producto</button>
                         <button type="button" class="btn-submit btn-cancel" id="btn-cancel-prod" onclick="resetFormProd()">❌ Cancelar Edición</button>
                     </form>
@@ -336,6 +354,23 @@
                             </div>
                             <label>Cantidad de regalo</label>
                             <input type="number" id="combo-promo-producto-cantidad" min="1" placeholder="Ej: 2">
+                        </div>
+
+                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">
+                            <label style="margin-top: 0; color: white;">⏰ Disponibilidad programada (opcional)</label>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin: 4px 0 10px;">Para promociones por tiempo limitado (ej. solo de 2:00pm a 10:00pm, o solo ciertos días). Deja todo vacío/sin marcar para que esté disponible siempre.</p>
+                            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                                <div style="flex:1; min-width:120px;">
+                                    <label style="font-size:0.8rem;">Desde</label>
+                                    <input type="time" id="combo-disponible-desde">
+                                </div>
+                                <div style="flex:1; min-width:120px;">
+                                    <label style="font-size:0.8rem;">Hasta</label>
+                                    <input type="time" id="combo-disponible-hasta">
+                                </div>
+                            </div>
+                            <label style="font-size:0.8rem; margin-top:10px; display:block;">Días de la semana (ninguno marcado = todos los días)</label>
+                            <div class="chips-dias" id="combo-chips-dias" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
                         </div>
 
                         <label style="display: flex; align-items: center; margin-top: 15px; cursor: pointer;">
@@ -419,6 +454,43 @@
                 </div>
 
                 <button type="button" class="btn-submit" id="btn-save-horarios" onclick="guardarHorarios()" style="margin-top:1.25rem; max-width:280px;">💾 Guardar Horario</button>
+            </div>
+        </div>
+
+        <div id="tab-anuncios" class="tab-content">
+            <div class="grid-layout">
+                <div>
+                    <h2 id="titulo-form-anuncio">Crear Anuncio</h2>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: -0.5rem;">Aparece como un popup en pantalla completa apenas el cliente abre el menú (debe cerrarlo para poder pedir). Úsalo para promociones del día.</p>
+                    <form id="form-anuncio">
+                        <input type="hidden" id="anuncio-id">
+                        <label>Imagen del anuncio</label>
+                        <input type="text" id="anuncio-imagen" placeholder="URL .jpg o .png" required>
+                        <input type="file" accept="image/*" onchange="manejarSeleccionImagen(event, 'anuncio-imagen', 'anuncio-imagen-status')" style="margin-top: 6px;">
+                        <span id="anuncio-imagen-status" style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px;">O sube una foto: se redimensiona y comprime automáticamente antes de subirla.</span>
+
+                        <label>Título (opcional)</label>
+                        <input type="text" id="anuncio-titulo" placeholder="Ej: ¡Promo del día!">
+
+                        <label>Texto (opcional)</label>
+                        <textarea id="anuncio-texto" rows="2" placeholder="Detalles de la promoción..."></textarea>
+
+                        <label>Orden de aparición</label>
+                        <input type="number" id="anuncio-orden" min="0" value="0">
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Si tienes varios anuncios activos a la vez, se muestran uno tras otro del número más bajo al más alto.</p>
+
+                        <label style="display: flex; align-items: center; margin-top: 15px; cursor: pointer;">
+                            <input type="checkbox" id="anuncio-activo" checked> Anuncio Activo (se muestra al abrir el menú)
+                        </label>
+
+                        <button type="submit" class="btn-submit" id="btn-save-anuncio">💾 Guardar Anuncio</button>
+                        <button type="button" class="btn-submit btn-cancel" id="btn-cancel-anuncio" onclick="resetFormAnuncio()">❌ Cancelar Edición</button>
+                    </form>
+                </div>
+                <div class="list-panel">
+                    <h3>Anuncios Existentes</h3>
+                    <div id="lista-anuncios-container">Cargando...</div>
+                </div>
             </div>
         </div>
 

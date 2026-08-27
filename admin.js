@@ -25,6 +25,10 @@ const URL_GUARDAR_MSJ = "https://prueba-tokyo-workers-production-76cf.up.railway
 const URL_OBTENER_HORARIOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/horarios/";
 const URL_GUARDAR_HORARIOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/horarios/guardar";
 
+const URL_OBTENER_ANUNCIOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/anuncios/";
+const ADMIN_URL_GUARDAR_ANUNCIO = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/anuncios/guardar";
+const ADMIN_URL_ELIMINAR_ANUNCIO = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/anuncios/eliminar";
+
 const API_KEY_IMGBB = "627e932e53c3f448bbd8594d59042b6b";
 
 // ==========================================
@@ -146,6 +150,7 @@ async function desbloquearAdmin() {
             cargarDatosAdmin();
             cargarMensajesWP();
             cargarHorarios();
+            cargarAnuncios();
         } else {
             lanzarErrorBloqueo(errorMsg, boton, "Usuario/PIN incorrecto o sin privilegios.");
         }
@@ -509,6 +514,102 @@ async function guardarHorarios() {
 }
 
 // ==========================================
+// GESTIÓN DE ANUNCIOS (popup al abrir el menú)
+// ==========================================
+let ANUNCIOS_SISTEMA = [];
+
+async function cargarAnuncios() {
+    try {
+        const res = await fetch(URL_OBTENER_ANUNCIOS + "?t=" + new Date().getTime(), { headers: authHeaders() });
+        const data = await res.json();
+        ANUNCIOS_SISTEMA = Array.isArray(data) ? data : (data.data || []);
+        renderListaAnuncios();
+    } catch (error) { console.error("Error obteniendo anuncios:", error); }
+}
+
+function renderListaAnuncios() {
+    const cont = document.getElementById('lista-anuncios-container');
+    if(!cont) return;
+    cont.innerHTML = '';
+
+    if (ANUNCIOS_SISTEMA.length === 0) {
+        cont.innerHTML = '<p style="color:var(--text-muted); font-size:0.9rem;">No hay anuncios creados.</p>'; return;
+    }
+
+    ANUNCIOS_SISTEMA.forEach(a => {
+        const opacityClass = a.activo ? '' : 'deshabilitado';
+        cont.innerHTML += `
+            <div class="list-item ${opacityClass}">
+                <div class="item-info">
+                    <p class="item-title">📢 ${a.titulo || '(sin título)'}</p>
+                    <p class="item-meta">Orden: ${a.orden || 0} | Activo: ${a.activo ? 'Sí' : 'No'}</p>
+                </div>
+                <div class="item-actions">
+                    <button class="action-btn btn-edit" onclick="editarAnuncio(${a.id})" title="Editar">✏️</button>
+                    <button class="action-btn btn-delete" onclick="eliminarAnuncio(${a.id})" title="Eliminar">🗑️</button>
+                </div>
+            </div>`;
+    });
+}
+
+if (document.getElementById('form-anuncio')) {
+    document.getElementById('form-anuncio').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('anuncio-id').value;
+        const imagen = document.getElementById('anuncio-imagen').value.trim();
+        if (!imagen) { alert('Falta la imagen del anuncio.'); return; }
+        const payload = {
+            id: id ? parseInt(id) : null,
+            imagen,
+            titulo: document.getElementById('anuncio-titulo').value.trim(),
+            texto: document.getElementById('anuncio-texto').value.trim(),
+            activo: document.getElementById('anuncio-activo').checked,
+            orden: parseInt(document.getElementById('anuncio-orden').value) || 0
+        };
+        try {
+            const res = await fetch(ADMIN_URL_GUARDAR_ANUNCIO, {
+                method: 'POST',
+                headers:{'Content-Type':'application/json', 'Authorization': `Bearer ${adminToken}`},
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (!data.success) { alert("Error de Base de Datos: " + data.error); return; }
+            resetFormAnuncio(); await cargarAnuncios();
+        } catch (error) { alert('Error al guardar el anuncio.'); }
+    });
+}
+
+function editarAnuncio(id) {
+    const a = ANUNCIOS_SISTEMA.find(x => x.id === id); if(!a) return;
+    document.getElementById('anuncio-id').value = a.id;
+    document.getElementById('anuncio-imagen').value = a.imagen || '';
+    document.getElementById('anuncio-titulo').value = a.titulo || '';
+    document.getElementById('anuncio-texto').value = a.texto || '';
+    document.getElementById('anuncio-orden').value = a.orden || 0;
+    document.getElementById('anuncio-activo').checked = !!a.activo;
+    document.getElementById('titulo-form-anuncio').innerText = "Editar Anuncio"; document.getElementById('btn-save-anuncio').innerText = "💾 Actualizar Anuncio"; document.getElementById('btn-cancel-anuncio').style.display = "block";
+}
+
+function resetFormAnuncio() {
+    document.getElementById('form-anuncio').reset(); document.getElementById('anuncio-id').value = "";
+    document.getElementById('anuncio-orden').value = 0;
+    if (document.getElementById('anuncio-imagen-status')) document.getElementById('anuncio-imagen-status').innerText = "O sube una foto: se redimensiona y comprime automáticamente antes de subirla.";
+    document.getElementById('titulo-form-anuncio').innerText = "Crear Anuncio"; document.getElementById('btn-save-anuncio').innerText = "💾 Guardar Anuncio"; document.getElementById('btn-cancel-anuncio').style.display = "none";
+}
+
+async function eliminarAnuncio(id) {
+    if (!confirm(`¿Seguro que deseas eliminar este anuncio?`)) return;
+    try {
+        await fetch(ADMIN_URL_ELIMINAR_ANUNCIO, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+            body: JSON.stringify({ id: id })
+        });
+        await cargarAnuncios();
+    } catch(e) { alert('Error al eliminar.'); }
+}
+
+// ==========================================
 // 6. GESTIÓN DEL MENÚ (CAT, PROD, COMBOS)
 // ==========================================
 function renderListaCategorias(lista = adminCategorias) {
@@ -640,10 +741,21 @@ if (document.getElementById('form-producto')) {
         const id = document.getElementById('prod-id').value;
         let imgFinalProd = document.getElementById('prod-imagen').value.trim();
         if (imgFinalProd === '') imgFinalProd = obtenerEmojiPlato();
+
+        const prodDesde = document.getElementById('prod-disponible-desde').value;
+        const prodHasta = document.getElementById('prod-disponible-hasta').value;
+        if ((prodDesde && !prodHasta) || (!prodDesde && prodHasta)) {
+            alert('⚠️ Para limitar el horario de disponibilidad completa tanto "Desde" como "Hasta" (o deja ambos vacíos).');
+            return;
+        }
+
         const payload = {
             id: id ? parseInt(id) : null, nombre: document.getElementById('prod-nombre').value.trim(), categoria: document.getElementById('prod-categoria').value,
             precio: parseFloat(document.getElementById('prod-precio').value), imagen: imgFinalProd, descripcion: document.getElementById('prod-descripcion').value.trim(), disponible: document.getElementById('prod-disponible').checked,
-            agotado: document.getElementById('prod-agotado').checked
+            agotado: document.getElementById('prod-agotado').checked,
+            disponible_desde: document.getElementById('prod-disponible-desde').value || null,
+            disponible_hasta: document.getElementById('prod-disponible-hasta').value || null,
+            dias_disponibles: leerDiasSeleccionados('prod') || null
         };
         try {
             await fetch(ADMIN_URL_GUARDAR_PROD, { 
@@ -661,6 +773,9 @@ function editarProducto(id) {
     document.getElementById('prod-id').value = p.id; document.getElementById('prod-nombre').value = p.nombre; document.getElementById('prod-categoria').value = p.categoria;
     document.getElementById('prod-precio').value = p.precio; document.getElementById('prod-imagen').value = p.imagen || ''; document.getElementById('prod-descripcion').value = p.descripcion; document.getElementById('prod-disponible').checked = p.disponible;
     document.getElementById('prod-agotado').checked = !!p.agotado;
+    document.getElementById('prod-disponible-desde').value = p.disponible_desde || '';
+    document.getElementById('prod-disponible-hasta').value = p.disponible_hasta || '';
+    construirChipsDias('prod', parsearDiasDisponibles(p.dias_disponibles));
     document.getElementById('titulo-form-prod').innerText = "Editar Producto"; document.getElementById('btn-save-prod').innerText = "💾 Actualizar Producto"; document.getElementById('btn-cancel-prod').style.display = "block";
 }
 
@@ -668,6 +783,7 @@ function resetFormProd() {
     document.getElementById('form-producto').reset(); document.getElementById('prod-id').value = "";
     if (document.getElementById('prod-imagen')) document.getElementById('prod-imagen').value = "";
     if (document.getElementById('prod-imagen-status')) document.getElementById('prod-imagen-status').innerText = "O sube una foto: se redimensiona y comprime automáticamente antes de subirla.";
+    construirChipsDias('prod', []);
     document.getElementById('titulo-form-prod').innerText = "Crear Producto"; document.getElementById('btn-save-prod').innerText = "💾 Guardar Producto"; document.getElementById('btn-cancel-prod').style.display = "none";
 }
 
@@ -822,6 +938,33 @@ function claseChipCategoria(activo) {
         : 'chip-categoria chip-categoria-inactivo';
 }
 
+// --- DÍAS DE DISPONIBILIDAD PROGRAMADA (productos y combos) ---
+const NOMBRES_DIAS_CORTOS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+function construirChipsDias(prefix, diasSeleccionados = []) {
+    const cont = document.getElementById(`${prefix}-chips-dias`);
+    if (!cont) return;
+    cont.innerHTML = NOMBRES_DIAS_CORTOS.map((nombre, i) => {
+        const activo = diasSeleccionados.includes(i);
+        return `<button type="button" class="${claseChipCategoria(activo)}" data-dia="${i}" data-activo="${activo ? '1' : '0'}" onclick="toggleChipCategoria(this)">${nombre}</button>`;
+    }).join('');
+}
+
+function leerDiasSeleccionados(prefix) {
+    const cont = document.getElementById(`${prefix}-chips-dias`);
+    if (!cont) return '';
+    const dias = Array.from(cont.querySelectorAll('.chip-categoria')).filter(b => b.dataset.activo === '1').map(b => b.dataset.dia);
+    return dias.length > 0 ? dias.join(',') : '';
+}
+
+function parsearDiasDisponibles(diasCsv) {
+    if (!diasCsv) return [];
+    return String(diasCsv).split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
+}
+
+construirChipsDias('prod', []);
+construirChipsDias('combo', []);
+
 function agregarFilaAlternativaPiezas(listaAlt, datos = {}) {
     const fila = document.createElement('div');
     fila.className = 'fila-alternativa-piezas';
@@ -944,10 +1087,20 @@ if (formCombo) {
             return;
         }
 
+        const comboDesde = document.getElementById('combo-disponible-desde').value;
+        const comboHasta = document.getElementById('combo-disponible-hasta').value;
+        if ((comboDesde && !comboHasta) || (!comboDesde && comboHasta)) {
+            alert('⚠️ Para limitar el horario de disponibilidad completa tanto "Desde" como "Hasta" (o deja ambos vacíos).');
+            return;
+        }
+
         const payload = {
             id: id ? parseInt(id) : null, nombre: document.getElementById('combo-nombre').value.trim(), categoria: document.getElementById('combo-categoria').value || null, precio: parseFloat(document.getElementById('combo-precio').value),
             imagen: imgFinalCombo, descripcion: document.getElementById('combo-descripcion').value.trim(), items: itemsSeleccionados, disponible: document.getElementById('combo-disponible').checked,
-            promo_cantidad_minima: promoCantidadMinima, promo_producto_id: promoProductoId, promo_producto_cantidad: promoProductoCantidad
+            promo_cantidad_minima: promoCantidadMinima, promo_producto_id: promoProductoId, promo_producto_cantidad: promoProductoCantidad,
+            disponible_desde: document.getElementById('combo-disponible-desde').value || null,
+            disponible_hasta: document.getElementById('combo-disponible-hasta').value || null,
+            dias_disponibles: leerDiasSeleccionados('combo') || null
         };
         
         try {
@@ -972,6 +1125,9 @@ function editarCombo(id) {
     const prodPromo = c.promo_producto_id ? adminProductos.find(p => p.id === c.promo_producto_id) : null;
     document.getElementById('combo-promo-producto').value = c.promo_producto_id || '';
     document.getElementById('combo-promo-producto-visible').value = prodPromo ? `${prodPromo.nombre} ($${prodPromo.precio.toFixed(2)})` : '';
+    document.getElementById('combo-disponible-desde').value = c.disponible_desde || '';
+    document.getElementById('combo-disponible-hasta').value = c.disponible_hasta || '';
+    construirChipsDias('combo', parsearDiasDisponibles(c.dias_disponibles));
 
     document.getElementById('lista-items-combo').innerHTML = '';
     let parsedItems = [];
@@ -990,6 +1146,7 @@ function editarCombo(id) {
 function resetFormCombo() {
     document.getElementById('form-combo').reset(); document.getElementById('combo-id').value = ""; document.getElementById('lista-items-combo').innerHTML = '';
     if (document.getElementById('combo-imagen-status')) document.getElementById('combo-imagen-status').innerText = "O sube una foto: se redimensiona y comprime automáticamente antes de subirla.";
+    construirChipsDias('combo', []);
     agregarFilaProductoCombo(); document.getElementById('titulo-form-combo').innerText = "Crear Combo"; document.getElementById('btn-save-combo').innerText = "🍱 Guardar Combo"; document.getElementById('btn-cancel-combo').style.display = "none";
     if(document.getElementById('buscador-combos-admin')) document.getElementById('buscador-combos-admin').value = '';
 }

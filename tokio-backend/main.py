@@ -1,7 +1,7 @@
 import os
 
 from fastapi import FastAPI
-from routers import bcv, pedidos, clientes, menu, usuarios, motorizados, mensajes, horarios
+from routers import bcv, pedidos, clientes, menu, usuarios, motorizados, mensajes, horarios, anuncios
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 from migrations import ejecutar_migraciones
@@ -45,3 +45,4 @@ app.include_router(usuarios.router)
 app.include_router(motorizados.router)
 app.include_router(mensajes.router)
 app.include_router(horarios.router)
+app.include_router(anuncios.router)
