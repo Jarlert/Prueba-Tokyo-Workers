@@ -913,7 +913,7 @@ function agregarFilaProductoCombo(valorSeleccionado = "", qty = 1) {
     const idCaja = 'sug-combo-' + Math.random().toString(36).substr(2, 9);
     fila.innerHTML = `
         <div style="flex: 2; position: relative;">
-            <input type="text" onfocus="buscarItemCombo(this, '${idCaja}')" oninput="buscarItemCombo(this, '${idCaja}')" value="${nombreLegible}" placeholder="🔍 Buscar categoría o producto..." autocomplete="off" class="item-visible" style="width: 100%; padding: 0.75rem; background-color: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px; outline: none;">
+            <input type="text" onfocus="buscarItemCombo(this, '${idCaja}')" oninput="buscarItemCombo(this, '${idCaja}')" value="${nombreLegible}" placeholder="🔍 Buscar producto..." autocomplete="off" class="item-visible" style="width: 100%; padding: 0.75rem; background-color: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px; outline: none;">
             <input type="hidden" class="item-referencia" value="${valorSeleccionado}">
             <div id="${idCaja}" class="caja-sugerencias hidden" style="display: none; position: absolute; z-index: 50; width: 100%; margin-top: 4px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);"></div>
         </div>
@@ -1046,16 +1046,10 @@ function toggleChipCategoria(btn) {
 function buscarItemCombo(inputElement, idCaja) {
     const contenedor = document.getElementById(idCaja); const hiddenInput = inputElement.nextElementSibling; const texto = inputElement.value.toLowerCase().trim();
     hiddenInput.value = "";
-    const catFiltradas = adminCategorias.filter(c => c.nombre.toLowerCase().includes(texto) || texto === '');
     const prodFiltrados = adminProductos.filter(p => p.nombre.toLowerCase().includes(texto) || texto === '');
 
     let html = '';
-    if (catFiltradas.length > 0) {
-        html += '<div style="padding: 8px 10px; font-size: 11px; color: #94a3b8; font-weight: bold; background: #0f172a; text-transform: uppercase;">👉 Que el cliente elija (Categorías)</div>';
-        catFiltradas.forEach(c => { html += `<div onclick="seleccionarSugerenciaCombo(this, '${idCaja}', 'CAT_${c.nombre}', '📁 Categoría: ${c.nombre}')" style="padding: 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #334155; transition: background 0.2s;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='transparent'">📁 ${c.nombre}</div>`; });
-    }
     if (prodFiltrados.length > 0) {
-        html += '<div style="padding: 8px 10px; font-size: 11px; color: #94a3b8; font-weight: bold; background: #0f172a; text-transform: uppercase;">👉 Incluido Fijo (Productos)</div>';
         prodFiltrados.forEach(p => { html += `<div onclick="seleccionarSugerenciaCombo(this, '${idCaja}', 'PROD_${p.id}', '🍣 Producto: ${p.nombre}')" style="padding: 10px 20px 10px 10px; cursor: pointer; font-size: 13px; color: white; border-bottom: 1px solid #334155; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='transparent'"><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;">🍣 ${p.nombre}</span><span style="color:#10b981; font-weight: bold; flex-shrink: 0;">$${p.precio.toFixed(2)}</span></div>`; });
     }
     if (html === '') html = '<div style="padding: 10px; font-size: 13px; color: #94a3b8; font-style: italic;">No hay coincidencias...</div>';
