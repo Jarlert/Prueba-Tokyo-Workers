@@ -14,6 +14,8 @@ let datosClienteLogueado = null;
 let horariosAtencion = [];
 let anunciosActivos = [];
 let anuncioIndiceActual = 0;
+let loteComboEnCurso = null; // { id, restantes } — unidades de un combo que aún faltan por personalizar tras escribir una cantidad mayor
+let comboIdSelectorActivo = null; // combo cuyas personalizaciones se están listando para eliminar
 
 // --- 1. ARRANQUE Y CONTROL DE ESTADOS ---
 function mostrarIconosHeaderSesion(mostrar) {
@@ -467,8 +469,6 @@ function selectCategory(categoryKey) {
             }
         });
 
-        const isComboCustom = item.opciones_combo !== undefined && item.opciones_combo !== null && item.opciones_combo !== '' && item.opciones_combo !== '[]';
-        
         const esEnlace = item.image && item.image.startsWith('http');
         const vistaImagen = esEnlace 
             ? `<img src="${item.image}" alt="${item.name}" loading="lazy" class="w-20 h-20 object-cover rounded-xl flex-shrink-0 bg-gray-100 border border-gray-100 shadow-sm">`
@@ -488,7 +488,7 @@ function selectCategory(categoryKey) {
                     </div>
                     <div class="flex items-center space-x-1 bg-gray-100 p-1 rounded-xl flex-shrink-0 border border-gray-200">
                         <button type="button" onclick="updateQty('${item.id}', '${item.name}', ${item.price}, -1)" class="w-8 h-8 bg-white rounded-lg font-bold text-lg text-gray-700 shadow-sm select-none cursor-pointer">-</button>
-                        <input type="number" id="qty-${item.id}" value="${currentQty}" min="0" ${isComboCustom ? 'readonly' : ''} onchange="setExactQty('${item.id}', '${item.name}', ${item.price}, this.value)" class="w-9 text-center font-black bg-transparent focus:outline-none text-sm text-gray-800">
+                        <input type="number" id="qty-${item.id}" value="${currentQty}" min="0" onchange="setExactQty('${item.id}', '${item.name}', ${item.price}, this.value)" class="w-9 text-center font-black bg-transparent focus:outline-none text-sm text-gray-800">
                         <button type="button" onclick="updateQty('${item.id}', '${item.name}', ${item.price}, 1)" class="w-8 h-8 bg-white rounded-lg font-bold text-lg text-gray-700 shadow-sm select-none cursor-pointer">+</button>
                     </div>
                 </div>
@@ -575,39 +575,53 @@ function removeNoteFromCheckout(id) {
     }
 }
 
-function updateQty(id, name, price, change) {
-    let itemOriginal = null;
+function buscarItemEnMenuPorId(id) {
     for (let catKey in menuData) {
-        let found = menuData[catKey].items.find(p => String(p.id) === String(id));
-        if (found) { itemOriginal = found; break; }
+        const found = menuData[catKey].items.find(p => String(p.id) === String(id));
+        if (found) return found;
     }
+    return null;
+}
 
-    let isComboWithItems = false;
+function esComboConOpciones(itemOriginal) {
     try {
         if (itemOriginal && itemOriginal.opciones_combo && itemOriginal.opciones_combo !== '[]') {
-            let arr = typeof itemOriginal.opciones_combo === 'string' ? JSON.parse(itemOriginal.opciones_combo) : itemOriginal.opciones_combo;
-            if (Array.isArray(arr) && arr.length > 0) {
-                isComboWithItems = true;
-            }
+            const arr = typeof itemOriginal.opciones_combo === 'string' ? JSON.parse(itemOriginal.opciones_combo) : itemOriginal.opciones_combo;
+            return Array.isArray(arr) && arr.length > 0;
         }
-    } catch(e) {}
+    } catch (e) {}
+    return false;
+}
+
+function totalEnCarritoParaId(id) {
+    let total = 0;
+    Object.keys(cart).forEach(k => { if (k === String(id) || k.startsWith(id + "_")) total += cart[k].qty; });
+    return total;
+}
+
+function updateQty(id, name, price, change) {
+    const itemOriginal = buscarItemEnMenuPorId(id);
+    const isComboWithItems = esComboConOpciones(itemOriginal);
 
     if (isComboWithItems && change > 0) {
+        loteComboEnCurso = null;
         abrirModalCombo(itemOriginal);
         return;
     }
 
     if (isComboWithItems && change < 0) {
-        let keys = Object.keys(cart).filter(k => k.startsWith(id + "_"));
-        if (keys.length > 0) {
-            let lastKey = keys[keys.length - 1];
+        const keys = Object.keys(cart).filter(k => k.startsWith(id + "_"));
+        if (keys.length > 1) {
+            abrirSelectorEliminarVariantes(id, name);
+            return;
+        }
+        if (keys.length === 1) {
+            const lastKey = keys[0];
             cart[lastKey].qty += change;
             if (cart[lastKey].qty <= 0) delete cart[lastKey];
-        } 
-        
-        let totalQty = 0;
-        Object.keys(cart).forEach(k => { if (k === String(id) || k.startsWith(id + "_")) totalQty += cart[k].qty; });
-        const element = document.getElementById(`qty-${id}`); if (element) element.value = totalQty;
+        }
+
+        const element = document.getElementById(`qty-${id}`); if (element) element.value = totalEnCarritoParaId(id);
         calculateTotals();
         if (document.getElementById('step-3').classList.contains('active')) prepareCheckout();
         return;
@@ -615,7 +629,7 @@ function updateQty(id, name, price, change) {
 
     if (!cart[id]) cart[id] = { id: id, name: name, price: price, qty: 0, note: "" };
     cart[id].qty += change;
-    
+
     if (cart[id].qty <= 0) {
         delete cart[id];
         const element = document.getElementById(`qty-${id}`); if (element) element.value = 0;
@@ -626,7 +640,44 @@ function updateQty(id, name, price, change) {
     if (document.getElementById('step-3').classList.contains('active')) prepareCheckout();
 }
 
+function ajustarCantidadComboEscrita(id, name, itemOriginal, value) {
+    let nuevoTotal = parseInt(value, 10);
+    if (isNaN(nuevoTotal) || nuevoTotal < 0) nuevoTotal = 0;
+
+    const totalActual = totalEnCarritoParaId(id);
+    const delta = nuevoTotal - totalActual;
+
+    if (delta > 0) {
+        loteComboEnCurso = { id: id, restantes: delta };
+        abrirModalCombo(itemOriginal);
+        return;
+    }
+
+    if (delta < 0) {
+        const keys = Object.keys(cart).filter(k => k.startsWith(id + "_"));
+        if (keys.length > 1) {
+            abrirSelectorEliminarVariantes(id, name);
+            return;
+        }
+        if (keys.length === 1) {
+            const lastKey = keys[0];
+            cart[lastKey].qty += delta;
+            if (cart[lastKey].qty <= 0) delete cart[lastKey];
+        }
+    }
+
+    const element = document.getElementById(`qty-${id}`); if (element) element.value = totalEnCarritoParaId(id);
+    calculateTotals();
+    if (document.getElementById('step-3').classList.contains('active')) prepareCheckout();
+}
+
 function setExactQty(id, name, price, value) {
+    const itemOriginal = buscarItemEnMenuPorId(id);
+    if (esComboConOpciones(itemOriginal)) {
+        ajustarCantidadComboEscrita(id, name, itemOriginal, value);
+        return;
+    }
+
     let parsedQty = parseInt(value, 10);
     if (isNaN(parsedQty) || parsedQty <= 0) {
         delete cart[id];
@@ -641,6 +692,72 @@ function setExactQty(id, name, price, value) {
     }
     calculateTotals();
     if (document.getElementById('step-3').classList.contains('active')) prepareCheckout();
+}
+
+// --- ELEGIR CUÁL PERSONALIZACIÓN DE UN COMBO QUITAR (cuando hay más de una distinta en el carrito) ---
+function abrirSelectorEliminarVariantes(id, nombreCombo) {
+    comboIdSelectorActivo = id;
+    document.getElementById('eliminar-variantes-subtitulo').innerText = `Tienes varias personalizaciones de "${nombreCombo}"`;
+    renderizarSelectorEliminarVariantes();
+
+    const modal = document.getElementById('modal-eliminar-variantes');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function renderizarSelectorEliminarVariantes() {
+    const cont = document.getElementById('lista-variantes-eliminar');
+    if (!comboIdSelectorActivo) return;
+    const keys = Object.keys(cart).filter(k => k.startsWith(comboIdSelectorActivo + "_"));
+
+    if (keys.length === 0) {
+        cerrarSelectorEliminarVariantes();
+        return;
+    }
+
+    cont.innerHTML = keys.map(key => `
+        <div class="flex items-center gap-2 p-2.5 bg-gray-50 rounded-xl border border-gray-200">
+            <p class="text-xs text-gray-700 flex-grow leading-snug">${escapeHtml(cart[key].name)}</p>
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+                <button type="button" onclick="quitarUnaUnidadVariante('${key}')" class="w-7 h-7 rounded-full bg-white border border-gray-300 hover:bg-gray-100 text-gray-600 font-bold text-sm cursor-pointer">−</button>
+                <span class="w-5 text-center text-xs font-bold">${cart[key].qty}</span>
+                <button type="button" onclick="eliminarVarianteCompleta('${key}')" title="Quitar todas" class="w-7 h-7 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center cursor-pointer">🗑️</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function quitarUnaUnidadVariante(key) {
+    if (!cart[key]) return;
+    cart[key].qty -= 1;
+    if (cart[key].qty <= 0) delete cart[key];
+    sincronizarQtyTrasEdicionVariantes();
+}
+
+function eliminarVarianteCompleta(key) {
+    delete cart[key];
+    sincronizarQtyTrasEdicionVariantes();
+}
+
+function sincronizarQtyTrasEdicionVariantes() {
+    const id = comboIdSelectorActivo;
+    const element = document.getElementById(`qty-${id}`); if (element) element.value = totalEnCarritoParaId(id);
+    calculateTotals();
+    if (document.getElementById('step-3').classList.contains('active')) prepareCheckout();
+    renderizarSelectorEliminarVariantes();
+}
+
+function cerrarSelectorEliminarVariantes() {
+    const modal = document.getElementById('modal-eliminar-variantes');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    // Por si escribieron un número y cerraron sin quitar nada: el campo de cantidad
+    // debe reflejar el total real del carrito, no el número que habían tecleado.
+    if (comboIdSelectorActivo) {
+        const element = document.getElementById(`qty-${comboIdSelectorActivo}`);
+        if (element) element.value = totalEnCarritoParaId(comboIdSelectorActivo);
+    }
+    comboIdSelectorActivo = null;
 }
 
 function removeCartItem(id) {
@@ -1112,6 +1229,9 @@ function cerrarModalCombo() {
     document.getElementById('modal-combo').classList.remove('flex');
     document.getElementById('modal-combo').classList.add('hidden');
     comboEnPersonalizacion = null;
+    // Si se cancela a mitad de pedir varias unidades seguidas, se aborta el resto del lote
+    // (las unidades ya confirmadas antes de cancelar se quedan en el carrito).
+    loteComboEnCurso = null;
 }
 
 function construirMiniaturaComboHtml(valorImagen) {
@@ -1217,7 +1337,7 @@ function renderSaboresPiezas(pgIndex) {
                 </div>
                 <div class="flex items-center gap-2 flex-shrink-0">
                     <button type="button" onclick="ajustarCantidadPiezas(${pgIndex}, '${item.id}', -1)" class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm cursor-pointer">−</button>
-                    <span id="cant-pieza-${pgIndex}-${item.id}" class="w-5 text-center text-xs font-bold">${cantActual}</span>
+                    <input type="number" id="cant-pieza-${pgIndex}-${item.id}" value="${cantActual}" min="0" onchange="escribirCantidadPieza(${pgIndex}, '${item.id}', this.value)" class="w-10 text-center text-xs font-bold border border-gray-200 rounded-md py-0.5 focus:outline-none focus:border-red-500">
                     <button type="button" onclick="ajustarCantidadPiezas(${pgIndex}, '${item.id}', 1)" class="btn-mas-pieza-${pgIndex} w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed">+</button>
                 </div>
             </div>
@@ -1242,8 +1362,29 @@ function ajustarCantidadPiezas(pgIndex, itemId, delta) {
     if (nuevo === 0) delete estado.seleccion[itemId];
     else estado.seleccion[itemId] = nuevo;
 
-    const span = document.getElementById(`cant-pieza-${pgIndex}-${itemId}`);
-    if (span) span.innerText = nuevo;
+    const input = document.getElementById(`cant-pieza-${pgIndex}-${itemId}`);
+    if (input) input.value = nuevo;
+
+    actualizarContadorPiezas(pgIndex);
+}
+
+function escribirCantidadPieza(pgIndex, itemId, valor) {
+    const estado = estadoPiezasCombo[pgIndex];
+    if (!estado) return;
+
+    let nuevo = parseInt(valor, 10);
+    if (isNaN(nuevo) || nuevo < 0) nuevo = 0;
+
+    const actual = estado.seleccion[itemId] || 0;
+    const { total, objetivo } = calcularPiezasSeleccionadas(estado);
+    const maximoPermitido = Math.max(0, objetivo - (total - actual));
+    if (nuevo > maximoPermitido) nuevo = maximoPermitido;
+
+    if (nuevo === 0) delete estado.seleccion[itemId];
+    else estado.seleccion[itemId] = nuevo;
+
+    const input = document.getElementById(`cant-pieza-${pgIndex}-${itemId}`);
+    if (input) input.value = nuevo;
 
     actualizarContadorPiezas(pgIndex);
 }
@@ -1383,7 +1524,16 @@ function guardarSeleccionCombo() {
 
     calculateTotals();
     if (document.getElementById('step-3').classList.contains('active')) prepareCheckout();
-    
+
+    // Si el cliente escribió una cantidad mayor (ej. 3) y todavía faltan unidades por
+    // personalizar de ese lote, reabrimos el modal para la siguiente en vez de cerrar.
+    if (loteComboEnCurso && loteComboEnCurso.id === comboEnPersonalizacion.id && loteComboEnCurso.restantes > 1) {
+        loteComboEnCurso.restantes -= 1;
+        abrirModalCombo(comboEnPersonalizacion);
+        return;
+    }
+
+    loteComboEnCurso = null;
     cerrarModalCombo();
 }
 

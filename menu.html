@@ -266,6 +266,26 @@
             </button>
         </div>
     </div>
+    <div id="modal-eliminar-variantes" class="fixed inset-0 bg-gray-900/80 z-50 hidden items-end sm:items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative max-h-[85vh] flex flex-col">
+            <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
+                <div>
+                    <h3 class="font-black text-gray-900 text-lg leading-tight">¿Cuál quieres quitar?</h3>
+                    <p id="eliminar-variantes-subtitulo" class="text-xs text-gray-500 mt-1">Tienes varias personalizaciones de este combo</p>
+                </div>
+                <button onclick="cerrarSelectorEliminarVariantes()" class="w-8 h-8 flex items-center justify-center bg-gray-200 hover:bg-red-100 hover:text-red-600 text-gray-600 rounded-full transition font-bold cursor-pointer">✕</button>
+            </div>
+
+            <div class="p-4 overflow-y-auto space-y-2" id="lista-variantes-eliminar"></div>
+
+            <div class="p-4 border-t border-gray-100 flex-shrink-0">
+                <button onclick="cerrarSelectorEliminarVariantes()" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 rounded-xl transition cursor-pointer text-sm">
+                    Listo
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="modal-combo" class="fixed inset-0 bg-gray-900/80 z-50 hidden items-end sm:items-center justify-center p-4 backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative">
             <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
