@@ -680,9 +680,12 @@ function renderListaCategorias(lista = adminCategorias) {
 }
 
 function filtrarCategoriasAdmin() {
-    const textoBuscado = document.getElementById('buscador-categorias-admin').value.toLowerCase();
+    const input = document.getElementById('buscador-categorias-admin');
+    const textoBuscado = input.value.toLowerCase();
     const resultados = adminCategorias.filter(c => c.nombre.toLowerCase().includes(textoBuscado));
     renderListaCategorias(resultados);
+    const panel = input.closest('.list-panel');
+    if (panel) panel.scrollTop = 0;
 }
 
 if (document.getElementById('form-categoria')) {
@@ -705,6 +708,8 @@ function editarCategoria(id) {
     const cat = adminCategorias.find(c => c.id === id); if(!cat) return;
     document.getElementById('cat-id').value = cat.id; document.getElementById('cat-nombre').value = cat.nombre; document.getElementById('cat-imagen').value = cat.imagen || '';
     document.getElementById('titulo-form-cat').innerText = "Editar Categoría"; document.getElementById('btn-save-cat').innerText = "💾 Actualizar Categoría"; document.getElementById('btn-cancel-cat').style.display = "block";
+    document.getElementById('buscador-categorias-admin').value = '';
+    renderListaCategorias();
 }
 
 function resetFormCat() {
@@ -739,9 +744,12 @@ function renderListaProductos(lista = adminProductos) {
 }
 
 function filtrarProductosAdmin() {
-    const textoBuscado = document.getElementById('buscador-productos-admin').value.toLowerCase();
+    const input = document.getElementById('buscador-productos-admin');
+    const textoBuscado = input.value.toLowerCase();
     const resultados = adminProductos.filter(p => p.nombre.toLowerCase().includes(textoBuscado));
     renderListaProductos(resultados);
+    const panel = input.closest('.list-panel');
+    if (panel) panel.scrollTop = 0;
 }
 
 function actualizarSelectCategorias() {
@@ -826,6 +834,8 @@ function editarProducto(id) {
     document.getElementById('prod-disponible-hasta').value = p.disponible_hasta || '';
     construirChipsDias('prod', parsearDiasDisponibles(p.dias_disponibles));
     document.getElementById('titulo-form-prod').innerText = "Editar Producto"; document.getElementById('btn-save-prod').innerText = "💾 Actualizar Producto"; document.getElementById('btn-cancel-prod').style.display = "block";
+    document.getElementById('buscador-productos-admin').value = '';
+    renderListaProductos();
 }
 
 function resetFormProd() {
@@ -859,9 +869,12 @@ function renderListaCombos(lista = adminCombos) {
 }
 
 function filtrarCombosAdmin() {
-    const textoBuscado = document.getElementById('buscador-combos-admin').value.toLowerCase();
+    const input = document.getElementById('buscador-combos-admin');
+    const textoBuscado = input.value.toLowerCase();
     const resultados = adminCombos.filter(c => c.nombre.toLowerCase().includes(textoBuscado));
     renderListaCombos(resultados);
+    const panel = input.closest('.list-panel');
+    if (panel) panel.scrollTop = 0;
 }
 
 function actualizarSelectsCombos() {
@@ -1184,6 +1197,8 @@ function editarCombo(id) {
     } else agregarFilaProductoCombo(); 
 
     document.getElementById('titulo-form-combo').innerText = "Editar Combo"; document.getElementById('btn-save-combo').innerText = "🍱 Actualizar Combo"; document.getElementById('btn-cancel-combo').style.display = "block";
+    document.getElementById('buscador-combos-admin').value = '';
+    renderListaCombos();
 }
 
 function resetFormCombo() {
