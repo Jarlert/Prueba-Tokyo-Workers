@@ -100,12 +100,18 @@ function obtenerFechaHoraCaracas() {
     return { diaSemana, horaActual };
 }
 
+function horaEnRango(horaActual, desde, hasta) {
+    if (desde <= hasta) return horaActual >= desde && horaActual <= hasta;
+    // El rango cruza la medianoche (ej: desde 17:00 hasta 02:00) — sigue "abierto" desde `desde` hasta el final del día, y de nuevo desde el inicio del día hasta `hasta`.
+    return horaActual >= desde || horaActual <= hasta;
+}
+
 function estaAbiertoAhora() {
     if (!Array.isArray(horariosAtencion) || horariosAtencion.length === 0) return true; // sin config cargada, no bloqueamos
     const { diaSemana, horaActual } = obtenerFechaHoraCaracas();
     const hoy = horariosAtencion.find(h => h.dia_semana === diaSemana);
     if (!hoy || !hoy.activo || !hoy.hora_apertura || !hoy.hora_cierre) return false;
-    return horaActual >= hoy.hora_apertura && horaActual <= hoy.hora_cierre;
+    return horaEnRango(horaActual, hoy.hora_apertura, hoy.hora_cierre);
 }
 
 function formatearHorarioTexto() {
@@ -150,7 +156,7 @@ function itemDentroDeHorarioProgramado(item) {
         if (!dias.includes(diaSemana)) return false;
     }
     if (item.disponible_desde && item.disponible_hasta) {
-        if (!(horaActual >= item.disponible_desde && horaActual <= item.disponible_hasta)) return false;
+        if (!horaEnRango(horaActual, item.disponible_desde, item.disponible_hasta)) return false;
     }
     return true;
 }
