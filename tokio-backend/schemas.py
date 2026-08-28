@@ -40,6 +40,10 @@ class ClienteActualizarDirecciones(BaseModel):
     direccion_principal: Optional[str] = None
     direcciones_extra: Optional[str] = None
 
+class ClienteActualizarTelefono(BaseModel):
+    telefono_actual: str
+    telefono_nuevo: str
+
 class LoginRequest(BaseModel):
     tipo: str
     username: str

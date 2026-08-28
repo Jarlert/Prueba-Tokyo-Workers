@@ -51,6 +51,26 @@ def registrar_cliente(datos: schemas.ClienteRegistro, db: Session = Depends(get_
     
     return {"status": "success", "mensaje": "Cliente registrado exitosamente"}
 
+@router.post("/actualizar-telefono")
+def actualizar_telefono(datos: schemas.ClienteActualizarTelefono, db: Session = Depends(get_db)):
+    telefono_nuevo = datos.telefono_nuevo.strip()
+    if not telefono_nuevo:
+        raise HTTPException(status_code=400, detail="El nuevo número no puede estar vacío.")
+
+    cliente = db.query(models.Cliente).filter(models.Cliente.telefono == datos.telefono_actual).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+
+    if telefono_nuevo != datos.telefono_actual:
+        duplicado = db.query(models.Cliente).filter(models.Cliente.telefono == telefono_nuevo).first()
+        if duplicado:
+            raise HTTPException(status_code=400, detail="Ese número ya está registrado con otra cuenta.")
+
+    cliente.telefono = telefono_nuevo
+    db.commit()
+
+    return {"status": "success", "mensaje": "Número de teléfono actualizado correctamente"}
+
 @router.post("/actualizar-direcciones-cliente")
 def actualizar_direcciones(datos: schemas.ClienteActualizarDirecciones, db: Session = Depends(get_db)):
     cliente = db.query(models.Cliente).filter(models.Cliente.telefono == datos.telefono).first()

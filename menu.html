@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tokio Sushi Delivery</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         .step { display: none; }
         .step.active { display: block; }
@@ -20,15 +21,24 @@
 <body class="bg-gray-200 font-sans text-gray-900 min-h-screen flex flex-col pb-24">
 
     <header class="bg-red-700 text-white py-4 shadow-md sticky top-0 z-40 w-full">
-        <div class="max-w-md w-full mx-auto grid grid-cols-5 items-center px-4">
-            <button id="header-back-btn" onclick="goToStep(1)" class="invisible text-2xl font-bold w-10 h-10 flex items-center justify-center hover:bg-red-800 rounded-full transition cursor-pointer col-span-1">
-                ←
-            </button>
-            <div class="text-center col-span-3">
+        <div class="max-w-md w-full mx-auto flex items-center justify-between px-3">
+            <div class="w-20 flex items-center gap-1">
+                <button id="header-back-btn" onclick="goToStep(1)" class="invisible text-2xl font-bold w-9 h-9 flex items-center justify-center hover:bg-red-800 rounded-full transition cursor-pointer flex-shrink-0">
+                    ←
+                </button>
+                <button id="header-settings-btn" onclick="abrirModalEditarDatos()" title="Mis datos" class="hidden text-base w-9 h-9 items-center justify-center hover:bg-red-800 rounded-full transition cursor-pointer flex-shrink-0">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+            </div>
+            <div class="text-center flex-grow min-w-0">
                 <h1 class="text-xl font-bold tracking-wide">🍣 TOKIO SUSHI</h1>
                 <p class="text-xs text-red-100">Delivery & Pick Up</p>
             </div>
-            <div class="col-span-1"></div>
+            <div class="w-20 flex items-center justify-end">
+                <button id="header-logout-btn" onclick="cerrarSesionCliente()" title="Cerrar sesión" class="hidden text-base w-9 h-9 items-center justify-center hover:bg-red-800 rounded-full transition cursor-pointer flex-shrink-0">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
         </div>
     </header>
 
@@ -78,17 +88,6 @@
         </div>
         
         <div id="step-1" class="step space-y-4">
-            
-            <div class="bg-red-50 border border-red-100 p-3 rounded-xl flex justify-between items-center text-xs">
-                <div>
-                    <p class="text-gray-500 font-medium">Cliente Activo:</p>
-                    <p class="font-bold text-red-800 text-sm" id="lbl-cliente-activo">Cargando...</p>
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="abrirModalEditarDatos()" class="text-red-600 font-bold hover:underline bg-white px-2 py-1 rounded-lg border border-red-200 shadow-sm cursor-pointer">Mis Datos</button>
-                    <button onclick="cerrarSesionCliente()" class="text-red-600 font-bold hover:underline bg-white px-2 py-1 rounded-lg border border-red-200 shadow-sm cursor-pointer">Salir</button>
-                </div>
-            </div>
 
             <h2 class="text-2xl font-bold text-center my-3 text-gray-800">¿Qué te provoca comer hoy?</h2>
             <p class="text-center text-gray-500 text-sm mb-4">Toca una categoría para agregar platos a tu carrito</p>
@@ -221,27 +220,45 @@
         <div class="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl overflow-y-auto max-h-[85vh] animate-in fade-in zoom-in-95 duration-150">
             <div class="flex justify-between items-center border-b border-gray-100 pb-3">
                 <div>
-                    <h3 class="text-lg font-black text-gray-800">Mis Direcciones 📍</h3>
-                    <p class="text-[11px] text-gray-400 mt-0.5">Administra tus lugares de entrega</p>
+                    <h3 class="text-lg font-black text-gray-800">Mis Datos ⚙️</h3>
+                    <p class="text-[11px] text-gray-400 mt-0.5">Cliente Activo: <span class="font-bold text-red-800" id="lbl-cliente-activo">Cargando...</span></p>
                 </div>
                 <button onclick="cerrarModalEditarDatos()" class="text-gray-400 hover:text-red-600 text-2xl font-bold cursor-pointer">&times;</button>
             </div>
-            
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Dirección Principal</label>
-                    <textarea id="edit-dir-principal" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-red-500 text-gray-700" rows="2"></textarea>
+
+            <div class="space-y-2 pb-4 border-b border-gray-100">
+                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Número de Teléfono</label>
+                <div class="flex gap-2">
+                    <input type="tel" id="edit-telefono" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-red-500 text-gray-700" placeholder="Ej. 04121234567">
+                    <button type="button" id="btn-guardar-telefono" onclick="guardarTelefonoCliente()" class="flex-shrink-0 bg-gray-800 hover:bg-gray-900 text-white font-bold px-4 rounded-xl transition text-xs shadow-sm cursor-pointer">
+                        Actualizar
+                    </button>
                 </div>
-                
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Direcciones Frecuentes</label>
-                    <div id="lista-direcciones-extra" class="space-y-2 max-h-40 overflow-y-auto pr-1">
-                        </div>
+                <p class="text-[10px] text-gray-400">Este es el número con el que inicias sesión.</p>
+            </div>
+
+            <div>
+                <h4 class="text-sm font-black text-gray-800 mb-2">Mis Direcciones 📍</h4>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Dirección Principal</label>
+                        <textarea id="edit-dir-principal" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-red-500 text-gray-700" rows="2"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Direcciones Frecuentes</label>
+                        <div id="lista-direcciones-extra" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                            </div>
+                    </div>
                 </div>
             </div>
-            
+
             <button type="button" id="btn-guardar-datos" onclick="guardarEdicionDatos()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-xl transition text-sm shadow-md cursor-pointer mt-2">
-                💾 Guardar Cambios
+                💾 Guardar Direcciones
+            </button>
+
+            <button type="button" onclick="cerrarModalEditarDatos(); cerrarSesionCliente();" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-2.5 rounded-xl transition text-xs cursor-pointer flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
             </button>
         </div>
     </div>

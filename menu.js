@@ -16,13 +16,23 @@ let anunciosActivos = [];
 let anuncioIndiceActual = 0;
 
 // --- 1. ARRANQUE Y CONTROL DE ESTADOS ---
+function mostrarIconosHeaderSesion(mostrar) {
+    ['header-settings-btn', 'header-logout-btn'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.classList.toggle('hidden', !mostrar);
+        btn.classList.toggle('flex', mostrar);
+    });
+}
+
 window.onload = async function() {
     history.replaceState({ step: 'auth' }, "Autenticación");
-    
+
     const sesionCliente = localStorage.getItem('sesionCliente');
     if (sesionCliente) {
         datosClienteLogueado = JSON.parse(sesionCliente);
         document.getElementById('lbl-cliente-activo').innerText = datosClienteLogueado.nombre;
+        mostrarIconosHeaderSesion(true);
         await cargarMenuDesdeDB();
         goToStep(1);
     } else {
@@ -253,10 +263,11 @@ async function procesarVerificacionTelefono(event) {
 
         if (listaClientes.length > 0) {
             datosClienteLogueado = listaClientes[0];
-            localStorage.setItem('sesionCliente', JSON.stringify(datosClienteLogueado)); 
+            localStorage.setItem('sesionCliente', JSON.stringify(datosClienteLogueado));
             document.getElementById('lbl-cliente-activo').innerText = datosClienteLogueado.nombre;
-            
-            await cargarMenuDesdeDB(); 
+            mostrarIconosHeaderSesion(true);
+
+            await cargarMenuDesdeDB();
             goToStep(1);
         } else {
             document.getElementById('reg-name').value = '';
@@ -299,7 +310,8 @@ async function procesarRegistroCliente(event) {
         datosClienteLogueado = payload;
         localStorage.setItem('sesionCliente', JSON.stringify(datosClienteLogueado));
         document.getElementById('lbl-cliente-activo').innerText = datosClienteLogueado.nombre;
-        
+        mostrarIconosHeaderSesion(true);
+
         await cargarMenuDesdeDB();
         goToStep(1);
     } catch(e) {
@@ -314,6 +326,7 @@ function cerrarSesionCliente() {
     localStorage.removeItem('sesionCliente');
     datosClienteLogueado = null;
     document.getElementById('auth-phone').value = '';
+    mostrarIconosHeaderSesion(false);
     goToStep('auth');
 }
 
@@ -1354,12 +1367,49 @@ function guardarSeleccionCombo() {
 
 function abrirModalEditarDatos() {
     if (!datosClienteLogueado) return;
-    
+
+    document.getElementById('lbl-cliente-activo').innerText = datosClienteLogueado.nombre;
+    document.getElementById('edit-telefono').value = datosClienteLogueado.telefono || '';
     document.getElementById('edit-dir-principal').value = datosClienteLogueado.direccion_principal || '';
     renderizarDireccionesExtra();
-    
+
     document.getElementById('modal-editar-datos').classList.remove('hidden');
     document.getElementById('modal-editar-datos').classList.add('flex');
+}
+
+async function guardarTelefonoCliente() {
+    const btn = document.getElementById('btn-guardar-telefono');
+    const nuevoTelefono = document.getElementById('edit-telefono').value.trim();
+    if (!nuevoTelefono) { alert('Ingresa un número de teléfono.'); return; }
+    if (nuevoTelefono === datosClienteLogueado.telefono) return;
+
+    btn.disabled = true; btn.innerText = '...';
+
+    try {
+        const response = await fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/clientes/actualizar-telefono", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer TokioSushi_App_2026_X'
+            },
+            body: JSON.stringify({ telefono_actual: datosClienteLogueado.telefono, telefono_nuevo: nuevoTelefono })
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.detail || 'No se pudo actualizar el número.');
+            return;
+        }
+
+        datosClienteLogueado.telefono = nuevoTelefono;
+        localStorage.setItem('sesionCliente', JSON.stringify(datosClienteLogueado));
+        alert('✅ Número actualizado correctamente.');
+    } catch (e) {
+        console.error("Error al actualizar teléfono:", e);
+        alert('Error de conexión al actualizar el número.');
+    } finally {
+        btn.disabled = false; btn.innerText = 'Actualizar';
+    }
 }
 
 function cerrarModalEditarDatos() {
