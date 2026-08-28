@@ -78,8 +78,21 @@
                     <input type="text" id="reg-name" required class="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-red-500" placeholder="Ej. Pedro Pérez">
                 </div>
                 <div>
-                    <label class="block text-gray-600 text-xs font-bold mb-1">Número de Cédula</label>
-                    <input type="text" id="reg-cedula" required class="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-red-500" placeholder="Ej. V-12345678">
+                    <label class="block text-gray-600 text-xs font-bold mb-1">Cédula / RIF</label>
+                    <div class="flex gap-2">
+                        <select id="reg-doc-tipo" class="p-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-red-500 bg-white">
+                            <option value="V">V</option>
+                            <option value="E">E</option>
+                            <option value="J">J</option>
+                            <option value="G">G</option>
+                            <option value="P">P</option>
+                        </select>
+                        <input type="text" id="reg-cedula-numero" required inputmode="numeric" class="flex-1 p-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-red-500" placeholder="Ej. 12345678">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-gray-600 text-xs font-bold mb-1">Correo Electrónico <span class="font-normal text-gray-400">(opcional)</span></label>
+                    <input type="email" id="reg-email" class="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-red-500" placeholder="Ej. correo@ejemplo.com">
                 </div>
                 <div>
                     <label class="block text-gray-600 text-xs font-bold mb-1">Dirección de Entrega Principal</label>

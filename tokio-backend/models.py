@@ -22,6 +22,7 @@ class Pedido(Base):
     imagen_pago = Column(String, nullable=True)
     repartidor = Column(String, nullable=True)
     tasa_bcv = Column(Float, nullable=True)
+    cedula = Column(String, nullable=True)  # snapshot de la cédula/RIF del cliente al momento del pedido
 
 class HorarioAtencion(Base):
     __tablename__ = "horarios_atencion"
@@ -44,6 +45,7 @@ class Cliente(Base):
     
     nombre = Column(String, nullable=False)
     cedula = Column(String, nullable=True)
+    email = Column(String, nullable=True)
     direccion_principal = Column(String, nullable=True)
     direcciones_extra = Column(String, default="[]")
 

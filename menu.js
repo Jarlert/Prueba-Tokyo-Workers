@@ -305,7 +305,9 @@ async function procesarVerificacionTelefono(event) {
             goToStep(1);
         } else {
             document.getElementById('reg-name').value = '';
-            document.getElementById('reg-cedula').value = '';
+            document.getElementById('reg-doc-tipo').value = 'V';
+            document.getElementById('reg-cedula-numero').value = '';
+            document.getElementById('reg-email').value = '';
             document.getElementById('reg-address').value = '';
             goToStep('registro');
         }
@@ -319,13 +321,21 @@ async function procesarVerificacionTelefono(event) {
 
 async function procesarRegistroCliente(event) {
     event.preventDefault();
-    
+
+    const tipoDoc = document.getElementById('reg-doc-tipo').value;
+    const numeroDoc = document.getElementById('reg-cedula-numero').value.trim().replace(/[^0-9]/g, '');
+    if (!numeroDoc) {
+        alert('Ingresa un número de cédula/RIF válido.');
+        return;
+    }
+
     const payload = {
         telefono: document.getElementById('auth-phone').value.trim(),
         nombre: document.getElementById('reg-name').value.trim(),
-        cedula: document.getElementById('reg-cedula').value.trim(),
+        cedula: `${tipoDoc}-${numeroDoc}`,
+        email: document.getElementById('reg-email').value.trim() || null,
         direccion_principal: document.getElementById('reg-address').value.trim(),
-        direcciones_extra: '[]' 
+        direcciones_extra: '[]'
     };
 
     const btn = document.getElementById('btn-reg-submit');

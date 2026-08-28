@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from rate_limit import limitador
+from auth import requiere_staff
 import models
 import schemas
 
@@ -25,6 +26,7 @@ def verificar_cliente(telefono: str, db: Session = Depends(get_db), _rl=Depends(
             "nombre": cliente.nombre,
             "telefono": cliente.telefono,
             "cedula": cliente.cedula,
+            "email": cliente.email,
             "direccion_principal": cliente.direccion_principal,
             "direcciones_extra": cliente.direcciones_extra
         }]
@@ -42,6 +44,7 @@ def registrar_cliente(datos: schemas.ClienteRegistro, db: Session = Depends(get_
         telefono=datos.telefono,
         nombre=datos.nombre,
         cedula=datos.cedula,
+        email=datos.email,
         direccion_principal=datos.direccion_principal,
         direcciones_extra=datos.direcciones_extra
     )
@@ -70,6 +73,44 @@ def actualizar_telefono(datos: schemas.ClienteActualizarTelefono, db: Session = 
     db.commit()
 
     return {"status": "success", "mensaje": "Número de teléfono actualizado correctamente"}
+
+@router.get("/buscar")
+def buscar_clientes(q: str, db: Session = Depends(get_db), staff: dict = Depends(requiere_staff)):
+    termino = (q or "").strip()
+    if not termino:
+        return []
+
+    patron = f"%{termino}%"
+    clientes = db.query(models.Cliente).filter(
+        (models.Cliente.telefono.ilike(patron)) |
+        (models.Cliente.nombre.ilike(patron)) |
+        (models.Cliente.cedula.ilike(patron))
+    ).limit(15).all()
+
+    resultado = []
+    for cliente in clientes:
+        pedidos_cliente = db.query(models.Pedido).filter(models.Pedido.telefono == cliente.telefono).all()
+        finalizados = [
+            p for p in pedidos_cliente
+            if str(p.estado or "").strip().lower().replace(" ", "") == "finalizado"
+        ]
+        total_gastado = sum(p.total_orden or 0.0 for p in finalizados)
+        timestamps = [p.timestamp for p in pedidos_cliente if p.timestamp]
+
+        resultado.append({
+            "telefono": cliente.telefono,
+            "nombre": cliente.nombre,
+            "cedula": cliente.cedula,
+            "email": cliente.email,
+            "direccion_principal": cliente.direccion_principal,
+            "direcciones_extra": cliente.direcciones_extra,
+            "total_pedidos": len(pedidos_cliente),
+            "pedidos_finalizados": len(finalizados),
+            "total_gastado_usd": round(total_gastado, 2),
+            "ultimo_pedido": max(timestamps) if timestamps else None,
+        })
+
+    return resultado
 
 @router.post("/actualizar-direcciones-cliente")
 def actualizar_direcciones(datos: schemas.ClienteActualizarDirecciones, db: Session = Depends(get_db)):

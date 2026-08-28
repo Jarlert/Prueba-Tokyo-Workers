@@ -4,6 +4,7 @@
 
 const API_ESTADISTICAS_PEDIDOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/";
 const API_VALIDAR_ACCESO_ESTADISTICAS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/usuarios/validar-acceso";
+const API_BUSCAR_CLIENTES = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/clientes/buscar";
 let datosEstadisticas = [];
 let tasaEstadisticas = 1;
 let graficoTorta = null;
@@ -62,6 +63,61 @@ async function iniciarSesionEstadisticas(event) {
         if (errorMsg) { errorMsg.innerText = "Error de conexión con el servidor."; errorMsg.classList.remove('hidden'); }
     } finally {
         if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.innerHTML = 'Entrar al Sistema <i class="fa-solid fa-arrow-right-to-bracket ml-1"></i>'; }
+    }
+}
+
+// --- BUSCADOR DE CLIENTES: teléfono, nombre o cédula/RIF -> datos + estadísticas de consumo ---
+async function buscarClientes(event) {
+    if (event) event.preventDefault();
+
+    const termino = document.getElementById('input-buscar-cliente').value.trim();
+    const contenedor = document.getElementById('resultado-busqueda-cliente');
+    if (!termino) { contenedor.innerHTML = ''; return; }
+
+    contenedor.innerHTML = '<p class="text-xs text-slate-500 italic">Buscando...</p>';
+
+    try {
+        const res = await fetch(`${API_BUSCAR_CLIENTES}?q=${encodeURIComponent(termino)}`, { headers: authHeaders() });
+        const data = await res.json();
+        const lista = Array.isArray(data) ? data : [];
+
+        if (lista.length === 0) {
+            contenedor.innerHTML = '<p class="text-xs text-slate-500 italic">No se encontraron clientes con ese dato.</p>';
+            return;
+        }
+
+        contenedor.innerHTML = lista.map(c => {
+            let ultimo = 'Sin pedidos aún';
+            if (c.ultimo_pedido) {
+                try {
+                    ultimo = new Date(c.ultimo_pedido).toLocaleDateString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: 'numeric' });
+                } catch (e) {}
+            }
+            return `
+                <div class="bg-slate-800/60 border border-slate-700 rounded-lg p-4 mb-3">
+                    <div class="flex flex-wrap justify-between items-start gap-3">
+                        <div>
+                            <p class="text-white font-bold text-base">${escapeHtml(c.nombre || 'Sin nombre')}</p>
+                            <p class="text-xs text-slate-400 mt-1"><i class="fa-solid fa-phone"></i> ${escapeHtml(c.telefono || '')}</p>
+                            ${c.cedula ? `<p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-id-card"></i> ${escapeHtml(c.cedula)}</p>` : ''}
+                            ${c.email ? `<p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-envelope"></i> ${escapeHtml(c.email)}</p>` : ''}
+                            <p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(c.direccion_principal || 'No especificada')}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-emerald-400 font-bold text-xl">$${(c.total_gastado_usd || 0).toFixed(2)}</p>
+                            <p class="text-[10px] text-slate-500 uppercase font-bold">gastado (finalizados)</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-4 mt-3 pt-3 border-t border-slate-700/50 text-xs">
+                        <span class="text-slate-300"><i class="fa-solid fa-receipt text-indigo-400"></i> ${c.total_pedidos} pedidos totales</span>
+                        <span class="text-slate-300"><i class="fa-solid fa-check-double text-emerald-400"></i> ${c.pedidos_finalizados} finalizados</span>
+                        <span class="text-slate-300"><i class="fa-regular fa-calendar"></i> Último: ${ultimo}</span>
+                    </div>
+                </div>`;
+        }).join('');
+    } catch (e) {
+        console.error("Error al buscar clientes:", e);
+        contenedor.innerHTML = '<p class="text-xs text-red-400 italic">Error al buscar. Intenta de nuevo.</p>';
     }
 }
 
@@ -450,9 +506,10 @@ function abrirModalDetalle(idPedido) {
     
     const idReal = pedido.id_pedido || pedido.ID || 'S/ID'; 
     const idVisual = pedido.id_visual || idReal;
-    const cliente = pedido.cliente || 'Registrado'; 
+    const cliente = pedido.cliente || 'Registrado';
     const tel = pedido.telefono || 'No registrado';
-    const entrega = pedido.tipo_entrega || 'No definido'; 
+    const cedula = pedido.cedula || '';
+    const entrega = pedido.tipo_entrega || 'No definido';
     const dir = pedido.direccion || 'No especificada';
     const pago = pedido.metodo_pago || 'No especificado'; 
     const arts = pedido.pedido_detallado || '';
@@ -466,7 +523,7 @@ function abrirModalDetalle(idPedido) {
     const tasaHistorica = pedido.tasa_bcv ? parseFloat(pedido.tasa_bcv) : tasaEstadisticas;
 
     document.getElementById('modalCuerpo').innerHTML = construirHtmlModalPedido({
-        cliente, tel, operador, entrega, dir, arts, pago, ref, monto, tasaHistorica,
+        cliente, tel, cedula, operador, entrega, dir, arts, pago, ref, monto, tasaHistorica,
         imagenPago: img
     });
     document.getElementById('modalDetalle').classList.remove('hidden');

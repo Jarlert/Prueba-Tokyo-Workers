@@ -49,6 +49,15 @@ def ejecutar_migraciones(engine: Engine):
             print("[migracion] Agregando columna 'producto_ref' a anuncios...")
             conn.execute(text("ALTER TABLE anuncios ADD COLUMN producto_ref VARCHAR"))
 
+        columnas_clientes = [c["name"] for c in inspector.get_columns("clientes")]
+        if "email" not in columnas_clientes:
+            print("[migracion] Agregando columna 'email' a clientes...")
+            conn.execute(text("ALTER TABLE clientes ADD COLUMN email VARCHAR"))
+
+        if "cedula" not in columnas_pedidos:
+            print("[migracion] Agregando columna 'cedula' a pedidos...")
+            conn.execute(text("ALTER TABLE pedidos ADD COLUMN cedula VARCHAR"))
+
         resultado = conn.execute(text("""
             UPDATE pedidos
             SET fecha = SUBSTRING(timestamp FROM 1 FOR 10)::date

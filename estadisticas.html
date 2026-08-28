@@ -65,6 +65,19 @@
         </div>
     </div>
 
+    <div class="max-w-7xl mx-auto mb-6">
+        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-6 shadow-lg">
+            <h3 class="text-indigo-400 text-sm font-bold mb-4 flex items-center gap-2 uppercase tracking-wider">
+                <i class="fa-solid fa-magnifying-glass"></i> Buscador de Clientes
+            </h3>
+            <form onsubmit="buscarClientes(event)" class="flex flex-col sm:flex-row gap-2 mb-4">
+                <input type="text" id="input-buscar-cliente" placeholder="Teléfono, nombre o cédula/RIF..." class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white outline-none focus:border-indigo-500">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2.5 rounded-lg text-sm transition cursor-pointer">Buscar</button>
+            </form>
+            <div id="resultado-busqueda-cliente"></div>
+        </div>
+    </div>
+
     <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
 
         <div class="bg-slate-900/50 border border-slate-800 p-5 rounded-xl flex flex-col justify-center">

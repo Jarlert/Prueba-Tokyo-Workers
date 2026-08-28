@@ -1144,6 +1144,7 @@ function abrirModalDetalle(idPedido) {
     const pedido = pedidosEnMemoria.find(p => String(p.id_pedido || p['ID_Pedido'] || p.ID || 'S/ID') === String(idPedido)); if (!pedido) return;
     const idReal = pedido.id_pedido || pedido['ID_Pedido'] || 'S/ID'; const idVisual = String(idReal).split('-').pop();
     const cliente = pedido.cliente || 'Registrado'; const tel = pedido.telefono || 'No registrado';
+    const cedula = pedido.cedula || '';
     const entrega = pedido.tipo_entrega || 'No definido'; const dir = pedido.direccion || 'No especificada';
     const pago = pedido.metodo_pago || 'No especificado'; const arts = pedido.pedido_detallado || '';
     const ref = pedido.referencia_pago || '';
@@ -1151,14 +1152,14 @@ function abrirModalDetalle(idPedido) {
     const operador = pedido.procesado_por || 'Sin registro';
 
     document.getElementById('modalID').innerText = `ID Base de datos: #${idVisual}`;
-    
+
     // Calculamos la tasa histórica primero
     const inputTasa = document.getElementById('tasaBCV');
     const tasaPantalla = inputTasa ? (parseFloat(inputTasa.value) || 1.0) : 1.0;
     const tasaHistorica = pedido.tasa_bcv ? parseFloat(pedido.tasa_bcv) : tasaPantalla;
 
     document.getElementById('modalCuerpo').innerHTML = construirHtmlModalPedido({
-        cliente, tel, operador, entrega, dir, arts, pago, ref, monto, tasaHistorica,
+        cliente, tel, cedula, operador, entrega, dir, arts, pago, ref, monto, tasaHistorica,
         imagenPago: pedido.imagen_pago
     });
     document.getElementById('modalDetalle').classList.remove('hidden');

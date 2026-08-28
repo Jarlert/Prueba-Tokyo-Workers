@@ -32,6 +32,7 @@ class ClienteRegistro(BaseModel):
     telefono: str
     nombre: str
     cedula: str
+    email: Optional[str] = None
     direccion_principal: str = ""
     direcciones_extra: str = "[]"
 

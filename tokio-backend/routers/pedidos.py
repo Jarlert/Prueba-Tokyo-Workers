@@ -51,6 +51,10 @@ async def crear_pedido(pedido: schemas.PedidoCreate, db: Session = Depends(get_d
     registro_tasa = db.query(models.TasaManual).first()
     tasa_actual = registro_tasa.tasa if registro_tasa else 1.0
 
+    # Buscamos la cédula/RIF del cliente registrado para dejarla en el pedido
+    cliente_db = db.query(models.Cliente).filter(models.Cliente.telefono == pedido.telefono).first()
+    cedula_cliente = cliente_db.cedula if cliente_db else None
+
     # 2. Calcular el total de forma segura consultando la BD, y de paso
     # traer la descripcion de cada articulo para el resumen (punto 2.5)
     total_dolares = 0.0
@@ -106,7 +110,8 @@ async def crear_pedido(pedido: schemas.PedidoCreate, db: Session = Depends(get_d
         pedido_detallado=texto_detallado,
         total_orden=total_dolares,
         estado=pedido.estado_inicial,
-        procesado_por="Sistema Automatizado", 
+        cedula=cedula_cliente,
+        procesado_por="Sistema Automatizado",
         referencia_pago=None if pedido.metodo_pago in ["Efectivo", "Punto de Venta"] else "Pendiente",
         
         # Le inyectamos la tasa que acabamos de leer de la pizarra central
