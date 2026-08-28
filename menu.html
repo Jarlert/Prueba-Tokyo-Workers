@@ -303,7 +303,7 @@
     <div id="modal-anuncio" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70] hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
             <button onclick="cerrarAnuncioActual()" class="absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center bg-black/40 hover:bg-black/60 text-white rounded-full transition font-bold cursor-pointer">✕</button>
-            <img id="anuncio-modal-imagen" src="" alt="" onclick="irAItemDeAnuncio()" class="w-full max-h-[55vh] object-cover flex-shrink-0">
+            <img id="anuncio-modal-imagen" src="" alt="" onclick="irAItemDeAnuncio()" fetchpriority="high" class="w-full max-h-[55vh] object-cover flex-shrink-0">
             <div class="p-5 overflow-y-auto">
                 <h3 id="anuncio-modal-titulo" class="font-black text-gray-900 text-lg leading-tight"></h3>
                 <p id="anuncio-modal-texto" class="text-sm text-gray-600 mt-2 leading-relaxed"></p>

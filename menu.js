@@ -167,7 +167,19 @@ function precargarAnuncios() {
             const data = await response.json();
             const anuncios = Array.isArray(data) ? data : (data.data || []);
             anunciosActivos = anuncios.filter(a => a.activo).sort((a, b) => (a.orden || 0) - (b.orden || 0));
-            anunciosActivos.forEach(a => { if (a.imagen) { new Image().src = a.imagen; } });
+            anunciosActivos.forEach(a => {
+                if (!a.imagen) return;
+                // <link rel=preload fetchpriority=high> le pide al navegador que la
+                // descargue YA y le dé prioridad sobre otras imágenes de la página
+                // (ej. los íconos de categoría), en vez de competir en igualdad de
+                // condiciones por las conexiones disponibles.
+                const link = document.createElement('link');
+                link.rel = 'preload';
+                link.as = 'image';
+                link.href = a.imagen;
+                link.setAttribute('fetchpriority', 'high');
+                document.head.appendChild(link);
+            });
         } catch (error) {
             console.error("Error precargando anuncios:", error);
         }
@@ -420,7 +432,7 @@ function renderizarCategorias() {
 
         let arteVisual = '';
         if (catInfo.imagen && catInfo.imagen.startsWith('http')) {
-            arteVisual = `<img src="${catInfo.imagen}" alt="${catInfo.titulo}" loading="lazy" class="w-full h-full object-cover">`;
+            arteVisual = `<img src="${catInfo.imagen}" alt="${catInfo.titulo}" loading="lazy" fetchpriority="low" class="w-full h-full object-cover">`;
         } else {
             arteVisual = iconosRespado[index % iconosRespado.length];
         }
