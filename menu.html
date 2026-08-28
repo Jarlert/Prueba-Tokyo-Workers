@@ -17,20 +17,22 @@
         input[type=number] { -moz-appearance: textfield; }
     </style>
 </head>
-<body class="bg-gray-50 font-sans text-gray-900 min-h-screen flex flex-col pb-24">
+<body class="bg-gray-200 font-sans text-gray-900 min-h-screen flex flex-col pb-24">
 
-    <header class="bg-red-700 text-white py-4 shadow-md sticky top-0 z-40 max-w-md mx-auto w-full grid grid-cols-5 items-center px-4">
-        <button id="header-back-btn" onclick="goToStep(1)" class="invisible text-2xl font-bold w-10 h-10 flex items-center justify-center hover:bg-red-800 rounded-full transition cursor-pointer col-span-1">
-            ←
-        </button>
-        <div class="text-center col-span-3">
-            <h1 class="text-xl font-bold tracking-wide">🍣 TOKIO SUSHI</h1>
-            <p class="text-xs text-red-100">Delivery & Pick Up</p>
+    <header class="bg-red-700 text-white py-4 shadow-md sticky top-0 z-40 w-full">
+        <div class="max-w-md w-full mx-auto grid grid-cols-5 items-center px-4">
+            <button id="header-back-btn" onclick="goToStep(1)" class="invisible text-2xl font-bold w-10 h-10 flex items-center justify-center hover:bg-red-800 rounded-full transition cursor-pointer col-span-1">
+                ←
+            </button>
+            <div class="text-center col-span-3">
+                <h1 class="text-xl font-bold tracking-wide">🍣 TOKIO SUSHI</h1>
+                <p class="text-xs text-red-100">Delivery & Pick Up</p>
+            </div>
+            <div class="col-span-1"></div>
         </div>
-        <div class="col-span-1"></div>
     </header>
 
-    <main class="max-w-md w-full mx-auto p-4 flex-grow">
+    <main class="max-w-md w-full mx-auto p-4 flex-grow bg-gray-50 shadow-xl">
         
         <div id="step-auth" class="step active space-y-5 py-6">
             <div class="text-center">
