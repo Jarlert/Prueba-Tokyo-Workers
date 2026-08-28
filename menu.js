@@ -26,6 +26,7 @@ function mostrarIconosHeaderSesion(mostrar) {
 }
 
 window.onload = async function() {
+    precargarAnuncios(); // arranca la descarga de las imágenes de anuncios de una vez, sin esperar al login
     history.replaceState({ step: 'auth' }, "Autenticación");
 
     const sesionCliente = localStorage.getItem('sesionCliente');
@@ -153,18 +154,31 @@ function itemDentroDeHorarioProgramado(item) {
 }
 
 // --- ANUNCIOS/POPUPS DE PROMOCIONES AL ABRIR EL MENÚ ---
+let promesaPrecargaAnuncios = null;
+
+// Se llama lo antes posible (antes de terminar el login) para que las imágenes
+// ya estén descargadas en caché del navegador cuando el popup deba mostrarse.
+function precargarAnuncios() {
+    if (promesaPrecargaAnuncios) return promesaPrecargaAnuncios;
+    promesaPrecargaAnuncios = (async () => {
+        try {
+            const response = await fetch(URL_OBTENER_ANUNCIOS + "?t=" + new Date().getTime());
+            if (!response.ok) throw new Error('Error al obtener anuncios');
+            const data = await response.json();
+            const anuncios = Array.isArray(data) ? data : (data.data || []);
+            anunciosActivos = anuncios.filter(a => a.activo).sort((a, b) => (a.orden || 0) - (b.orden || 0));
+            anunciosActivos.forEach(a => { if (a.imagen) { new Image().src = a.imagen; } });
+        } catch (error) {
+            console.error("Error precargando anuncios:", error);
+        }
+    })();
+    return promesaPrecargaAnuncios;
+}
+
 async function cargarYMostrarAnuncios() {
-    try {
-        const response = await fetch(URL_OBTENER_ANUNCIOS + "?t=" + new Date().getTime());
-        if (!response.ok) throw new Error('Error al obtener anuncios');
-        const data = await response.json();
-        const anuncios = Array.isArray(data) ? data : (data.data || []);
-        anunciosActivos = anuncios.filter(a => a.activo).sort((a, b) => (a.orden || 0) - (b.orden || 0));
-        anuncioIndiceActual = 0;
-        if (anunciosActivos.length > 0) mostrarAnuncioEnIndice(0);
-    } catch (error) {
-        console.error("Error obteniendo anuncios:", error);
-    }
+    await precargarAnuncios();
+    anuncioIndiceActual = 0;
+    if (anunciosActivos.length > 0) mostrarAnuncioEnIndice(0);
 }
 
 function mostrarAnuncioEnIndice(indice) {
