@@ -328,6 +328,11 @@ if (document.getElementById('form-usuario')) {
     });
 }
 
+function desplazarseAlFormulario(idTitulo) {
+    const el = document.getElementById(idTitulo);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function editarUsuario(id) {
     const u = USUARIOS_SISTEMA.find(x => x.id === id); if(!u) return;
     document.getElementById('usr-id').value = u.id;
@@ -342,6 +347,7 @@ function editarUsuario(id) {
     document.getElementById('titulo-form-usr').innerText = "Editar Usuario";
     document.getElementById('btn-save-usr').innerText = "💾 Actualizar Usuario";
     document.getElementById('btn-cancel-usr').style.display = "block";
+    desplazarseAlFormulario('titulo-form-usr');
 }
 
 function resetFormUsr() {
@@ -429,6 +435,7 @@ function editarMotorizado(id) {
     document.getElementById('titulo-form-mot').innerText = "Editar Motorizado";
     document.getElementById('btn-save-mot').innerText = "💾 Actualizar";
     document.getElementById('btn-cancel-mot').style.display = "block";
+    desplazarseAlFormulario('titulo-form-mot');
 }
 
 function resetFormMot() {
@@ -637,6 +644,7 @@ function editarAnuncio(id) {
     document.getElementById('anuncio-item-visible').value = nombreItemVinculado;
 
     document.getElementById('titulo-form-anuncio').innerText = "Editar Anuncio"; document.getElementById('btn-save-anuncio').innerText = "💾 Actualizar Anuncio"; document.getElementById('btn-cancel-anuncio').style.display = "block";
+    desplazarseAlFormulario('titulo-form-anuncio');
 }
 
 function resetFormAnuncio() {
@@ -710,6 +718,7 @@ function editarCategoria(id) {
     document.getElementById('titulo-form-cat').innerText = "Editar Categoría"; document.getElementById('btn-save-cat').innerText = "💾 Actualizar Categoría"; document.getElementById('btn-cancel-cat').style.display = "block";
     document.getElementById('buscador-categorias-admin').value = '';
     renderListaCategorias();
+    desplazarseAlFormulario('titulo-form-cat');
 }
 
 function resetFormCat() {
@@ -836,6 +845,7 @@ function editarProducto(id) {
     document.getElementById('titulo-form-prod').innerText = "Editar Producto"; document.getElementById('btn-save-prod').innerText = "💾 Actualizar Producto"; document.getElementById('btn-cancel-prod').style.display = "block";
     document.getElementById('buscador-productos-admin').value = '';
     renderListaProductos();
+    desplazarseAlFormulario('titulo-form-prod');
 }
 
 function resetFormProd() {
@@ -1199,6 +1209,7 @@ function editarCombo(id) {
     document.getElementById('titulo-form-combo').innerText = "Editar Combo"; document.getElementById('btn-save-combo').innerText = "🍱 Actualizar Combo"; document.getElementById('btn-cancel-combo').style.display = "block";
     document.getElementById('buscador-combos-admin').value = '';
     renderListaCombos();
+    desplazarseAlFormulario('titulo-form-combo');
 }
 
 function resetFormCombo() {
