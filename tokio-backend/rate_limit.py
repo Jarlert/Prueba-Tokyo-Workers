@@ -34,22 +34,30 @@ def _barrer_claves_vencidas(ahora: float) -> None:
 def _ip_cliente(request: Request) -> str:
     """IP real del visitante, teniendo en cuenta que corremos detrás de un proxy.
 
-    `request.client.host` no es la IP del visitante sino la del proxy de Railway,
-    y en la práctica variaba entre peticiones: cada una creaba una clave nueva y
-    el límite no llegaba a aplicarse nunca (se comprobó en producción con 24
-    peticiones seguidas contra un límite de 20 y ninguna fue rechazada).
+    `request.client.host` no sirve: no es la IP del visitante sino la del salto
+    interno de Railway, y varía entre peticiones. Cada una generaba una clave
+    distinta y el límite nunca llegaba a aplicarse (comprobado en producción:
+    24 peticiones seguidas contra un límite de 20, ningún 429).
 
-    Se toma la ÚLTIMA entrada de X-Forwarded-For, no la primera. La cabecera
-    tiene el formato "cliente, proxy1, proxy2", y un atacante puede enviar la
-    suya propia para falsear el inicio de la cadena; el proxy le añade al final
-    la IP real desde la que le llegó la conexión. Con un solo proxy delante
-    —que es el caso— la última entrada es la única que no se puede falsificar.
+    El orden de preferencia importa por seguridad:
+
+    1. `X-Envoy-External-Address`. Railway enruta con Envoy, que la fija con la
+       IP real desde la que entró la conexión y sobrescribe cualquier valor que
+       mande el cliente. Es la única que no se puede falsificar.
+    2. Primera entrada de `X-Forwarded-For`, solo como respaldo. Se comprobó que
+       Railway deja pasar esta cabecera tal cual la envíe el cliente, así que
+       por sí sola es falsificable y no debe usarse mientras exista la anterior.
+    3. `request.client.host`, último recurso.
     """
+    envoy = request.headers.get("x-envoy-external-address", "").strip()
+    if envoy:
+        return envoy
+
     reenviadas = request.headers.get("x-forwarded-for", "")
     if reenviadas:
         candidatas = [parte.strip() for parte in reenviadas.split(",") if parte.strip()]
         if candidatas:
-            return candidatas[-1]
+            return candidatas[0]
 
     return request.client.host if request.client else "desconocido"
 
