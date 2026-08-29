@@ -14,7 +14,7 @@ let datosClienteLogueado = null;
 let horariosAtencion = [];
 let anunciosActivos = [];
 let anuncioIndiceActual = 0;
-let loteComboEnCurso = null; // { id, restantes } — unidades de un combo que aún faltan por personalizar tras escribir una cantidad mayor
+let loteComboEnCurso = null; // { id, restantes, total } — unidades de un combo que aún faltan por personalizar tras escribir una cantidad mayor ('restantes' incluye la que se está armando)
 let comboIdSelectorActivo = null; // combo cuyas personalizaciones se están listando para eliminar
 
 // --- 1. ARRANQUE Y CONTROL DE ESTADOS ---
@@ -667,7 +667,7 @@ function ajustarCantidadComboEscrita(id, name, itemOriginal, value) {
     const delta = nuevoTotal - totalActual;
 
     if (delta > 0) {
-        loteComboEnCurso = { id: id, restantes: delta };
+        loteComboEnCurso = { id: id, restantes: delta, total: delta };
         abrirModalCombo(itemOriginal);
         return;
     }
@@ -1100,10 +1100,56 @@ async function sendOrder(event) {
 let comboEnPersonalizacion = null;
 let estadoPiezasCombo = {};
 
+// Cuando el cliente pide varias unidades del mismo combo, el modal se reabre una
+// vez por unidad. Sin explicación eso parece un bug ("no me deja seguir pidiendo"),
+// así que mostramos en qué unidad va, cuántas faltan y qué pasa al confirmar.
+function pintarProgresoLoteCombo(item) {
+    const aviso = document.getElementById('modal-combo-progreso');
+    const btn = document.getElementById('btn-confirmar-combo');
+    if (!aviso) return;
+
+    const lote = loteComboEnCurso;
+    const enLote = lote && lote.id === item.id && lote.total > 1;
+
+    if (!enLote) {
+        aviso.className = 'hidden';
+        aviso.innerHTML = '';
+        if (btn) btn.innerText = 'Confirmar Selección';
+        return;
+    }
+
+    const total = lote.total;
+    const restantes = lote.restantes;          // incluye la unidad que se está armando
+    const indice = total - restantes + 1;
+    const faltanDespues = restantes - 1;
+
+    let explicacion;
+    if (faltanDespues === 0) {
+        explicacion = 'Es el último. Al confirmar vuelves al menú.';
+    } else if (indice === 1) {
+        explicacion = `Pediste ${total} y cada uno se arma por separado, para que puedas ponerles cosas distintas. Al confirmar pasas al siguiente.`;
+    } else {
+        explicacion = `Al confirmar pasas al siguiente. Te ${faltanDespues === 1 ? 'queda 1 más' : `quedan ${faltanDespues} más`} después de este.`;
+    }
+
+    aviso.className = 'px-5 py-3 bg-amber-50 border-b border-amber-200';
+    aviso.innerHTML = `
+        <p class="text-sm font-black text-amber-900">Combo ${indice} de ${total}</p>
+        <p class="text-xs text-amber-800 mt-0.5 leading-relaxed">${escapeHtml(explicacion)}</p>
+    `;
+
+    if (btn) {
+        btn.innerText = faltanDespues === 0
+            ? 'Confirmar y terminar'
+            : `Confirmar y seguir (${indice} de ${total})`;
+    }
+}
+
 function abrirModalCombo(item) {
     comboEnPersonalizacion = item;
     document.getElementById('modal-combo-title').innerText = item.name;
-    
+    pintarProgresoLoteCombo(item);
+
     let gruposOpciones = [];
     try {
         gruposOpciones = typeof item.opciones_combo === 'string' 

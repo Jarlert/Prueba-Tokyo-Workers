@@ -310,7 +310,11 @@
                 </div>
                 <button onclick="cerrarModalCombo()" class="w-8 h-8 flex items-center justify-center bg-gray-200 hover:bg-red-100 hover:text-red-600 text-gray-600 rounded-full transition font-bold cursor-pointer">✕</button>
             </div>
-        
+
+            <!-- Aviso de progreso cuando el cliente pidió varias unidades del mismo
+                 combo y hay que personalizarlas una tras otra -->
+            <div id="modal-combo-progreso" class="hidden px-5 py-3 bg-amber-50 border-b border-amber-200"></div>
+
             <div class="p-5 max-h-[60vh] overflow-y-auto" id="modal-combo-options-container">
             </div>
         
