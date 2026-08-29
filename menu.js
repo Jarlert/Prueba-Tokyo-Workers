@@ -31,6 +31,11 @@ window.onload = async function() {
     precargarAnuncios(); // arranca la descarga de las imágenes de anuncios de una vez, sin esperar al login
     history.replaceState({ step: 'auth' }, "Autenticación");
 
+    // Selectores de país de los tres campos de teléfono de la página
+    montarSelectorPais('auth-phone-pais', 'auth-phone');
+    montarSelectorPais('client-phone-pais', 'client-phone');
+    montarSelectorPais('edit-telefono-pais', 'edit-telefono');
+
     const sesionCliente = localStorage.getItem('sesionCliente');
     if (sesionCliente) {
         datosClienteLogueado = JSON.parse(sesionCliente);
@@ -282,14 +287,16 @@ function irAItemDeAnuncio() {
 // --- 2. AUTENTICACIÓN Y REGISTRO ---
 async function procesarVerificacionTelefono(event) {
     event.preventDefault();
-    const txtTelefono = document.getElementById('auth-phone').value.trim();
+    const txtTelefono = leerTelefonoDeFormulario('auth-phone-pais', 'auth-phone');
     if (!txtTelefono) return;
 
     const btn = document.getElementById('btn-auth-submit');
     btn.disabled = true; btn.innerText = "Verificando...";
 
     try {
-        const response = await fetch(`${URL_VERIFICAR_CLIENTE}?telefono=${txtTelefono}`);
+        // encodeURIComponent es obligatorio: sin él, el '+' de los números
+        // internacionales se decodifica como espacio y el cliente no se encuentra.
+        const response = await fetch(`${URL_VERIFICAR_CLIENTE}?telefono=${encodeURIComponent(txtTelefono)}`);
         if (!response.ok) throw new Error('Error de red');
         
         const resultado = await response.json();
@@ -330,7 +337,7 @@ async function procesarRegistroCliente(event) {
     }
 
     const payload = {
-        telefono: document.getElementById('auth-phone').value.trim(),
+        telefono: leerTelefonoDeFormulario('auth-phone-pais', 'auth-phone'),
         nombre: document.getElementById('reg-name').value.trim(),
         cedula: `${tipoDoc}-${numeroDoc}`,
         email: document.getElementById('reg-email').value.trim() || null,
@@ -929,7 +936,9 @@ function toggleFormularioDatosEnvio() {
         
         inputNombre.value = datosClienteLogueado ? datosClienteLogueado.nombre : '';
         inputTelefono.value = datosClienteLogueado ? datosClienteLogueado.telefono : '';
-        
+        // El país precargado debe coincidir con el número que acabamos de poner
+        montarSelectorPais('client-phone-pais', 'client-phone', detectarPaisDeTelefono(inputTelefono.value));
+
         if (select) {
             select.value = "__MANUAL__";
         }
@@ -1022,7 +1031,7 @@ async function sendOrder(event) {
 
     const esParaMi = document.getElementById('chk-usar-mis-datos').checked;
     const nombreFinal = esParaMi ? datosClienteLogueado.nombre : document.getElementById('client-name').value.trim();
-    const telefonoFinal = esParaMi ? datosClienteLogueado.telefono : document.getElementById('client-phone').value.trim();
+    const telefonoFinal = esParaMi ? datosClienteLogueado.telefono : leerTelefonoDeFormulario('client-phone-pais', 'client-phone');
 
     const tipoEntrega = document.getElementById('delivery-type').value;
     let direccionFinal = "Retiro por local";
@@ -1562,6 +1571,8 @@ function abrirModalEditarDatos() {
 
     document.getElementById('lbl-cliente-activo').innerText = datosClienteLogueado.nombre;
     document.getElementById('edit-telefono').value = datosClienteLogueado.telefono || '';
+    // Preseleccionamos el país deducido del número guardado
+    montarSelectorPais('edit-telefono-pais', 'edit-telefono', detectarPaisDeTelefono(datosClienteLogueado.telefono));
     document.getElementById('edit-dir-principal').value = datosClienteLogueado.direccion_principal || '';
     renderizarDireccionesExtra();
 
@@ -1571,7 +1582,7 @@ function abrirModalEditarDatos() {
 
 async function guardarTelefonoCliente() {
     const btn = document.getElementById('btn-guardar-telefono');
-    const nuevoTelefono = document.getElementById('edit-telefono').value.trim();
+    const nuevoTelefono = leerTelefonoDeFormulario('edit-telefono-pais', 'edit-telefono');
     if (!nuevoTelefono) { alert('Ingresa un número de teléfono.'); return; }
     if (nuevoTelefono === datosClienteLogueado.telefono) return;
 

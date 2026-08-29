@@ -20,6 +20,106 @@ function escapeHtml(valor) {
         .replace(/'/g, '&#39;');
 }
 
+// =====================================================================
+// Teléfonos: selector de país y normalización
+// =====================================================================
+// OJO: el teléfono es la CLAVE PRIMARIA de la tabla `clientes` y es lo que
+// une cada pedido con su cliente, así que el formato guardado no se puede
+// cambiar para los venezolanos ya registrados. Por eso:
+//   - Venezuela  -> se sigue guardando en el formato legado 0XXXXXXXXXX
+//   - resto      -> se guarda como +<código de país><número nacional>
+// Ese '+' es justamente la señal que usa el backend
+// (services/evolution_api.py) para saber que un número ya viene en formato
+// internacional y NO anteponerle el 58 de Venezuela.
+
+const PAISES_TELEFONO = [
+    { dial: '58',  nombre: 'Venezuela',       bandera: '🇻🇪', ejemplo: '04121234567' },
+    { dial: '1',   nombre: 'EE.UU. / Canadá', bandera: '🇺🇸', ejemplo: '3055551234' },
+    { dial: '57',  nombre: 'Colombia',        bandera: '🇨🇴', ejemplo: '3001234567' },
+    { dial: '34',  nombre: 'España',          bandera: '🇪🇸', ejemplo: '612345678' },
+    { dial: '56',  nombre: 'Chile',           bandera: '🇨🇱', ejemplo: '912345678' },
+    { dial: '51',  nombre: 'Perú',            bandera: '🇵🇪', ejemplo: '912345678' },
+    { dial: '54',  nombre: 'Argentina',       bandera: '🇦🇷', ejemplo: '1123456789' },
+    { dial: '55',  nombre: 'Brasil',          bandera: '🇧🇷', ejemplo: '11987654321' },
+    { dial: '52',  nombre: 'México',          bandera: '🇲🇽', ejemplo: '5512345678' },
+    { dial: '507', nombre: 'Panamá',          bandera: '🇵🇦', ejemplo: '61234567' },
+    { dial: '593', nombre: 'Ecuador',         bandera: '🇪🇨', ejemplo: '991234567' },
+    { dial: '598', nombre: 'Uruguay',         bandera: '🇺🇾', ejemplo: '91234567' },
+    { dial: '39',  nombre: 'Italia',          bandera: '🇮🇹', ejemplo: '3123456789' },
+    { dial: '351', nombre: 'Portugal',        bandera: '🇵🇹', ejemplo: '912345678' },
+    { dial: '',    nombre: 'Otro país',       bandera: '🌎', ejemplo: '+49 30 1234567' },
+];
+
+// Convierte lo que el cliente escribió en el formato exacto que se guarda
+// en la BD. Es idempotente: volver a pasarle su propia salida no la altera.
+function normalizarTelefono(dial, valorCrudo) {
+    let digitos = String(valorCrudo || '').replace(/\D/g, '');
+    if (!digitos) return '';
+
+    // "Otro país": el cliente escribe el código de país él mismo
+    if (!dial) return '+' + digitos.replace(/^0+/, '');
+
+    // Los ceros van PRIMERO: cubre tanto el troncal nacional (0412..., 07...)
+    // como el prefijo internacional 00 (0034... debe quedar en 34..., no en
+    // 3434... al volver a anteponerle el código más abajo).
+    digitos = digitos.replace(/^0+/, '');
+    if (!digitos) return '';
+
+    // Si pegó el número con su código de país delante, lo quitamos para no
+    // duplicarlo. El mínimo de 6 dígitos restantes evita comerse parte de un
+    // número corto que casualmente empiece igual que su propio código.
+    if (digitos.startsWith(dial) && digitos.length - dial.length >= 6) {
+        digitos = digitos.slice(dial.length);
+    }
+
+    return dial === '58' ? '0' + digitos : '+' + dial + digitos;
+}
+
+// Deduce qué país corresponde a un número ya guardado, para preseleccionarlo
+// al editarlo. Sin '+' delante solo puede ser el formato legado venezolano.
+function detectarPaisDeTelefono(telefono) {
+    const texto = String(telefono || '').trim();
+    if (!texto.startsWith('+')) return '58';
+
+    const digitos = texto.replace(/\D/g, '');
+    const calces = PAISES_TELEFONO
+        .filter(p => p.dial && digitos.startsWith(p.dial))
+        .sort((a, b) => b.dial.length - a.dial.length); // +507 debe ganarle a +50
+
+    return calces.length ? calces[0].dial : '';
+}
+
+// Llena un <select> de países y mantiene el placeholder del input en sintonía
+// con el país elegido. Devuelve el <select> por comodidad.
+function montarSelectorPais(idSelect, idInput, dialInicial) {
+    const select = document.getElementById(idSelect);
+    const input = document.getElementById(idInput);
+    if (!select || !input) return null;
+
+    select.innerHTML = PAISES_TELEFONO.map(p =>
+        `<option value="${p.dial}">${p.bandera} ${escapeHtml(p.nombre)}${p.dial ? ' (+' + p.dial + ')' : ''}</option>`
+    ).join('');
+
+    const sincronizarPlaceholder = () => {
+        const pais = PAISES_TELEFONO.find(p => p.dial === select.value) || PAISES_TELEFONO[0];
+        input.placeholder = 'Ej. ' + pais.ejemplo;
+    };
+
+    select.value = dialInicial !== undefined && dialInicial !== null ? dialInicial : '58';
+    select.onchange = sincronizarPlaceholder; // asignación, no addEventListener: se puede re-montar sin acumular listeners
+    sincronizarPlaceholder();
+
+    return select;
+}
+
+// Lee el par (selector de país + input) y devuelve el teléfono ya normalizado.
+function leerTelefonoDeFormulario(idSelect, idInput) {
+    const select = document.getElementById(idSelect);
+    const input = document.getElementById(idInput);
+    if (!input) return '';
+    return normalizarTelefono(select ? select.value : '58', input.value);
+}
+
 // Arma el HTML del modal de detalle de pedido (usado en app.js y estadisticas.js)
 // escapando todo dato que pueda venir de un cliente (nombre, dirección, notas, etc.)
 // antes de inyectarlo en el DOM.
