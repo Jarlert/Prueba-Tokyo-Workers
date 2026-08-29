@@ -16,7 +16,6 @@ let CATALOGO_PRODUCTOS = [];
 let inventarioProductosBase = []; 
 let usuarioActivo = null;
 let pedidosEnMemoria = [];
-let segundosFaltantes = 15;
 
 let carritoEdicion = []; 
 let totalEdicionUSD = 0;

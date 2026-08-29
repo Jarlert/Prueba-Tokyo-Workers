@@ -1,0 +1,15 @@
+# Secretos: tokio-backend/.gitignore ya cubre su propio .env, pero un archivo
+# de entorno creado en la raíz del repo quedaba sin ignorar y podía commitearse.
+.env
+.env.*
+!.env.example
+
+# Entornos virtuales y caché de Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Sistema operativo / editores
+Thumbs.db
+.DS_Store
