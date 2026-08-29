@@ -8,6 +8,7 @@ const API_ACTUALIZAR_ESTADO = "https://prueba-tokyo-workers-production-76cf.up.r
 const URL_NUEVO_PEDIDO = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/";
 const URL_OBTENER_MENU = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/menu/";
 const URL_OBTENER_USUARIOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/usuarios/";
+const URL_BUSCAR_CLIENTES = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/clientes/buscar";
 
 let MOTORIZADOS_SISTEMA = []; 
 let USUARIOS_SISTEMA = [];
@@ -197,6 +198,90 @@ function seleccionarSugerenciaPedido(elementoOpcion, idProducto, nombre, precio)
     }
 }
 
+// --- BUSCAR AL CLIENTE POR TELÉFONO AL REGISTRAR UN PEDIDO EN CAJA ---
+// El teléfono es la clave primaria de `clientes`, así que es el punto de
+// partida natural del formulario: si el cliente ya existe se arrastran sus
+// datos, y si no, se avisa para que el cajero se los pida.
+let _ultimoTelefonoBuscado = null;
+
+function _mostrarEstadoCliente(tipo, html) {
+    const aviso = document.getElementById('estadoClienteNuevoPedido');
+    if (!aviso) return;
+
+    const estilos = {
+        buscando: 'bg-slate-900 border-slate-700 text-slate-400',
+        encontrado: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300',
+        nuevo: 'bg-amber-500/10 border-amber-500/40 text-amber-300',
+        error: 'bg-red-500/10 border-red-500/30 text-red-300',
+    };
+    aviso.className = `mt-1.5 text-xs px-2.5 py-2 rounded-lg border ${estilos[tipo] || estilos.buscando}`;
+    aviso.innerHTML = html;
+}
+
+function _limpiarEstadoCliente() {
+    const aviso = document.getElementById('estadoClienteNuevoPedido');
+    if (aviso) { aviso.className = 'hidden'; aviso.innerHTML = ''; }
+    _ultimoTelefonoBuscado = null;
+}
+
+async function buscarClienteNuevoPedido() {
+    const inputTel = document.getElementById('inputTelefono');
+    const telefono = normalizarTelefono(inputTel.value);
+
+    if (!telefono) { _limpiarEstadoCliente(); return; }
+
+    // Dejamos a la vista el número ya normalizado, que es el que se guardará
+    inputTel.value = telefono;
+
+    // El onblur se dispara cada vez que sale del campo: no repetimos la consulta
+    // si el número no cambió desde la última búsqueda.
+    if (telefono === _ultimoTelefonoBuscado) return;
+    _ultimoTelefonoBuscado = telefono;
+
+    _mostrarEstadoCliente('buscando', '<i class="fa-solid fa-spinner fa-spin"></i> Buscando cliente...');
+
+    try {
+        const res = await fetch(`${URL_BUSCAR_CLIENTES}?q=${encodeURIComponent(telefono)}`, { headers: authHeaders() });
+        if (!res.ok) throw new Error('Respuesta ' + res.status);
+
+        const resultados = await res.json();
+        // `buscar` hace LIKE, así que exigimos la coincidencia exacta del teléfono
+        const cliente = (Array.isArray(resultados) ? resultados : []).find(c => c.telefono === telefono);
+
+        if (!cliente) {
+            _mostrarEstadoCliente('nuevo',
+                '<i class="fa-solid fa-user-plus"></i> <b>Cliente nuevo.</b> Este número no está registrado — pídele los datos al cliente y llénalos abajo.');
+            return;
+        }
+
+        // Arrastramos los datos del cliente a la pantalla
+        document.getElementById('inputCliente').value = cliente.nombre || '';
+
+        const inputDireccion = document.getElementById('inputDireccion');
+        let notaDireccion = '';
+        if (cliente.direccion_principal && !inputDireccion.value.trim()) {
+            inputDireccion.value = cliente.direccion_principal;
+            notaDireccion = ' Se cargó su dirección guardada.';
+        }
+
+        const detalles = [];
+        if (cliente.cedula) detalles.push(escapeHtml(cliente.cedula));
+        if (cliente.total_pedidos) detalles.push(`${cliente.total_pedidos} pedido${cliente.total_pedidos === 1 ? '' : 's'}`);
+
+        _mostrarEstadoCliente('encontrado',
+            `<i class="fa-solid fa-user-check"></i> <b>${escapeHtml(cliente.nombre || 'Cliente')}</b>` +
+            (detalles.length ? ` <span class="opacity-70">· ${detalles.join(' · ')}</span>` : '') +
+            notaDireccion);
+
+    } catch (e) {
+        console.error('Error buscando cliente:', e);
+        // No bloqueamos el pedido: el cajero puede llenar los datos a mano
+        _ultimoTelefonoBuscado = null; // permitimos reintentar
+        _mostrarEstadoCliente('error',
+            '<i class="fa-solid fa-triangle-exclamation"></i> No se pudo consultar la base de datos. Llena los datos a mano y continúa.');
+    }
+}
+
 // 4. Enviar pedido adjuntando las opciones elegidas
 async function enviarNuevoPedido() {
     const btn = document.getElementById('btnEnviarNuevoPedido');
@@ -236,7 +321,7 @@ async function enviarNuevoPedido() {
     const payload = {
         timestamp: new Date().toISOString(),
         cliente: cliente, 
-        telefono: document.getElementById('inputTelefono').value.trim() || 'No registrado',
+        telefono: normalizarTelefono(document.getElementById('inputTelefono').value) || 'No registrado',
         tipo_entrega: tipoEntregaSeleccionado, 
         metodo_pago: document.getElementById('inputPago').value,
         direccion: document.getElementById('inputDireccion').value.trim() || 'Retiro por local', 
@@ -469,10 +554,15 @@ async function abrirModalNuevoPedido() {
         contenedor.innerHTML = '';
         agregarFilaArticulo();
     }
-    
-    document.getElementById('modalNuevoPedido').classList.remove('hidden'); 
+
+    _limpiarEstadoCliente();
+    document.getElementById('modalNuevoPedido').classList.remove('hidden');
+    document.getElementById('inputTelefono').focus(); // el teléfono es el punto de partida
 }
-function cerrarModalNuevoPedido() { document.getElementById('modalNuevoPedido').classList.add('hidden'); }
+function cerrarModalNuevoPedido() {
+    document.getElementById('modalNuevoPedido').classList.add('hidden');
+    _limpiarEstadoCliente();
+}
 
 function abrirModalEditarPedido(idReal, idVisual) {
     const pedido = pedidosEnMemoria.find(p => String(p.id_pedido || p['ID_Pedido'] || p.ID || 'S/ID') === String(idReal));
