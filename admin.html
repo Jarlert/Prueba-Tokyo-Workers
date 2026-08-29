@@ -245,7 +245,7 @@
                         <input type="text" id="cat-nombre" placeholder="Ej: Postres" required>
                         <label>Imagen</label>
                         <input type="text" id="cat-imagen" placeholder="URL .jpg o .png (ej: ImgBB)">
-                        <input type="file" accept="image/*" onchange="manejarSeleccionImagen(event, 'cat-imagen', 'cat-imagen-status')" style="margin-top: 6px;">
+                        <input type="file" accept="image/*" onchange="manejarSeleccionImagen(event, 'cat-imagen', 'cat-imagen-status', 'categoria')" style="margin-top: 6px;">
                         <span id="cat-imagen-status" style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px;">O sube una foto: se redimensiona y comprime automáticamente antes de subirla.</span>
                         <button type="submit" class="btn-submit" id="btn-save-cat">💾 Guardar Categoría</button>
                         <button type="button" class="btn-submit btn-cancel" id="btn-cancel-cat" onclick="resetFormCat()">❌ Cancelar Edición</button>
@@ -277,7 +277,7 @@
 
                         <label>Imagen</label>
                         <input type="text" id="prod-imagen" placeholder="URL .jpg o .png">
-                        <input type="file" accept="image/*" onchange="manejarSeleccionImagen(event, 'prod-imagen', 'prod-imagen-status')" style="margin-top: 6px;">
+                        <input type="file" accept="image/*" onchange="manejarSeleccionImagen(event, 'prod-imagen', 'prod-imagen-status', 'producto')" style="margin-top: 6px;">
                         <span id="prod-imagen-status" style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px;">O sube una foto: se redimensiona y comprime automáticamente antes de subirla.</span>
                         
                         <label>Descripción Corta</label>
@@ -341,7 +341,7 @@
 
                         <label>Imagen</label>
                         <input type="text" id="combo-imagen" placeholder="URL .jpg o .png">
-                        <input type="file" accept="image/*" onchange="manejarSeleccionImagen(event, 'combo-imagen', 'combo-imagen-status')" style="margin-top: 6px;">
+                        <input type="file" accept="image/*" onchange="manejarSeleccionImagen(event, 'combo-imagen', 'combo-imagen-status', 'combo')" style="margin-top: 6px;">
                         <span id="combo-imagen-status" style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px;">O sube una foto: se redimensiona y comprime automáticamente antes de subirla.</span>
 
                         <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">
@@ -479,7 +479,7 @@
                         <input type="hidden" id="anuncio-id">
                         <label>Imagen del anuncio</label>
                         <input type="text" id="anuncio-imagen" placeholder="URL .jpg o .png" required>
-                        <input type="file" accept="image/*" onchange="manejarSeleccionImagen(event, 'anuncio-imagen', 'anuncio-imagen-status')" style="margin-top: 6px;">
+                        <input type="file" accept="image/*" onchange="manejarSeleccionImagen(event, 'anuncio-imagen', 'anuncio-imagen-status', 'anuncio')" style="margin-top: 6px;">
                         <span id="anuncio-imagen-status" style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px;">O sube una foto: se redimensiona y comprime automáticamente antes de subirla.</span>
 
                         <label>Título (opcional)</label>

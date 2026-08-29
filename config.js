@@ -21,6 +21,44 @@ function escapeHtml(valor) {
 }
 
 // =====================================================================
+// Imágenes: servirlas al tamaño en que realmente se ven
+// =====================================================================
+// Las imágenes viven en imgbb en su tamaño original y se pintan en cajas
+// mucho más chicas: había miniaturas de categoría de 473 KB para un recuadro
+// de 48 px. wsrv.nl las redimensiona y convierte a WebP al vuelo sobre la
+// misma URL, así que también arregla las que ya estaban subidas, sin tener
+// que resubir nada ni tocar la base de datos.
+//
+// Si el proxy fallara, imagenConRespaldo() vuelve a la URL original de imgbb:
+// se verían pesadas como antes, pero nunca rotas.
+//
+// OJO: no usar esto con los comprobantes de pago. El personal necesita leer
+// el número de referencia en la captura, y bajarle la resolución lo dificulta.
+
+function urlImagen(urlOriginal, ancho) {
+    const url = String(urlOriginal || '').trim();
+    if (!url.startsWith('http')) return url;
+    const sinEsquema = url.replace(/^https?:\/\//, '');
+    return `https://wsrv.nl/?url=${encodeURIComponent(sinEsquema)}&w=${ancho}&output=webp&q=78`;
+}
+
+// Para el onerror de las <img> servidas por el proxy. Requiere que la etiqueta
+// lleve data-original con la URL de imgbb sin transformar.
+function imagenConRespaldo(img) {
+    const original = img.getAttribute('data-original') || '';
+    if (original && img.src !== original) {
+        img.src = original; // falló el proxy: servimos el original de imgbb
+        return;
+    }
+    // Falló también el original: cada pantalla decide cómo disimularlo
+    if (img.dataset.respaldo === 'miniatura' && typeof mostrarFallbackMiniatura === 'function') {
+        mostrarFallbackMiniatura(img);
+        return;
+    }
+    img.style.visibility = 'hidden';
+}
+
+// =====================================================================
 // Teléfonos: normalización
 // =====================================================================
 // OJO: el teléfono es la CLAVE PRIMARIA de la tabla `clientes` y es lo que

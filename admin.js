@@ -63,7 +63,15 @@ function redimensionarImagen(file, maxDimension = 700, calidad = 0.8) {
     });
 }
 
-async function manejarSeleccionImagen(event, inputUrlId, statusId) {
+// El ancho a guardar depende del tamaño MÁS GRANDE en que esa imagen llega a
+// verse en el menú del cliente (ver urlImagen en config.js):
+//   - categorías: solo aparecen en un recuadro de 48px, nunca en grande
+//   - productos/combos: se abren en el modal de detalle y en el lightbox
+//   - anuncios: ocupan casi toda la pantalla del popup
+// Guardar más grande que eso es peso que nadie llega a ver.
+const ANCHOS_SUBIDA = { categoria: 300, producto: 900, combo: 900, anuncio: 1000 };
+
+async function manejarSeleccionImagen(event, inputUrlId, statusId, tipoImagen) {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -72,7 +80,7 @@ async function manejarSeleccionImagen(event, inputUrlId, statusId) {
     if (statusEl) statusEl.innerText = "⏳ Optimizando y subiendo...";
 
     try {
-        const blobRedimensionado = await redimensionarImagen(file);
+        const blobRedimensionado = await redimensionarImagen(file, ANCHOS_SUBIDA[tipoImagen] || 900);
         const formData = new FormData();
         formData.append("image", blobRedimensionado, "imagen.jpg");
 

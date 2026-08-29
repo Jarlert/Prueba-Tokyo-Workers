@@ -185,7 +185,10 @@ function precargarAnuncios() {
                 const link = document.createElement('link');
                 link.rel = 'preload';
                 link.as = 'image';
-                link.href = a.imagen;
+                // Tiene que ser EXACTAMENTE la misma URL que luego usa el <img>
+                // del modal (ver mostrarAnuncioEnIndice), o el navegador la
+                // descarga dos veces y la precarga no sirve de nada.
+                link.href = urlImagen(a.imagen, 800);
                 link.setAttribute('fetchpriority', 'high');
                 document.head.appendChild(link);
             });
@@ -207,7 +210,9 @@ function mostrarAnuncioEnIndice(indice) {
     if (!anuncio) return;
 
     const imgEl = document.getElementById('anuncio-modal-imagen');
-    imgEl.src = anuncio.imagen || '';
+    imgEl.setAttribute('data-original', anuncio.imagen || '');
+    imgEl.onerror = () => imagenConRespaldo(imgEl);
+    imgEl.src = urlImagen(anuncio.imagen || '', 800); // mismo ancho que la precarga
     imgEl.style.cursor = anuncio.producto_ref ? 'pointer' : 'default';
 
     document.getElementById('anuncio-modal-titulo').innerText = anuncio.titulo || '';
@@ -453,7 +458,8 @@ function renderizarCategorias() {
 
         let arteVisual = '';
         if (catInfo.imagen && catInfo.imagen.startsWith('http')) {
-            arteVisual = `<img src="${catInfo.imagen}" alt="${catInfo.titulo}" loading="lazy" fetchpriority="low" class="w-full h-full object-cover">`;
+            // Se pinta en un recuadro de 48px (w-12 h-12); 128 cubre pantallas 2x
+            arteVisual = `<img src="${urlImagen(catInfo.imagen, 128)}" data-original="${escapeHtml(catInfo.imagen)}" onerror="imagenConRespaldo(this)" alt="${catInfo.titulo}" loading="lazy" fetchpriority="low" class="w-full h-full object-cover">`;
         } else {
             arteVisual = iconosRespado[index % iconosRespado.length];
         }
@@ -490,7 +496,7 @@ function selectCategory(categoryKey) {
 
         const esEnlace = item.image && item.image.startsWith('http');
         const vistaImagen = esEnlace 
-            ? `<img src="${item.image}" alt="${item.name}" loading="lazy" class="w-20 h-20 object-cover rounded-xl flex-shrink-0 bg-gray-100 border border-gray-100 shadow-sm">`
+            ? `<img src="${urlImagen(item.image, 192)}" data-original="${escapeHtml(item.image)}" onerror="imagenConRespaldo(this)" alt="${item.name}" loading="lazy" class="w-20 h-20 object-cover rounded-xl flex-shrink-0 bg-gray-100 border border-gray-100 shadow-sm">`
             : `<div class="w-20 h-20 rounded-xl flex-shrink-0 bg-red-50 text-red-500 border border-red-100 flex items-center justify-center text-4xl shadow-sm">${item.image || '🍣'}</div>`;
 
         const itemHtml = `
@@ -540,7 +546,7 @@ function abrirDetalleProducto(itemId) {
                 <div class="absolute inset-0 flex items-center justify-center">
                     <div class="w-8 h-8 border-4 border-gray-300 border-t-red-500 rounded-full animate-spin"></div>
                 </div>
-                <img src="${encontrado.image}" alt="${escapeHtml(encontrado.name)}" class="relative w-full h-full object-contain opacity-0 transition-opacity duration-300" onload="this.classList.remove('opacity-0')" onerror="this.closest('.relative').innerHTML='<div class=&quot;w-full h-full flex items-center justify-center text-7xl bg-red-50 text-red-500&quot;>🍣</div>'">
+                <img src="${urlImagen(encontrado.image, 640)}" data-original="${escapeHtml(encontrado.image)}" alt="${escapeHtml(encontrado.name)}" class="relative w-full h-full object-contain opacity-0 transition-opacity duration-300" onload="this.classList.remove('opacity-0')" onerror="if (this.dataset.original &amp;&amp; this.src !== this.dataset.original) { this.src = this.dataset.original; } else { this.closest('.relative').innerHTML='<div class=&quot;w-full h-full flex items-center justify-center text-7xl bg-red-50 text-red-500&quot;>🍣</div>'; }">
            </div>`
         : `<div class="w-full h-full flex items-center justify-center text-7xl bg-red-50 text-red-500">${encontrado.image || '🍣'}</div>`;
 
@@ -1301,7 +1307,8 @@ function cerrarModalCombo() {
 
 function construirMiniaturaComboHtml(valorImagen) {
     if (valorImagen && valorImagen.startsWith('http')) {
-        return `<img src="${valorImagen}" alt="" loading="lazy" onclick="abrirLightboxImagen('${valorImagen.replace(/'/g, "\\'")}')" onerror="mostrarFallbackMiniatura(this)" class="w-14 h-14 rounded-lg object-cover border border-gray-200 bg-gray-50 flex-shrink-0 cursor-zoom-in active:opacity-70 transition">`;
+        // Miniatura de 56px (w-14); el lightbox sí abre la imagen grande
+        return `<img src="${urlImagen(valorImagen, 144)}" data-original="${escapeHtml(valorImagen)}" data-respaldo="miniatura" alt="" loading="lazy" onclick="abrirLightboxImagen('${valorImagen.replace(/'/g, "\\'")}')" onerror="imagenConRespaldo(this)" class="w-14 h-14 rounded-lg object-cover border border-gray-200 bg-gray-50 flex-shrink-0 cursor-zoom-in active:opacity-70 transition">`;
     }
     return `<div class="w-14 h-14 rounded-lg border border-gray-200 bg-red-50 text-red-400 flex-shrink-0 flex items-center justify-center text-2xl">${valorImagen || '🍣'}</div>`;
 }
@@ -1315,7 +1322,12 @@ function mostrarFallbackMiniatura(imgEl) {
 
 function abrirLightboxImagen(url) {
     if (!url) return;
-    document.getElementById('lightbox-imagen-img').src = url;
+    // Aquí el cliente pidió ver la foto en grande, así que servimos una versión
+    // amplia (no la original completa, que puede pesar cientos de KB).
+    const img = document.getElementById('lightbox-imagen-img');
+    img.setAttribute('data-original', url);
+    img.onerror = () => imagenConRespaldo(img);
+    img.src = urlImagen(url, 900); // 900 = el máximo que guarda el admin para productos/combos
     const modal = document.getElementById('modal-lightbox-imagen');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
