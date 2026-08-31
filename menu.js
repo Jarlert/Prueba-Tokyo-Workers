@@ -709,6 +709,7 @@ function ajustarPendientesCombo(id, name, change) {
     if (change > 0) {
         pendientesPersonalizarCombo[id] = pendientesActuales + change;
         actualizarUiPendienteCombo(id);
+        calculateTotals();
         return;
     }
 
@@ -719,6 +720,7 @@ function ajustarPendientesCombo(id, name, change) {
         if (nuevoPendiente > 0) pendientesPersonalizarCombo[id] = nuevoPendiente;
         else delete pendientesPersonalizarCombo[id];
         actualizarUiPendienteCombo(id);
+        calculateTotals();
         return;
     }
 
@@ -759,6 +761,7 @@ function ajustarCantidadComboEscrita(id, name, itemOriginal, value) {
     if (nuevoPendiente > 0) {
         pendientesPersonalizarCombo[id] = nuevoPendiente;
         actualizarUiPendienteCombo(id);
+        calculateTotals();
         return;
     }
 
