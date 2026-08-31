@@ -16,6 +16,7 @@ let anunciosActivos = [];
 let anuncioIndiceActual = 0;
 let loteComboEnCurso = null; // { id, restantes, total } — unidades de un combo que aún faltan por personalizar tras escribir una cantidad mayor ('restantes' incluye la que se está armando)
 let comboIdSelectorActivo = null; // combo cuyas personalizaciones se están listando para eliminar
+let pendientesPersonalizarCombo = {}; // { [comboId]: cantidad } — el cliente ya eligió cuántos quiere pero todavía no los personalizó
 
 // --- 1. ARRANQUE Y CONTROL DE ESTADOS ---
 function mostrarIconosHeaderSesion(mostrar) {
@@ -493,6 +494,8 @@ function selectCategory(categoryKey) {
                 currentQty += cart[key].qty;
             }
         });
+        const pendientesActuales = pendientesPersonalizarCombo[item.id] || 0;
+        currentQty += pendientesActuales;
 
         const esEnlace = item.image && item.image.startsWith('http');
         const vistaImagen = esEnlace
@@ -512,6 +515,17 @@ function selectCategory(categoryKey) {
                 </button>
                 <input type="text" id="note-input-${item.id}" oninput="updateItemNote('${item.id}', '${item.name}', ${item.price}, this.value)" class="hidden w-full mt-1.5 p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-red-500 placeholder-gray-400" placeholder="Especificación para este plato...">
             `;
+
+        // Para combos con opciones: elegir la cantidad no abre el modal de una vez, solo
+        // "reserva" cuántos faltan por personalizar. Este botón aparece mientras haya
+        // pendientes y es el único disparador que abre el modal para ese combo.
+        const bloquePersonalizarPendienteHtml = esComboPersonalizable ? `
+            <div id="personalizar-pendiente-${item.id}" class="${pendientesActuales > 0 ? '' : 'hidden'}">
+                <button type="button" onclick="personalizarPendientesCombo('${item.id}')" class="w-full bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer mt-1.5">
+                    🎨 Personalizar (${pendientesActuales} pendiente${pendientesActuales === 1 ? '' : 's'})
+                </button>
+            </div>
+        ` : '';
 
         const itemHtml = `
             <div id="item-card-${item.id}" class="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm flex flex-col gap-2 transition-all">
@@ -534,6 +548,7 @@ function selectCategory(categoryKey) {
                 <div class="border-t border-gray-100 pt-1">
                     ${bloqueNotaHtml}
                 </div>
+                ${bloquePersonalizarPendienteHtml}
             </div>
         `;
         container.insertAdjacentHTML('beforeend', itemHtml);
@@ -639,31 +654,36 @@ function totalEnCarritoParaId(id) {
     return total;
 }
 
+// Cuántas unidades quiere el cliente en total para este combo: las que ya personalizó
+// (viven en el carrito) más las que reservó pero todavía no personaliza.
+function totalDeseadoParaId(id) {
+    return totalEnCarritoParaId(id) + (pendientesPersonalizarCombo[id] || 0);
+}
+
+// Refleja en pantalla el número del stepper y el botón "Personalizar (N pendientes)"
+// para un combo puntual, sin tocar el resto de la tarjeta.
+function actualizarUiPendienteCombo(id) {
+    const inputQty = document.getElementById(`qty-${id}`);
+    if (inputQty) inputQty.value = totalDeseadoParaId(id);
+
+    const bloque = document.getElementById(`personalizar-pendiente-${id}`);
+    if (!bloque) return;
+    const pendientes = pendientesPersonalizarCombo[id] || 0;
+    if (pendientes > 0) {
+        bloque.classList.remove('hidden');
+        const btn = bloque.querySelector('button');
+        if (btn) btn.innerHTML = `🎨 Personalizar (${pendientes} pendiente${pendientes === 1 ? '' : 's'})`;
+    } else {
+        bloque.classList.add('hidden');
+    }
+}
+
 function updateQty(id, name, price, change) {
     const itemOriginal = buscarItemEnMenuPorId(id);
     const isComboWithItems = esComboConOpciones(itemOriginal);
 
-    if (isComboWithItems && change > 0) {
-        loteComboEnCurso = null;
-        abrirModalCombo(itemOriginal);
-        return;
-    }
-
-    if (isComboWithItems && change < 0) {
-        const keys = Object.keys(cart).filter(k => k.startsWith(id + "_"));
-        if (keys.length > 1) {
-            abrirSelectorEliminarVariantes(id, name);
-            return;
-        }
-        if (keys.length === 1) {
-            const lastKey = keys[0];
-            cart[lastKey].qty += change;
-            if (cart[lastKey].qty <= 0) delete cart[lastKey];
-        }
-
-        const element = document.getElementById(`qty-${id}`); if (element) element.value = totalEnCarritoParaId(id);
-        calculateTotals();
-        if (document.getElementById('step-3').classList.contains('active')) prepareCheckout();
+    if (isComboWithItems) {
+        ajustarPendientesCombo(id, name, change);
         return;
     }
 
@@ -680,20 +700,71 @@ function updateQty(id, name, price, change) {
     if (document.getElementById('step-3').classList.contains('active')) prepareCheckout();
 }
 
-function ajustarCantidadComboEscrita(id, name, itemOriginal, value) {
-    let nuevoTotal = parseInt(value, 10);
-    if (isNaN(nuevoTotal) || nuevoTotal < 0) nuevoTotal = 0;
+// Para combos con opciones, +/- ya NO abre el modal de inmediato: solo ajusta cuántos
+// hay "reservados" a la espera de personalizarse. El cliente decide cuándo personalizar
+// tocando el botón que aparece en la tarjeta (o se le pide al llegar al checkout).
+function ajustarPendientesCombo(id, name, change) {
+    const pendientesActuales = pendientesPersonalizarCombo[id] || 0;
 
-    const totalActual = totalEnCarritoParaId(id);
-    const delta = nuevoTotal - totalActual;
-
-    if (delta > 0) {
-        loteComboEnCurso = { id: id, restantes: delta, total: delta };
-        abrirModalCombo(itemOriginal);
+    if (change > 0) {
+        pendientesPersonalizarCombo[id] = pendientesActuales + change;
+        actualizarUiPendienteCombo(id);
         return;
     }
 
-    if (delta < 0) {
+    // Primero se descuenta de lo reservado-sin-personalizar: no hay nada que preguntar,
+    // porque esas unidades todavía no existen como línea de carrito.
+    if (pendientesActuales > 0) {
+        const nuevoPendiente = pendientesActuales + change;
+        if (nuevoPendiente > 0) pendientesPersonalizarCombo[id] = nuevoPendiente;
+        else delete pendientesPersonalizarCombo[id];
+        actualizarUiPendienteCombo(id);
+        return;
+    }
+
+    // Sin pendientes: se resta de unidades ya personalizadas (comportamiento de siempre).
+    const keys = Object.keys(cart).filter(k => k.startsWith(id + "_"));
+    if (keys.length > 1) {
+        abrirSelectorEliminarVariantes(id, name);
+        return;
+    }
+    if (keys.length === 1) {
+        const lastKey = keys[0];
+        cart[lastKey].qty += change;
+        if (cart[lastKey].qty <= 0) delete cart[lastKey];
+    }
+
+    actualizarUiPendienteCombo(id);
+    calculateTotals();
+    if (document.getElementById('step-3').classList.contains('active')) prepareCheckout();
+}
+
+// Abre el modal para personalizar, una por una, las unidades que el cliente dejó pendientes.
+function personalizarPendientesCombo(id) {
+    const pendientes = pendientesPersonalizarCombo[id] || 0;
+    if (pendientes <= 0) return;
+    const itemOriginal = buscarItemEnMenuPorId(id);
+    if (!itemOriginal) return;
+    loteComboEnCurso = { id: id, restantes: pendientes, total: pendientes };
+    abrirModalCombo(itemOriginal);
+}
+
+function ajustarCantidadComboEscrita(id, name, itemOriginal, value) {
+    let nuevoTotalDeseado = parseInt(value, 10);
+    if (isNaN(nuevoTotalDeseado) || nuevoTotalDeseado < 0) nuevoTotalDeseado = 0;
+
+    const totalActual = totalEnCarritoParaId(id); // ya personalizados, viven en el carrito
+    const nuevoPendiente = nuevoTotalDeseado - totalActual;
+
+    if (nuevoPendiente > 0) {
+        pendientesPersonalizarCombo[id] = nuevoPendiente;
+        actualizarUiPendienteCombo(id);
+        return;
+    }
+
+    delete pendientesPersonalizarCombo[id];
+
+    if (nuevoPendiente < 0) {
         const keys = Object.keys(cart).filter(k => k.startsWith(id + "_"));
         if (keys.length > 1) {
             abrirSelectorEliminarVariantes(id, name);
@@ -701,12 +772,12 @@ function ajustarCantidadComboEscrita(id, name, itemOriginal, value) {
         }
         if (keys.length === 1) {
             const lastKey = keys[0];
-            cart[lastKey].qty += delta;
+            cart[lastKey].qty += nuevoPendiente;
             if (cart[lastKey].qty <= 0) delete cart[lastKey];
         }
     }
 
-    const element = document.getElementById(`qty-${id}`); if (element) element.value = totalEnCarritoParaId(id);
+    actualizarUiPendienteCombo(id);
     calculateTotals();
     if (document.getElementById('step-3').classList.contains('active')) prepareCheckout();
 }
@@ -876,6 +947,20 @@ function updateStickyBarVisibility(currentStep) {
 }
 
 // --- 5. CHECKOUT Y FORMULARIOS ---
+// Punto de entrada del botón "Ver Pedido y Pagar": si queda algún combo con
+// unidades reservadas sin personalizar, no deja pasar al checkout todavía —
+// lo manda directo a terminar de personalizarlo.
+function irACheckout() {
+    const idPendiente = Object.keys(pendientesPersonalizarCombo).find(id => pendientesPersonalizarCombo[id] > 0);
+    if (idPendiente) {
+        const itemOriginal = buscarItemEnMenuPorId(idPendiente);
+        alert(`Antes de continuar, personaliza tu "${itemOriginal ? itemOriginal.name : 'combo'}" (te falta elegir sus piezas/opciones).`);
+        personalizarPendientesCombo(idPendiente);
+        return;
+    }
+    prepareCheckout();
+}
+
 function prepareCheckout() {
     const summaryContainer = document.getElementById('checkout-cart-summary');
     summaryContainer.innerHTML = '';
@@ -1617,15 +1702,13 @@ function guardarSeleccionCombo() {
         if (notaCombo) cart[variantKey].note = notaCombo;
     }
 
-    let totalQty = 0;
-    Object.keys(cart).forEach(k => {
-        if (k === String(comboEnPersonalizacion.id) || k.startsWith(comboEnPersonalizacion.id + "_")) {
-            totalQty += cart[k].qty;
-        }
-    });
+    const idCombo = comboEnPersonalizacion.id;
 
-    const inputQty = document.getElementById(`qty-${comboEnPersonalizacion.id}`);
-    if (inputQty) inputQty.value = totalQty;
+    // Esta unidad ya quedó personalizada: se descuenta de lo pendiente.
+    const pendientesActuales = pendientesPersonalizarCombo[idCombo] || 0;
+    if (pendientesActuales > 1) pendientesPersonalizarCombo[idCombo] = pendientesActuales - 1;
+    else delete pendientesPersonalizarCombo[idCombo];
+    actualizarUiPendienteCombo(idCombo);
 
     calculateTotals();
     if (document.getElementById('step-3').classList.contains('active')) prepareCheckout();

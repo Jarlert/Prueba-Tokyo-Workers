@@ -97,6 +97,8 @@ There is no automated test suite (frontend or backend) and no linter configured.
 
 **Quantity-based promos**: `Combo.promo_cantidad_minima` / `promo_producto_id` / `promo_producto_cantidad`. The cart auto-inserts a $0, non-editable gift line that scales every N combos. It travels to the backend as an ordinary product line, so the server-side price recalculation needs no special case.
 
+**Combo quantity is decoupled from customization.** Bumping the stepper (or typing a number) on a combo-with-options no longer opens the modal immediately — it only reserves a count in `pendientesPersonalizarCombo[comboId]` (menu.js), shown as a "🎨 Personalizar (N pendientes)" button on the item card. The customer decides when to actually walk through the piece/style pickers, one unit at a time, by tapping that button or by trying to check out (`irACheckout()` blocks and forces it if any pending remain). `qty-<id>` always displays `totalDeseadoParaId()` = already-customized cart qty + pending; the running cart total does **not** include pending combos, only actually-customized ones. Decreasing the number consumes pending first (nothing to ask, those units don't exist as cart lines yet); only once pending hits 0 does reducing further fall back to removing real cart lines (via the multi-variant picker if there's more than one distinct customization).
+
 **Announcements** (`routers/anuncios.py`, `Anuncio` model): full-screen popups shown when the customer opens the menu, dismissible before ordering, several supported in `orden` sequence. `producto_ref` (`"p_<id>"` / `"c_<id>"`) optionally wires a "Pedir ahora" button that jumps to the item and opens its combo customizer.
 
 ## Known issues
