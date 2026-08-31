@@ -304,6 +304,23 @@
         </div>
     </div>
 
+    <div id="modal-combos-pendientes" class="fixed inset-0 bg-gray-900/80 z-50 hidden items-end sm:items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative max-h-[85vh] flex flex-col">
+            <div class="p-5 border-b border-gray-100 bg-amber-50 flex-shrink-0">
+                <h3 class="font-black text-gray-900 text-lg leading-tight">⚠️ Te faltan combos por personalizar</h3>
+                <p class="text-xs text-gray-600 mt-1">Elige sus piezas/opciones antes de continuar con tu pedido</p>
+            </div>
+
+            <div class="p-4 overflow-y-auto space-y-2" id="lista-combos-pendientes"></div>
+
+            <div class="p-4 border-t border-gray-100 flex-shrink-0">
+                <button onclick="cerrarModalCombosPendientes()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl transition cursor-pointer text-sm">
+                    Seguir viendo el menú
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="modal-combo" class="fixed inset-0 bg-gray-900/80 z-50 hidden items-end sm:items-center justify-center p-4 backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative flex flex-col max-h-[92vh]">
             <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">

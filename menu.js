@@ -902,6 +902,9 @@ function sincronizarPromocionesCarrito() {
                 if (k === promoKey) return;
                 if (cart[k].id === item.id) cantidadEnCarrito += cart[k].qty;
             });
+            // Los pendientes por personalizar ya están "comprados" para efectos de la
+            // promoción: si el cliente eligió cantidad suficiente, ve el regalo de una vez.
+            cantidadEnCarrito += pendientesPersonalizarCombo[item.id] || 0;
 
             const veces = Math.floor(cantidadEnCarrito / item.promoCantidadMinima);
             const cantidadGratis = veces * item.promoProductoCantidad;
@@ -927,8 +930,18 @@ function calculateTotals() {
     sincronizarPromocionesCarrito();
     let total = 0; let count = 0;
     Object.values(cart).forEach(item => { total += item.price * item.qty; count += item.qty; });
+
+    // Los combos pendientes por personalizar ya cuentan como "elegidos": el total debe
+    // reflejarlos de una vez, aunque el cliente todavía no haya escogido sus piezas.
+    Object.keys(pendientesPersonalizarCombo).forEach(id => {
+        const cantidad = pendientesPersonalizarCombo[id];
+        if (!cantidad) return;
+        const item = buscarItemEnMenuPorId(id);
+        if (item) { total += item.price * cantidad; count += cantidad; }
+    });
+
     document.getElementById('sticky-cart-total').innerText = `$${total.toFixed(2)}`;
-    
+
     const activeStep = document.querySelector('.step.active') ? document.querySelector('.step.active').id : 'step-1';
     if (count > 0 && activeStep !== 'step-3' && activeStep !== 'step-4' && activeStep !== 'step-auth' && activeStep !== 'step-registro') {
         document.getElementById('sticky-cart-bar').classList.remove('hidden');
@@ -939,6 +952,7 @@ function calculateTotals() {
 
 function updateStickyBarVisibility(currentStep) {
     let count = 0; Object.values(cart).forEach(item => { count += item.qty; });
+    Object.values(pendientesPersonalizarCombo).forEach(cantidad => { count += cantidad || 0; });
     if (count > 0 && currentStep !== 3 && currentStep !== 4 && currentStep !== 'auth' && currentStep !== 'registro') {
         document.getElementById('sticky-cart-bar').classList.remove('hidden');
     } else {
@@ -951,14 +965,50 @@ function updateStickyBarVisibility(currentStep) {
 // unidades reservadas sin personalizar, no deja pasar al checkout todavía —
 // lo manda directo a terminar de personalizarlo.
 function irACheckout() {
-    const idPendiente = Object.keys(pendientesPersonalizarCombo).find(id => pendientesPersonalizarCombo[id] > 0);
-    if (idPendiente) {
-        const itemOriginal = buscarItemEnMenuPorId(idPendiente);
-        alert(`Antes de continuar, personaliza tu "${itemOriginal ? itemOriginal.name : 'combo'}" (te falta elegir sus piezas/opciones).`);
-        personalizarPendientesCombo(idPendiente);
+    const idsPendientes = Object.keys(pendientesPersonalizarCombo).filter(id => pendientesPersonalizarCombo[id] > 0);
+    if (idsPendientes.length > 0) {
+        abrirModalCombosPendientes(idsPendientes);
         return;
     }
     prepareCheckout();
+}
+
+// Lista, con un botón de personalizar cada uno, todos los combos a los que el cliente
+// les eligió cantidad pero todavía no les eligió piezas/opciones.
+function abrirModalCombosPendientes(idsPendientes) {
+    const lista = idsPendientes || Object.keys(pendientesPersonalizarCombo).filter(id => pendientesPersonalizarCombo[id] > 0);
+    if (lista.length === 0) { cerrarModalCombosPendientes(); return; }
+
+    document.getElementById('lista-combos-pendientes').innerHTML = lista.map(id => {
+        const item = buscarItemEnMenuPorId(id);
+        const cantidad = pendientesPersonalizarCombo[id] || 0;
+        const nombre = item ? item.name : 'Combo';
+        return `
+            <div class="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                ${construirMiniaturaComboHtml(item ? item.image : '')}
+                <div class="flex-grow min-w-0">
+                    <p class="text-sm font-bold text-gray-800 leading-snug">${escapeHtml(nombre)}</p>
+                    <p class="text-xs text-amber-700 font-medium mt-0.5">${cantidad} sin personalizar</p>
+                </div>
+                <button type="button" onclick="personalizarDesdeModalPendientes('${id}')" class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition cursor-pointer flex-shrink-0">Personalizar</button>
+            </div>
+        `;
+    }).join('');
+
+    const modal = document.getElementById('modal-combos-pendientes');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function cerrarModalCombosPendientes() {
+    const modal = document.getElementById('modal-combos-pendientes');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+function personalizarDesdeModalPendientes(id) {
+    cerrarModalCombosPendientes();
+    personalizarPendientesCombo(id);
 }
 
 function prepareCheckout() {
