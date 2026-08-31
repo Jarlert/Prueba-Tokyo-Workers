@@ -1266,7 +1266,7 @@ function abrirModalCombo(item) {
                 ? 'Debes completar cada una de estas categorías antes de confirmar.'
                 : (modo === 'compartido'
                     ? 'Puedes combinar piezas de varias categorías: lo que cuenta es el total.'
-                    : 'Elige solo UNA de estas opciones para tu combo, las demás no aplican.');
+                    : 'Elige solo UNA de estas categorías para tu combo, las demás no aplican.');
             const selectorEstiloHtml = hayVariosEstilos ? `
                 <label class="block text-gray-600 font-bold text-[10px] uppercase tracking-wider">${tituloEstilos}</label>
                 <p class="text-[11px] text-gray-500 leading-snug">${explicacionModo}</p>
@@ -1279,7 +1279,7 @@ function abrirModalCombo(item) {
             ` : '';
 
             const subtituloHtml = hayVariosEstilos
-                ? `<span class="text-[10px] text-gray-400">${modo === 'compartido' ? 'Ve sumando piezas de cualquier categoría' : (modo === 'todas' ? 'Completa esta antes de pasar a la siguiente' : 'Completa esta opción para continuar')}</span>`
+                ? `<span class="text-[10px] text-gray-400">${modo === 'compartido' ? 'Ve sumando piezas de cualquier categoría' : (modo === 'todas' ? 'Completa esta categoría antes de pasar a la siguiente' : 'Completa esta categoría para continuar')}</span>`
                 : `<label class="text-gray-600 font-bold text-[10px] uppercase tracking-wider">${escapeHtml(alternativasResueltas[0].nombre)}</label>`;
 
             const grupoPiezasHtml = `
