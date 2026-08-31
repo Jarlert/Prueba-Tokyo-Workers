@@ -495,9 +495,23 @@ function selectCategory(categoryKey) {
         });
 
         const esEnlace = item.image && item.image.startsWith('http');
-        const vistaImagen = esEnlace 
+        const vistaImagen = esEnlace
             ? `<img src="${urlImagen(item.image, 192)}" data-original="${escapeHtml(item.image)}" onerror="imagenConRespaldo(this)" alt="${item.name}" loading="lazy" class="w-20 h-20 object-cover rounded-xl flex-shrink-0 bg-gray-100 border border-gray-100 shadow-sm">`
             : `<div class="w-20 h-20 rounded-xl flex-shrink-0 bg-red-50 text-red-500 border border-red-100 flex items-center justify-center text-4xl shadow-sm">${item.image || '🍣'}</div>`;
+
+        // Los combos con opciones personalizables ya llevan su propia nota dentro del
+        // modal de personalización (cada unidad puede querer una distinta); mostrar
+        // aquí también el campo de nota creaba una línea de carrito fantasma sin piezas
+        // seleccionadas en cuanto el cliente empezaba a escribir.
+        const esComboPersonalizable = esComboConOpciones(item);
+        const bloqueNotaHtml = esComboPersonalizable
+            ? `<p class="text-[10px] text-gray-400 mt-1">📝 Podrás añadir una nota especial al personalizar tu combo</p>`
+            : `
+                <button type="button" onclick="toggleNoteField('${item.id}')" id="note-btn-${item.id}" class="text-[11px] font-medium text-gray-500 hover:text-red-600 flex items-center gap-1 cursor-pointer select-none">
+                    📝 Añadir nota especial
+                </button>
+                <input type="text" id="note-input-${item.id}" oninput="updateItemNote('${item.id}', '${item.name}', ${item.price}, this.value)" class="hidden w-full mt-1.5 p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-red-500 placeholder-gray-400" placeholder="Especificación para este plato...">
+            `;
 
         const itemHtml = `
             <div id="item-card-${item.id}" class="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm flex flex-col gap-2 transition-all">
@@ -518,10 +532,7 @@ function selectCategory(categoryKey) {
                     </div>
                 </div>
                 <div class="border-t border-gray-100 pt-1">
-                    <button type="button" onclick="toggleNoteField('${item.id}')" id="note-btn-${item.id}" class="text-[11px] font-medium text-gray-500 hover:text-red-600 flex items-center gap-1 cursor-pointer select-none">
-                        📝 Añadir nota especial
-                    </button>
-                    <input type="text" id="note-input-${item.id}" oninput="updateItemNote('${item.id}', '${item.name}', ${item.price}, this.value)" class="hidden w-full mt-1.5 p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-red-500 placeholder-gray-400" placeholder="Especificación para este plato...">
+                    ${bloqueNotaHtml}
                 </div>
             </div>
         `;
@@ -580,6 +591,10 @@ function toggleNoteField(id) {
 }
 
 function updateItemNote(id, name, price, value) {
+    // Los combos con opciones no usan este campo (su nota vive en el modal de
+    // personalización); esto es un blindaje por si algo dispara la función igual.
+    if (esComboConOpciones(buscarItemEnMenuPorId(id))) return;
+
     if (!cart[id]) {
         cart[id] = { id: id, name: name, price: price, qty: 1, note: value };
         const qtyInput = document.getElementById(`qty-${id}`); if (qtyInput) qtyInput.value = 1;
@@ -1154,6 +1169,8 @@ function pintarProgresoLoteCombo(item) {
 function abrirModalCombo(item) {
     comboEnPersonalizacion = item;
     document.getElementById('modal-combo-title').innerText = item.name;
+    const inputNotaCombo = document.getElementById('modal-combo-nota');
+    if (inputNotaCombo) inputNotaCombo.value = '';
     pintarProgresoLoteCombo(item);
 
     let gruposOpciones = [];
@@ -1584,6 +1601,8 @@ function guardarSeleccionCombo() {
     let variantKey = comboEnPersonalizacion.id + "_" + stringClave;
 
     let cartName = elecciones.length > 0 ? `${comboEnPersonalizacion.name} (${descripcionVariante})` : comboEnPersonalizacion.name;
+    const inputNotaCombo = document.getElementById('modal-combo-nota');
+    const notaCombo = inputNotaCombo ? inputNotaCombo.value.trim() : '';
 
     if (!cart[variantKey]) {
         cart[variantKey] = {
@@ -1591,10 +1610,11 @@ function guardarSeleccionCombo() {
             name: cartName,
             price: comboEnPersonalizacion.price,
             qty: 1,
-            note: "" 
+            note: notaCombo
         };
     } else {
         cart[variantKey].qty += 1;
+        if (notaCombo) cart[variantKey].note = notaCombo;
     }
 
     let totalQty = 0;
