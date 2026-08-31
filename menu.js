@@ -1285,9 +1285,9 @@ function abrirModalCombo(item) {
             const grupoPiezasHtml = `
                 <div class="space-y-2 mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
                     ${selectorEstiloHtml}
-                    <div class="flex items-center justify-between gap-3 mt-1.5">
+                    <div class="flex items-center flex-wrap justify-between gap-x-3 gap-y-1 mt-1.5">
                         ${subtituloHtml}
-                        <span id="contador-piezas-${pgIndex}" class="text-xs font-black px-2.5 py-1 rounded-full bg-red-100 text-red-600 flex-shrink-0 leading-tight text-center">0 / ${alternativasResueltas[0].piezas_objetivo} pz</span>
+                        <span id="contador-piezas-${pgIndex}" class="text-xs font-black px-2.5 py-1 rounded-full bg-red-100 text-red-600 flex-shrink-0 whitespace-nowrap">0 / ${alternativasResueltas[0].piezas_objetivo} pz</span>
                     </div>
                     <div id="lista-sabores-piezas-${pgIndex}" class="space-y-2 mt-2"></div>
                 </div>
