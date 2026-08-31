@@ -1262,8 +1262,14 @@ function abrirModalCombo(item) {
 
             const hayVariosEstilos = alternativasResueltas.length > 1;
             const tituloEstilos = modo === 'todas' ? 'Completa cada elección' : (modo === 'compartido' ? 'Navega por categoría' : 'Elige tu estilo');
+            const explicacionModo = modo === 'todas'
+                ? 'Debes completar cada una de estas categorías antes de confirmar.'
+                : (modo === 'compartido'
+                    ? 'Puedes combinar piezas de varias categorías: lo que cuenta es el total.'
+                    : 'Elige solo UNA de estas opciones para tu combo, las demás no aplican.');
             const selectorEstiloHtml = hayVariosEstilos ? `
                 <label class="block text-gray-600 font-bold text-[10px] uppercase tracking-wider">${tituloEstilos}</label>
+                <p class="text-[11px] text-gray-500 leading-snug">${explicacionModo}</p>
                 <div class="flex gap-2 flex-wrap" id="estilos-piezas-${pgIndex}">${alternativasResueltas.map((alt, i) => `
                     <button type="button" onclick="seleccionarEstiloPiezas(${pgIndex}, ${i})" data-idx="${i}"
                         class="flex-1 py-2 rounded-xl text-xs font-bold border transition estilo-btn-${pgIndex} ${i === 0 ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 border-gray-300'}">
@@ -1273,7 +1279,7 @@ function abrirModalCombo(item) {
             ` : '';
 
             const subtituloHtml = hayVariosEstilos
-                ? `<span class="text-[10px] text-gray-400">${modo === 'compartido' ? 'Combina los sabores que quieras' : 'Completa esta elección antes de pasar a la siguiente'}</span>`
+                ? `<span class="text-[10px] text-gray-400">${modo === 'compartido' ? 'Ve sumando piezas de cualquier categoría' : (modo === 'todas' ? 'Completa esta antes de pasar a la siguiente' : 'Completa esta opción para continuar')}</span>`
                 : `<label class="text-gray-600 font-bold text-[10px] uppercase tracking-wider">${escapeHtml(alternativasResueltas[0].nombre)}</label>`;
 
             const grupoPiezasHtml = `
