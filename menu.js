@@ -1406,13 +1406,15 @@ function renderSaboresPiezas(pgIndex) {
         contenedor.innerHTML = alt.opciones.map(item => {
             const cantActual = estado.seleccion[item.id] || 0;
             return `
-            <div class="flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-200">
-                ${construirMiniaturaComboHtml(item.image)}
-                <div class="flex-grow min-w-0">
-                    <p class="text-xs font-bold text-gray-800 truncate">${escapeHtml(item.name)}</p>
-                    ${item.desc ? `<p class="text-[10px] text-gray-400 italic leading-snug mt-0.5">${escapeHtml(item.desc)}</p>` : ''}
+            <div class="p-2.5 bg-white rounded-lg border border-gray-200">
+                <div class="flex items-start gap-2">
+                    ${construirMiniaturaComboHtml(item.image)}
+                    <div class="flex-grow min-w-0">
+                        <p class="text-xs font-bold text-gray-800 leading-snug">${escapeHtml(item.name)}</p>
+                        ${item.desc ? `<p class="text-[10px] text-gray-400 italic leading-snug mt-0.5">${escapeHtml(item.desc)}</p>` : ''}
+                    </div>
                 </div>
-                <div class="flex items-center gap-2 flex-shrink-0">
+                <div class="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-gray-100">
                     <button type="button" onclick="ajustarCantidadPiezas(${pgIndex}, '${item.id}', -1)" class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm cursor-pointer">−</button>
                     <input type="number" id="cant-pieza-${pgIndex}-${item.id}" value="${cantActual}" min="0" onchange="escribirCantidadPieza(${pgIndex}, '${item.id}', this.value)" class="w-10 text-center text-xs font-bold border border-gray-200 rounded-md py-0.5 focus:outline-none focus:border-red-500">
                     <button type="button" onclick="ajustarCantidadPiezas(${pgIndex}, '${item.id}', 1)" class="btn-mas-pieza-${pgIndex} w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed">+</button>
