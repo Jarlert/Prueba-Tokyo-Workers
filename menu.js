@@ -316,7 +316,6 @@ async function procesarVerificacionTelefono(event) {
             document.getElementById('reg-name').value = '';
             document.getElementById('reg-doc-tipo').value = 'V';
             document.getElementById('reg-cedula-numero').value = '';
-            document.getElementById('reg-email').value = '';
             document.getElementById('reg-address').value = '';
             goToStep('registro');
         }
@@ -331,18 +330,16 @@ async function procesarVerificacionTelefono(event) {
 async function procesarRegistroCliente(event) {
     event.preventDefault();
 
+    // La cédula/RIF es opcional: si no la escriben, el cliente se guarda sin ella.
+    // Se manda "" y no null a propósito: así el registro sigue funcionando aunque el
+    // backend todavía no haya terminado de desplegar el cambio que la vuelve opcional.
     const tipoDoc = document.getElementById('reg-doc-tipo').value;
     const numeroDoc = document.getElementById('reg-cedula-numero').value.trim().replace(/[^0-9]/g, '');
-    if (!numeroDoc) {
-        alert('Ingresa un número de cédula/RIF válido.');
-        return;
-    }
 
     const payload = {
         telefono: leerTelefonoDeFormulario('auth-phone'),
         nombre: document.getElementById('reg-name').value.trim(),
-        cedula: `${tipoDoc}-${numeroDoc}`,
-        email: document.getElementById('reg-email').value.trim() || null,
+        cedula: numeroDoc ? `${tipoDoc}-${numeroDoc}` : '',
         direccion_principal: document.getElementById('reg-address').value.trim(),
         direcciones_extra: '[]'
     };

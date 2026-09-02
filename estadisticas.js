@@ -100,7 +100,6 @@ async function buscarClientes(event) {
                             <p class="text-white font-bold text-base">${escapeHtml(c.nombre || 'Sin nombre')}</p>
                             <p class="text-xs text-slate-400 mt-1"><i class="fa-solid fa-phone"></i> ${escapeHtml(c.telefono || '')}</p>
                             ${c.cedula ? `<p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-id-card"></i> ${escapeHtml(c.cedula)}</p>` : ''}
-                            ${c.email ? `<p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-envelope"></i> ${escapeHtml(c.email)}</p>` : ''}
                             <p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(c.direccion_principal || 'No especificada')}</p>
                         </div>
                         <div class="text-right">

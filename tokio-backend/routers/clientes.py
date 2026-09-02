@@ -26,7 +26,6 @@ def verificar_cliente(telefono: str, db: Session = Depends(get_db), _rl=Depends(
             "nombre": cliente.nombre,
             "telefono": cliente.telefono,
             "cedula": cliente.cedula,
-            "email": cliente.email,
             "direccion_principal": cliente.direccion_principal,
             "direcciones_extra": cliente.direcciones_extra
         }]
@@ -44,7 +43,6 @@ def registrar_cliente(datos: schemas.ClienteRegistro, db: Session = Depends(get_
         telefono=datos.telefono,
         nombre=datos.nombre,
         cedula=datos.cedula,
-        email=datos.email,
         direccion_principal=datos.direccion_principal,
         direcciones_extra=datos.direcciones_extra
     )
@@ -101,7 +99,6 @@ def buscar_clientes(q: str, db: Session = Depends(get_db), staff: dict = Depends
             "telefono": cliente.telefono,
             "nombre": cliente.nombre,
             "cedula": cliente.cedula,
-            "email": cliente.email,
             "direccion_principal": cliente.direccion_principal,
             "direcciones_extra": cliente.direcciones_extra,
             "total_pedidos": len(pedidos_cliente),

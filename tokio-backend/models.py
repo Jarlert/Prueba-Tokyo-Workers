@@ -45,7 +45,6 @@ class Cliente(Base):
     
     nombre = Column(String, nullable=False)
     cedula = Column(String, nullable=True)
-    email = Column(String, nullable=True)
     direccion_principal = Column(String, nullable=True)
     direcciones_extra = Column(String, default="[]")
 

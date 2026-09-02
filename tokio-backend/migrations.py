@@ -49,10 +49,8 @@ def ejecutar_migraciones(engine: Engine):
             print("[migracion] Agregando columna 'producto_ref' a anuncios...")
             conn.execute(text("ALTER TABLE anuncios ADD COLUMN producto_ref VARCHAR"))
 
-        columnas_clientes = [c["name"] for c in inspector.get_columns("clientes")]
-        if "email" not in columnas_clientes:
-            print("[migracion] Agregando columna 'email' a clientes...")
-            conn.execute(text("ALTER TABLE clientes ADD COLUMN email VARCHAR"))
+        # 'clientes.email' se dejó de pedir en el registro; la columna queda huérfana en
+        # las bases que ya la tienen (no se borra nada) y no se vuelve a crear.
 
         if "cedula" not in columnas_pedidos:
             print("[migracion] Agregando columna 'cedula' a pedidos...")
