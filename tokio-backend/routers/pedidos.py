@@ -419,7 +419,7 @@ async def notificar_despacho_pedido(datos: schemas.NotificacionDespacho, db: Ses
         else:
             mensaje_grupo = f"🛵 *NUEVO PEDIDO LISTO*\n\nEl pedido #{id_diario} a nombre de {datos.cliente} en {datos.direccion} está listo para ser entregado."
 
-        ID_GRUPO_WHATSAPP = "120363409549131175@g.us"
+        ID_GRUPO_WHATSAPP = "120363400699401227@g.us"
         await notificar_whatsapp(ID_GRUPO_WHATSAPP, mensaje_grupo, "aviso al grupo de motorizados")
 
     return {"success": True, "mensaje": "Notificaciones procesadas"}
