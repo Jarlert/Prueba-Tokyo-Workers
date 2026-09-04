@@ -14,7 +14,7 @@
 // HTML, asi que API_BASE ya existe cuando el resto lo usa.
 //
 // Sin barra final: todas las rutas que la usan empiezan por "/api/...".
-const API_BASE = "https://prueba-tokyo-workers-production-76cf.up.railway.app";
+const API_BASE = "https://prueba-tokyo-workers-production-baac.up.railway.app";
 
 // Headers de autenticación para llamadas de staff logueado (index.html, admin.html, estadisticas.html)
 function authHeaders() {
