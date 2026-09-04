@@ -2,13 +2,13 @@
 // Tokio Sushi - Núcleo de Operaciones y Control del Sistema (app.js)
 // =====================================================================
 
-const URL_OBTENER_MOTORIZADOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/motorizados/";
-const API_OBTENER_PEDIDOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/";
-const API_ACTUALIZAR_ESTADO = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/actualizar-estado";
-const URL_NUEVO_PEDIDO = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/";
-const URL_OBTENER_MENU = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/menu/";
-const URL_OBTENER_USUARIOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/usuarios/";
-const URL_BUSCAR_CLIENTES = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/clientes/buscar";
+const URL_OBTENER_MOTORIZADOS = API_BASE + "/api/motorizados/";
+const API_OBTENER_PEDIDOS = API_BASE + "/api/pedidos/";
+const API_ACTUALIZAR_ESTADO = API_BASE + "/api/pedidos/actualizar-estado";
+const URL_NUEVO_PEDIDO = API_BASE + "/api/pedidos/";
+const URL_OBTENER_MENU = API_BASE + "/api/menu/";
+const URL_OBTENER_USUARIOS = API_BASE + "/api/usuarios/";
+const URL_BUSCAR_CLIENTES = API_BASE + "/api/clientes/buscar";
 
 let MOTORIZADOS_SISTEMA = []; 
 let USUARIOS_SISTEMA = [];
@@ -44,7 +44,8 @@ async function cargarCatalogoDesdeDB() {
                         name: objeto.nombre,
                         price: parseFloat(objeto.precio),
                         // NUEVO: Guardamos la categoría y las opciones ocultas
-                        categoria: objeto.categoria || '', 
+                        categoria: objeto.categoria || '',
+                        agotado: objeto.agotado === true,
                         opciones_combo: objeto.items_json || objeto.items || null
                     });
                 } else {
@@ -151,21 +152,21 @@ function seleccionarSugerenciaPedido(elementoOpcion, idProducto, nombre, precio)
 
         if (opcionesArr.length > 0) {
             containerOpciones.classList.remove('hidden');
-            
+
             opcionesArr.forEach((grupo) => {
                 if (grupo.tipo === 'categoria') {
                     // Filtramos los productos que pertenecen a la categoría que pide el combo (Ej: "Roles")
-                    const opcionesCat = CATALOGO_PRODUCTOS.filter(p => p.categoria.toLowerCase() === grupo.valor.toLowerCase());
-                    
+                    const opcionesCat = resolverOpcionesCategoriasCaja([grupo.valor]);
+
                     if (opcionesCat.length > 0) {
-                        let optionsHtml = opcionesCat.map(opt => `<option value="${opt.name}">${opt.name}</option>`).join('');
-                        
+                        let optionsHtml = opcionesCat.map(opt => `<option value="${escapeHtml(opt.name)}">${escapeHtml(opt.name)}</option>`).join('');
+
                         // Creamos un desplegable por cada cantidad que pida (Ej: si son 2 roles, crea 2 selects)
                         for (let i = 0; i < grupo.cantidad; i++) {
                             let titulo = grupo.cantidad > 1 ? `${grupo.valor} (${i+1}/${grupo.cantidad})` : grupo.valor;
                             containerOpciones.insertAdjacentHTML('beforeend', `
                                 <div class="flex items-center gap-2 mt-1">
-                                    <span class="text-[10px] text-slate-400 font-bold uppercase w-[70px] truncate" title="${titulo}">${titulo}</span>
+                                    <span class="text-[10px] text-slate-400 font-bold uppercase w-[70px] truncate" title="${escapeHtml(titulo)}">${escapeHtml(titulo)}</span>
                                     <select class="combo-select-choice flex-1 bg-slate-900 border border-slate-700 text-white text-xs p-1.5 rounded focus:border-indigo-500 focus:outline-none">
                                         ${optionsHtml}
                                     </select>
@@ -173,7 +174,7 @@ function seleccionarSugerenciaPedido(elementoOpcion, idProducto, nombre, precio)
                             `);
                         }
                     } else {
-                        containerOpciones.insertAdjacentHTML('beforeend', `<div class="text-[10px] text-red-400">⚠️ Categoría '${grupo.valor}' vacía en BD</div>`);
+                        containerOpciones.insertAdjacentHTML('beforeend', `<div class="text-[10px] text-red-400">⚠️ Categoría '${escapeHtml(grupo.valor)}' vacía en BD</div>`);
                     }
                 } else if (grupo.tipo === 'producto') {
                     // Si el combo trae un producto fijo (Ej: 1x Refresco)
@@ -186,15 +187,219 @@ function seleccionarSugerenciaPedido(elementoOpcion, idProducto, nombre, precio)
                         <div class="flex items-center gap-2 mt-1">
                             <span class="text-[10px] text-slate-400 font-bold uppercase w-[70px]">Fijo</span>
                             <div class="flex-1 bg-slate-800/50 border border-slate-700 text-emerald-400 text-xs p-1.5 rounded flex justify-between">
-                                <span class="truncate">✔️ ${prodName}</span>
+                                <span class="truncate">✔️ ${escapeHtml(prodName)}</span>
                                 <span class="font-bold">x${grupo.cantidad}</span>
                             </div>
                         </div>
                     `);
+                } else if (grupo.tipo === 'piezas_alternativas') {
+                    renderGrupoPiezasCaja(containerOpciones, grupo);
                 }
             });
         }
     }
+}
+
+// =====================================================================
+// COMBOS POR PIEZAS EN CAJA (mismo comportamiento que el menú del cliente)
+// =====================================================================
+// El menú del cliente (menu.js) deja elegir las piezas de los grupos
+// 'piezas_alternativas'; en caja ese tipo de grupo no se dibujaba y el pedido
+// llegaba a cocina sin decir qué eligió el cliente. Esto replica los tres modos:
+//   excluyente  -> se elige UNA categoría y se completan sus piezas
+//   compartido  -> se combinan piezas de varias categorías hacia un único total
+//   todas       -> cada categoría tiene su propio total y todas deben completarse
+let COMBO_PIEZAS_CONFIG = {};
+let _contadorGruposPiezas = 0;
+
+function resolverOpcionesCategoriasCaja(nombresCategorias) {
+    const vistos = new Set();
+    const resultado = [];
+    (nombresCategorias || []).forEach(nombre => {
+        const buscado = String(nombre || '').toLowerCase();
+        CATALOGO_PRODUCTOS
+            .filter(p => String(p.categoria || '').toLowerCase() === buscado && !p.agotado)
+            .forEach(item => {
+                if (!vistos.has(item.id)) { vistos.add(item.id); resultado.push(item); }
+            });
+    });
+    return resultado;
+}
+
+function renderGrupoPiezasCaja(containerOpciones, grupo) {
+    // Compatibilidad con combos viejos que traen 'compartido: true' en vez de 'modo'
+    const modo = grupo.modo || (grupo.compartido === true ? 'compartido' : 'excluyente');
+    const alternativas = (grupo.alternativas || []).map(alt => ({
+        nombre: alt.nombre,
+        piezas_objetivo: alt.piezas_objetivo,
+        opciones: resolverOpcionesCategoriasCaja(alt.categorias || (alt.categoria ? [alt.categoria] : []))
+    })).filter(alt => alt.piezas_objetivo > 0);
+
+    if (alternativas.length === 0) return;
+
+    const gid = 'pz-' + (_contadorGruposPiezas++);
+    COMBO_PIEZAS_CONFIG[gid] = { modo, alternativas, activa: 0 };
+
+    let selectorHtml = '';
+    if (modo === 'excluyente' && alternativas.length > 1) {
+        selectorHtml = `
+            <div class="flex items-center gap-2 mt-1">
+                <span class="text-[10px] text-slate-400 font-bold uppercase w-[70px] truncate" title="Estilo">Estilo</span>
+                <select onchange="cambiarEstiloPiezasCaja('${gid}', this.value)" class="flex-1 bg-slate-900 border border-slate-700 text-white text-xs p-1.5 rounded focus:border-indigo-500 focus:outline-none">
+                    ${alternativas.map((alt, i) => `<option value="${i}">${escapeHtml(alt.nombre)} (${alt.piezas_objetivo}pz)</option>`).join('')}
+                </select>
+            </div>`;
+    }
+
+    containerOpciones.insertAdjacentHTML('beforeend', `
+        <div class="combo-piezas-grupo mt-2 border border-indigo-500/30 rounded-lg p-2 bg-slate-900/40" data-gid="${gid}">
+            ${selectorHtml}
+            <div class="combo-piezas-lista space-y-1 mt-1"></div>
+        </div>
+    `);
+
+    renderListaPiezasCaja(gid);
+}
+
+function cambiarEstiloPiezasCaja(gid, valorIndice) {
+    const cfg = COMBO_PIEZAS_CONFIG[gid];
+    if (!cfg) return;
+    cfg.activa = parseInt(valorIndice, 10) || 0;
+    // Al cambiar de estilo excluyente se descarta lo elegido del estilo anterior
+    renderListaPiezasCaja(gid);
+}
+
+// Devuelve los bloques a dibujar según el modo: cada bloque es una alternativa con
+// su propio objetivo, salvo en 'compartido' donde todas suman a un objetivo único.
+function bloquesDePiezasCaja(cfg) {
+    if (cfg.modo === 'compartido') {
+        const vistos = new Set();
+        const opciones = [];
+        cfg.alternativas.forEach((alt, i) => {
+            alt.opciones.forEach(op => {
+                if (!vistos.has(op.id)) { vistos.add(op.id); opciones.push({ ...op, altIndex: i }); }
+            });
+        });
+        return [{ nombre: '', objetivo: cfg.alternativas[0].piezas_objetivo, opciones, altIndex: 0 }];
+    }
+    if (cfg.modo === 'todas') {
+        return cfg.alternativas.map((alt, i) => ({
+            nombre: alt.nombre,
+            objetivo: alt.piezas_objetivo,
+            opciones: alt.opciones.map(op => ({ ...op, altIndex: i })),
+            altIndex: i
+        }));
+    }
+    const alt = cfg.alternativas[cfg.activa] || cfg.alternativas[0];
+    const idx = cfg.alternativas.indexOf(alt);
+    return [{
+        nombre: alt.nombre,
+        objetivo: alt.piezas_objetivo,
+        opciones: alt.opciones.map(op => ({ ...op, altIndex: idx })),
+        altIndex: idx
+    }];
+}
+
+function renderListaPiezasCaja(gid) {
+    const cfg = COMBO_PIEZAS_CONFIG[gid];
+    const grupoEl = document.querySelector(`.combo-piezas-grupo[data-gid="${gid}"]`);
+    if (!cfg || !grupoEl) return;
+    const lista = grupoEl.querySelector('.combo-piezas-lista');
+
+    lista.innerHTML = bloquesDePiezasCaja(cfg).map((bloque, bIdx) => {
+        if (bloque.opciones.length === 0) {
+            return `<div class="text-[10px] text-red-400">⚠️ No hay productos disponibles para "${escapeHtml(bloque.nombre || 'este grupo')}"</div>`;
+        }
+        const filas = bloque.opciones.map(op => `
+            <div class="flex items-center gap-2">
+                <input type="number" min="0" value="0"
+                    class="combo-pieza-input w-14 bg-slate-900 border border-slate-700 text-white text-xs p-1 rounded text-center focus:border-indigo-500 focus:outline-none"
+                    data-gid="${gid}" data-bloque="${bIdx}" data-alt="${op.altIndex}" data-nombre="${escapeHtml(op.name)}"
+                    oninput="actualizarContadorPiezasCaja('${gid}')">
+                <span class="text-xs text-slate-300 truncate flex-1" title="${escapeHtml(op.name)}">${escapeHtml(op.name)}</span>
+            </div>
+        `).join('');
+
+        const titulo = bloque.nombre
+            ? `<span class="text-[10px] text-slate-400 font-bold uppercase">${escapeHtml(bloque.nombre)}</span>`
+            : `<span class="text-[10px] text-slate-400 font-bold uppercase">Elige las piezas</span>`;
+
+        return `
+            <div class="combo-piezas-bloque" data-bloque="${bIdx}" data-objetivo="${bloque.objetivo}">
+                <div class="flex items-center justify-between gap-2 mb-1">
+                    ${titulo}
+                    <span class="combo-piezas-contador text-[10px] font-black px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 whitespace-nowrap">0 / ${bloque.objetivo} pz</span>
+                </div>
+                <div class="space-y-1">${filas}</div>
+            </div>`;
+    }).join('');
+
+    actualizarContadorPiezasCaja(gid);
+}
+
+// Sube el contador de cada bloque y pinta en verde el que ya está completo.
+function actualizarContadorPiezasCaja(gid) {
+    const grupoEl = document.querySelector(`.combo-piezas-grupo[data-gid="${gid}"]`);
+    if (!grupoEl) return;
+
+    grupoEl.querySelectorAll('.combo-piezas-bloque').forEach(bloqueEl => {
+        const objetivo = parseInt(bloqueEl.dataset.objetivo, 10) || 0;
+        let total = 0;
+        bloqueEl.querySelectorAll('.combo-pieza-input').forEach(input => {
+            total += Math.max(0, parseInt(input.value, 10) || 0);
+        });
+
+        const badge = bloqueEl.querySelector('.combo-piezas-contador');
+        if (badge) {
+            badge.innerText = `${total} / ${objetivo} pz`;
+            badge.className = `combo-piezas-contador text-[10px] font-black px-2 py-0.5 rounded-full whitespace-nowrap ${
+                total === objetivo ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'
+            }`;
+        }
+    });
+}
+
+// Lee del DOM lo que el cajero eligió en un wrapper y devuelve:
+//   { textos: ["Tempura: 6x Tropical roll, 6x Tiger roll"], incompleto: "Tempura (6/12 pz)" | null }
+// El formato del texto es el mismo que arma menu.js para el cliente, para que la
+// comanda se lea igual venga de donde venga el pedido.
+function cosecharPiezasCombo(wrapper) {
+    const textos = [];
+    let incompleto = null;
+
+    wrapper.querySelectorAll('.combo-piezas-grupo').forEach(grupoEl => {
+        const gid = grupoEl.dataset.gid;
+        const cfg = COMBO_PIEZAS_CONFIG[gid];
+        if (!cfg) return;
+
+        grupoEl.querySelectorAll('.combo-piezas-bloque').forEach(bloqueEl => {
+            const objetivo = parseInt(bloqueEl.dataset.objetivo, 10) || 0;
+            let total = 0;
+            const partes = [];
+
+            bloqueEl.querySelectorAll('.combo-pieza-input').forEach(input => {
+                const cant = Math.max(0, parseInt(input.value, 10) || 0);
+                if (cant > 0) {
+                    total += cant;
+                    partes.push(`${cant}x ${input.dataset.nombre}`);
+                }
+            });
+
+            if (total !== objetivo && !incompleto) {
+                const alt = cfg.alternativas[parseInt(bloqueEl.querySelector('.combo-pieza-input')?.dataset.alt, 10) || 0];
+                incompleto = `${alt ? alt.nombre : 'Piezas'} (${total}/${objetivo} pz)`;
+            }
+
+            if (partes.length === 0) return;
+
+            // En 'compartido' no se antepone el nombre de la categoría, igual que en el menú
+            const alt = cfg.alternativas[parseInt(bloqueEl.querySelector('.combo-pieza-input')?.dataset.alt, 10) || 0];
+            const prefijo = (cfg.modo === 'compartido' || !alt || !alt.nombre) ? '' : `${alt.nombre}: `;
+            textos.push(`${prefijo}${partes.join(', ')}`);
+        });
+    });
+
+    return { textos, incompleto };
 }
 
 // --- BUSCAR AL CLIENTE POR TELÉFONO AL REGISTRAR UN PEDIDO EN CAJA ---
@@ -287,27 +492,39 @@ async function enviarNuevoPedido() {
     const cliente = document.getElementById('inputCliente').value.trim();
     if(!cliente) { alert("Por favor ingresa el nombre del cliente."); return; }
 
+    const piezasFaltantes = [];
+
     const articulos = Array.from(document.querySelectorAll('.articulo-wrapper')).map(wrapper => {
         let idVal = wrapper.querySelector('.item-id').value || 'custom_0';
         let qtyVal = parseInt(wrapper.querySelector('.item-qty').value) || 1;
         let nameVal = wrapper.querySelector('.item-name').value.trim() || 'Artículo sin nombre';
         let priceVal = parseFloat(wrapper.querySelector('.item-price').value) || 0;
-        
-        // Cosechar las opciones de combo que el cajero seleccionó
-        let selectChoices = Array.from(wrapper.querySelectorAll('.combo-select-choice'));
-        if (selectChoices.length > 0) {
-            let elecciones = selectChoices.map(s => s.value).join(', ');
-            nameVal = `${nameVal} (${elecciones})`;
+
+        // Cosechar las opciones de combo que el cajero seleccionó: los desplegables
+        // de categoría y las piezas elegidas en los grupos por piezas.
+        const elecciones = Array.from(wrapper.querySelectorAll('.combo-select-choice')).map(s => s.value);
+        const piezas = cosecharPiezasCombo(wrapper);
+        if (piezas.incompleto) piezasFaltantes.push(`• ${nameVal} → ${piezas.incompleto}`);
+
+        const todasLasElecciones = elecciones.concat(piezas.textos);
+        if (todasLasElecciones.length > 0) {
+            // Mismo separador que usa el menú del cliente, para que la comanda se lea igual
+            nameVal = `${nameVal} (${todasLasElecciones.join(' | ')})`;
         }
 
         return {
             id: idVal,
             qty: qtyVal,
-            name: nameVal, 
+            name: nameVal,
             price: priceVal,
             note: ""
         };
     });
+
+    if (piezasFaltantes.length > 0) {
+        alert(`Faltan piezas por elegir en este pedido:\n\n${piezasFaltantes.join('\n')}\n\nComplétalas para que la cocina sepa qué preparar.`);
+        return;
+    }
 
     const pedidosHoy = pedidosEnMemoria.filter(p => esPedidoDeLaFecha(JSON.stringify(p)));
     const proximoIdVisual = pedidosHoy.length + 1;
@@ -338,9 +555,10 @@ async function enviarNuevoPedido() {
             body: JSON.stringify(payload), 
             headers: authHeaders()
         });
-        if(res.ok) { 
+        if(res.ok) {
             document.getElementById('formNuevoPedido').reset();
             document.getElementById('contenedorArticulos').innerHTML = '';
+            COMBO_PIEZAS_CONFIG = {};
             agregarFilaArticulo();
             cerrarModalNuevoPedido(); 
             cargarPedidos(); 
@@ -371,7 +589,7 @@ async function actualizarTasaBCV() {
     if (!inputTasa) return;
 
     try {
-        const response = await fetch('https://prueba-tokyo-workers-production-76cf.up.railway.app/api/bcv/');
+        const response = await fetch(API_BASE + '/api/bcv/');
         if (!response.ok) throw new Error('Error BD');
         
         const data = await response.json();
@@ -396,7 +614,7 @@ if (document.getElementById('tasaBCV')) {
         if (isNaN(nuevaTasa) || nuevaTasa <= 0) return;
 
         try {
-            const response = await fetch('https://prueba-tokyo-workers-production-76cf.up.railway.app/api/bcv/actualizar', {
+            const response = await fetch(API_BASE + '/api/bcv/actualizar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tasa: nuevaTasa })
@@ -464,7 +682,7 @@ function verificarSesion() {
     }
 }
 
-const API_VALIDAR_ACCESO = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/usuarios/validar-acceso";
+const API_VALIDAR_ACCESO = API_BASE + "/api/usuarios/validar-acceso";
 
 async function iniciarSesion(event) {
     if (event && typeof event.preventDefault === 'function') event.preventDefault();
@@ -741,7 +959,7 @@ function guardarEdicionPedido() {
         id_visual: String(idReal)
     };
     
-    fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/notificar-edicion", { 
+    fetch(API_BASE + "/api/pedidos/notificar-edicion", { 
         method: 'POST', headers: authHeaders(), body: JSON.stringify(payloadNotificacion) 
     }).catch(e => console.error("Error enviando WhatsApp:", e));
 }
@@ -882,7 +1100,7 @@ async function procesarPasoCocina(idPedido) {
         id_visual: String(pedido.id_pedido || pedido.ID || idPedido)
     };
 
-    fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/notificar-aprobado", {
+    fetch(API_BASE + "/api/pedidos/notificar-aprobado", {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(payloadAprobado)
@@ -909,7 +1127,7 @@ function procesarPasoFinalizado(idPedido) {
         direccion: pedido.direccion || pedido.Direccion || 'Dirección no especificada'
     };
 
-    fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/notificar-despacho", {
+    fetch(API_BASE + "/api/pedidos/notificar-despacho", {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(payloadDespacho)
@@ -1395,7 +1613,7 @@ async function procesarPrecioDelivery(idPedido) {
         id_visual: String(idPedido)
     };
 
-    fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/notificar-cobro", { 
+    fetch(API_BASE + "/api/pedidos/notificar-cobro", { 
         method: 'POST', 
         headers: authHeaders(), 
         body: JSON.stringify(payloadCobro) 
