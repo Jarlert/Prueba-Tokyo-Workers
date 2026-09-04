@@ -2,6 +2,20 @@
 // Tokio Sushi - utilidades compartidas por las 4 páginas del frontend
 // =====================================================================
 
+// =====================================================================
+// Direccion del backend
+// =====================================================================
+// Unico lugar donde vive la URL de la API. Antes estaba repetida 45 veces
+// entre app.js, admin.js, menu.js y estadisticas.js, asi que cambiar de
+// proveedor de hosting obligaba a editar los cuatro archivos. Ahora se
+// cambia solo esta linea.
+//
+// config.js se carga antes que el JS propio de cada pagina en los cuatro
+// HTML, asi que API_BASE ya existe cuando el resto lo usa.
+//
+// Sin barra final: todas las rutas que la usan empiezan por "/api/...".
+const API_BASE = "https://prueba-tokyo-workers-production-76cf.up.railway.app";
+
 // Headers de autenticación para llamadas de staff logueado (index.html, admin.html, estadisticas.html)
 function authHeaders() {
     const token = localStorage.getItem('tokioAuthToken');
