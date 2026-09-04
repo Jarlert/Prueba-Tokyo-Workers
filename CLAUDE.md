@@ -101,6 +101,42 @@ There is no automated test suite (frontend or backend) and no linter configured.
 
 **Announcements** (`routers/anuncios.py`, `Anuncio` model): full-screen popups shown when the customer opens the menu, dismissible before ordering, several supported in `orden` sequence. `producto_ref` (`"p_<id>"` / `"c_<id>"`) optionally wires an "Ordenar esta promoción" button that jumps to the item and opens its combo customizer.
 
+## Code map
+
+The four JS files are large (menu.js ~1900 lines, app.js ~1500, admin.js ~1250) and have no module structure, so finding things means grepping. This index exists so you don't re-derive it every session — function names are stable, line numbers are not. There are also two project subagents in `.claude/agents/`: `tokio-buscador` (cheap locator, returns file:line pointers) and `tokio-revisor` (diff review against the invariants below).
+
+**`menu.js` — customer ordering flow**
+- Session/steps: `goToStep`, `procesarVerificacionTelefono`, `procesarRegistroCliente`, `cerrarSesionCliente`, `mostrarIconosHeaderSesion`
+- Catalogue render: `cargarMenuDesdeDB`, `renderizarCategorias`, `selectCategory` (item cards), `abrirDetalleProducto`
+- Cart: `updateQty`, `setExactQty`, `removeCartItem`, `toggleNoteField`, `updateItemNote`, `calculateTotals`, `sincronizarPromocionesCarrito`
+- Combo customization: `abrirModalCombo` (builds the modal), `guardarSeleccionCombo` (writes the cart line + variant key), `cerrarModalCombo`, `pintarProgresoLoteCombo`
+- Piece builder (`piezas_alternativas`): `renderSaboresPiezas`, `seleccionarEstiloPiezas`, `ajustarCantidadPiezas`, `escribirCantidadPieza`, `calcularPiezasSeleccionadas`, `subtotalParaAlt`, `grupoPiezasCompleto`, `todosLosGruposPiezasCompletos`, `resolverOpcionesCategoria(s)`
+- Pending-vs-customized combos: `ajustarPendientesCombo`, `personalizarPendientesCombo`, `totalDeseadoParaId`, `actualizarUiPendienteCombo`, `abrirModalCombosPendientes`
+- Variant removal picker: `abrirSelectorEliminarVariantes`, `quitarUnaUnidadVariante`, `eliminarVarianteCompleta`
+- Checkout: `irACheckout` (blocks on pending combos), `prepareCheckout`, `sendOrder`, `cargarSelectorDirecciones`
+- Schedule/hours: `obtenerFechaHoraCaracas`, `horaEnRango`, `estaAbiertoAhora`, `itemDentroDeHorarioProgramado`
+- Announcements: `precargarAnuncios`, `mostrarAnuncioEnIndice`, `irAItemDeAnuncio`
+- Profile: `abrirModalEditarDatos`, `guardarTelefonoCliente`, `guardarEdicionDatos`, `renderizarDireccionesExtra`
+
+**`app.js` — kitchen/ops dashboard**
+- Board: `cargarPedidos`, `renderizarTablero` (the four columns), `abrirModalDetalle`, `esPedidoDeLaFecha`, `normalizarEstado`
+- New order at the register: `abrirModalNuevoPedido`, `agregarFilaArticulo`, `mostrarSugerenciasPedido`, `seleccionarSugerenciaPedido` (renders combo option groups), `buscarClienteNuevoPedido` (phone lookup), `enviarNuevoPedido`
+- Edit order: `abrirModalEditarPedido` (parses `pedido_detallado` back), `renderizarCarritoEdicion`, `guardarEdicionPedido`
+- State transitions + WhatsApp: `procesarPasoCocina`, `procesarPasoFinalizado`, `ejecutarActualizacion`, `pedirTiempoEstimado`, `pedirComprobantePago`, `cancelarPedido`
+- Delivery/riders: `pedirPrecioDelivery`, `procesarPrecioDelivery`, `abrirModalRepartidor`, `guardarRepartidor`
+- Session/roles: `verificarSesion`, `iniciarSesion`, `aplicarRestriccionesRol`
+
+**`admin.js` — admin panel**
+- Combo builder: `agregarFilaProductoCombo`, `agregarGrupoPiezasAlternativas`, `agregarFilaAlternativaPiezas`, `sincronizarModoPiezas`, `toggleChipCategoria`, `buscarItemCombo`, `editarCombo`, `resetFormCombo`
+- Products/categories: `renderListaProductos`, `editarProducto`, `renderListaCategorias`, `editarCategoria`, the `filtrar*Admin` search boxes
+- Images: `redimensionarImagen`, `manejarSeleccionImagen` (uploads straight to imgbb)
+- Announcements: `cargarAnuncios`, `editarAnuncio`, `buscarItemAnuncio`
+- Scheduling chips: `construirChipsDias`, `leerDiasSeleccionados`, `parsearDiasDisponibles`
+- Users/riders/hours/templates: `cargarUsuariosDesdeDB`, `cargarMotorizadosDesdeDB`, `cargarHorarios`, `guardarHorarios`, `cargarMensajesWP`
+
+**`estadisticas.js` — stats + client search**
+- `aplicarFiltroEstadisticas`, `procesarCalculosEstadisticos` (parses `pedido_detallado`), `dibujarWidgetsEstadisticas`, `buscarClientes`, `exportarCSV`, `abrirModalDetalle`
+
 ## Known issues
 
 - **`esta_abierto_ahora()` in `routers/horarios.py` uses a naked `datetime.now()`**, i.e. the server's local time, while the frontend's scheduled-availability check explicitly uses `America/Caracas`. On a UTC host this shifts the ordering window ~4 hours earlier than intended. Verify `TZ=America/Caracas` is set on Railway, or switch the function to an explicit zone.

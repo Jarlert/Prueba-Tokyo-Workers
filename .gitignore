@@ -13,3 +13,8 @@ __pycache__/
 # Sistema operativo / editores
 Thumbs.db
 .DS_Store
+
+# Claude Code: se versionan los agentes del proyecto (.claude/agents/), pero no
+# los archivos de runtime ni la configuración local de cada máquina.
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
