@@ -2,11 +2,11 @@
 // TOKIO SUSHI - LÓGICA DEL CLIENTE (FRONTEND)
 // ==========================================
 
-const URL_OBTENER_MENU = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/menu/";
-const URL_VERIFICAR_CLIENTE = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/clientes/verificar";
-const URL_REGISTRAR_CLIENTE = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/clientes/registrar";
-const URL_OBTENER_HORARIOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/horarios/";
-const URL_OBTENER_ANUNCIOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/anuncios/";
+const URL_OBTENER_MENU = API_BASE + "/api/menu/";
+const URL_VERIFICAR_CLIENTE = API_BASE + "/api/clientes/verificar";
+const URL_REGISTRAR_CLIENTE = API_BASE + "/api/clientes/registrar";
+const URL_OBTENER_HORARIOS = API_BASE + "/api/horarios/";
+const URL_OBTENER_ANUNCIOS = API_BASE + "/api/anuncios/";
 
 let menuData = { combos: [], cocina: [], sushi: [], extras: [] };
 let cart = {};
@@ -1198,7 +1198,7 @@ async function sendOrder(event) {
                     datosClienteLogueado.direcciones_extra = JSON.stringify(extras);
                     localStorage.setItem('sesionCliente', JSON.stringify(datosClienteLogueado));
                     
-                    fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/clientes/actualizar-direcciones-cliente", {
+                    fetch(API_BASE + "/api/clientes/actualizar-direcciones-cliente", {
                         method: 'POST', 
                         headers: { 
                             'Content-Type': 'application/json',
@@ -1226,7 +1226,7 @@ async function sendOrder(event) {
         pedido_detallado: "Generado por Backend" // Validacion Pydantic FastAPI
     };
 
-    const urlBackendPedidos = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/"; 
+    const urlBackendPedidos = API_BASE + "/api/pedidos/"; 
 
     try {
         const response = await fetch(urlBackendPedidos, {
@@ -1800,7 +1800,7 @@ async function guardarTelefonoCliente() {
     btn.disabled = true; btn.innerText = '...';
 
     try {
-        const response = await fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/clientes/actualizar-telefono", {
+        const response = await fetch(API_BASE + "/api/clientes/actualizar-telefono", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1889,7 +1889,7 @@ async function guardarEdicionDatos() {
     cargarSelectorDirecciones();
 
     try {
-        await fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/clientes/actualizar-direcciones-cliente", {
+        await fetch(API_BASE + "/api/clientes/actualizar-direcciones-cliente", {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
