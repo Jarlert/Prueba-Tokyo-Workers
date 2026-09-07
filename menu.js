@@ -715,6 +715,8 @@ function ajustarPendientesCombo(id, name, change) {
         pendientesPersonalizarCombo[id] = pendientesActuales + change;
         actualizarUiPendienteCombo(id);
         calculateTotals();
+        // El carrito ahora muestra los pendientes, así que hay que repintarlo.
+        if (document.getElementById('step-3').classList.contains('active')) prepareCheckout();
         return;
     }
 
@@ -726,6 +728,7 @@ function ajustarPendientesCombo(id, name, change) {
         else delete pendientesPersonalizarCombo[id];
         actualizarUiPendienteCombo(id);
         calculateTotals();
+        if (document.getElementById('step-3').classList.contains('active')) prepareCheckout();
         return;
     }
 
@@ -969,16 +972,27 @@ function updateStickyBarVisibility(currentStep) {
 }
 
 // --- 5. CHECKOUT Y FORMULARIOS ---
-// Punto de entrada del botón "Ver Pedido y Pagar": si queda algún combo con
-// unidades reservadas sin personalizar, no deja pasar al checkout todavía —
-// lo manda directo a terminar de personalizarlo.
+// Punto de entrada del botón "Ver Pedido y Pagar". Antes bloqueaba el paso si
+// quedaba algún combo sin personalizar, pero eso dejaba al cliente atrapado: no
+// podía ni ver su carrito ni quitar de ahí el combo que ya no quería, tenía que
+// volver a buscarlo en el menú para restarlo. Ahora se entra siempre; los combos
+// pendientes se ven y se quitan desde el propio carrito, y el aviso salta al
+// intentar enviar el pedido (ver sendOrder).
 function irACheckout() {
-    const idsPendientes = Object.keys(pendientesPersonalizarCombo).filter(id => pendientesPersonalizarCombo[id] > 0);
-    if (idsPendientes.length > 0) {
-        abrirModalCombosPendientes(idsPendientes);
-        return;
-    }
     prepareCheckout();
+}
+
+// Devuelve los ids de combos con unidades reservadas y todavía sin personalizar.
+function idsCombosPendientes() {
+    return Object.keys(pendientesPersonalizarCombo).filter(id => pendientesPersonalizarCombo[id] > 0);
+}
+
+// Quita de una vez todas las unidades pendientes de un combo desde el carrito.
+function eliminarPendientesCombo(id) {
+    delete pendientesPersonalizarCombo[id];
+    actualizarUiPendienteCombo(id);
+    calculateTotals();
+    if (document.getElementById('step-3').classList.contains('active')) prepareCheckout();
 }
 
 // Lista, con un botón de personalizar cada uno, todos los combos a los que el cliente
@@ -1027,7 +1041,12 @@ function renderizarResumenCarrito() {
     summaryContainer.innerHTML = '';
     
     const cartItems = Object.keys(cart);
-    if (cartItems.length === 0) {
+    const pendientes = idsCombosPendientes();
+
+    // Un combo elegido pero sin personalizar todavía no es una línea de carrito,
+    // pero para el cliente ya es algo que pidió: si solo hay de esos, el pedido
+    // no está vacío y tiene que poder verlo (y quitarlo) desde aquí.
+    if (cartItems.length === 0 && pendientes.length === 0) {
         document.getElementById('checkout-total-price').innerText = "$0.00";
         goToStep(1);
         return false;
@@ -1068,6 +1087,44 @@ function renderizarResumenCarrito() {
         summaryContainer.insertAdjacentHTML('beforeend', summaryRowHtml);
     });
     
+    // Combos reservados y aún sin personalizar. Van con aviso y en su propio
+    // estilo para que se distingan de lo que ya está cerrado, y con la opción de
+    // personalizarlos o quitarlos sin salir del carrito.
+    pendientes.forEach(id => {
+        const item = buscarItemEnMenuPorId(id);
+        if (!item) return;
+
+        const cantidad = pendientesPersonalizarCombo[id];
+        const subtotal = item.price * cantidad;
+        total += subtotal;
+
+        // Se pasa el nombre vacío a propósito: ajustarPendientesCombo solo lo usa
+        // para el selector de variantes, y desde esta fila nunca se llega ahí
+        // (al bajar a 0 pendientes la fila desaparece). Así evitamos que un
+        // apóstrofo en el nombre rompa el onclick.
+        summaryContainer.insertAdjacentHTML('beforeend', `
+            <div class="py-2 border-b border-amber-200">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex-grow min-w-0">
+                        <p class="font-bold text-gray-800 text-sm leading-tight">${escapeHtml(item.name)}</p>
+                        <p class="text-xs text-amber-900 font-medium mt-0.5">$${item.price.toFixed(2)} c/u • Subtotal: <span class="font-bold">$${subtotal.toFixed(2)}</span></p>
+                    </div>
+                    <div class="flex items-center space-x-1.5 bg-white border border-amber-300 p-1 rounded-xl flex-shrink-0">
+                        <button type="button" onclick="ajustarPendientesCombo('${id}', '', -1)" class="w-8 h-8 bg-amber-100 text-amber-900 rounded-lg font-bold text-md flex items-center justify-center cursor-pointer shadow-sm">-</button>
+                        <span class="w-10 text-center font-black text-sm text-gray-800">${cantidad}</span>
+                        <button type="button" onclick="ajustarPendientesCombo('${id}', '', 1)" class="w-8 h-8 bg-amber-100 text-amber-900 rounded-lg font-bold text-md flex items-center justify-center cursor-pointer shadow-sm">+</button>
+                    </div>
+                    <button type="button" onclick="eliminarPendientesCombo('${id}')" title="Quitar del pedido" class="text-red-500 hover:text-red-700 text-md p-1 cursor-pointer flex-shrink-0">❌</button>
+                </div>
+                <div class="flex items-center gap-2 mt-1.5">
+                    <span class="text-[11px] font-bold text-orange-700 flex-shrink-0">⚠️ Falta personalizarlo</span>
+                    <button type="button" onclick="personalizarPendientesCombo('${id}')" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer">
+                        🎨 Personalizar ahora
+                    </button>
+                </div>
+            </div>`);
+    });
+
     document.getElementById('checkout-total-price').innerText = `$${total.toFixed(2)}`;
 
     return true;
@@ -1188,7 +1245,12 @@ function resetForm() {
 // --- 6. ENVÍO DE ORDEN AL BACKEND ---
 async function sendOrder(event) {
     event.preventDefault();
-    
+
+    // Aquí sí se frena: al carrito se entra con combos sin personalizar, pero no
+    // se puede enviar un pedido así porque la cocina no sabría qué preparar.
+    const pendientes = idsCombosPendientes();
+    if (pendientes.length > 0) { abrirModalCombosPendientes(pendientes); return; }
+
     const itemsInCart = Object.values(cart);
     if (itemsInCart.length === 0) { alert("⚠️ Tu carrito está vacío."); goToStep(1); return; }
 

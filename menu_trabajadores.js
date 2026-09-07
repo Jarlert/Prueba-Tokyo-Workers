@@ -424,18 +424,19 @@ function agregarLineaManual() {
 async function enviarPedidoTrabajador(event) {
     if (event && typeof event.preventDefault === 'function') event.preventDefault();
 
+    // Si quedaron combos elegidos pero sin personalizar, no se puede enviar: la
+    // cocina recibiría un combo sin saber qué piezas lleva. Va antes que el aviso
+    // de carrito vacío porque un pedido con solo pendientes no está vacío.
+    const idsPendientes = idsCombosPendientes();
+    if (idsPendientes.length > 0) {
+        abrirModalCombosPendientes(idsPendientes);
+        return;
+    }
+
     const articulos = Object.values(cart);
     if (articulos.length === 0) {
         alert('El pedido está vacío. Agrega al menos un plato.');
         goToStep(1);
-        return;
-    }
-
-    // Si quedaron combos elegidos pero sin personalizar, no se puede enviar:
-    // la cocina recibiría un combo sin saber qué piezas lleva.
-    const idsPendientes = Object.keys(pendientesPersonalizarCombo).filter(id => pendientesPersonalizarCombo[id] > 0);
-    if (idsPendientes.length > 0) {
-        abrirModalCombosPendientes(idsPendientes);
         return;
     }
 
