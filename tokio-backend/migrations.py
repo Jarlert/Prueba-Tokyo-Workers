@@ -140,3 +140,25 @@ def ejecutar_migraciones(engine: Engine):
 
         if convertidos:
             print(f"[migracion] Combos con 'piezas compartidas' convertidos a 'excluyente': {convertidos}.")
+
+
+        # --- Empaque y datos del aviso a motorizados --------------------------
+        # bandejas/cajas_pizza dicen cuanto ocupa cada plato al empacarlo; se
+        # suman por pedido para decirle al motorizado cuantas manos necesita.
+        # Los que ya existen arrancan en 1 bandeja y 0 cajas, y el restaurante
+        # los va ajustando desde el panel segun la realidad de cada plato.
+        for tabla, columnas in (("productos", columnas_productos), ("combos", columnas_combos)):
+            if "bandejas" not in columnas:
+                print(f"[migracion] Agregando 'bandejas' y 'cajas_pizza' a {tabla}...")
+                conn.execute(text(f"ALTER TABLE {tabla} ADD COLUMN bandejas INTEGER DEFAULT 1"))
+                conn.execute(text(f"ALTER TABLE {tabla} ADD COLUMN cajas_pizza INTEGER DEFAULT 0"))
+                conn.execute(text(f"UPDATE {tabla} SET bandejas = 1 WHERE bandejas IS NULL"))
+                conn.execute(text(f"UPDATE {tabla} SET cajas_pizza = 0 WHERE cajas_pizza IS NULL"))
+
+        if "precio_delivery" not in columnas_pedidos:
+            print("[migracion] Agregando datos de despacho a pedidos...")
+            conn.execute(text("ALTER TABLE pedidos ADD COLUMN precio_delivery DOUBLE PRECISION"))
+            conn.execute(text("ALTER TABLE pedidos ADD COLUMN paga_con VARCHAR"))
+            conn.execute(text("ALTER TABLE pedidos ADD COLUMN total_bandejas INTEGER"))
+            conn.execute(text("ALTER TABLE pedidos ADD COLUMN total_cajas_pizza INTEGER"))
+            conn.execute(text("ALTER TABLE pedidos ADD COLUMN total_refrescos INTEGER"))

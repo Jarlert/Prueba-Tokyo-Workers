@@ -24,6 +24,13 @@ class Pedido(Base):
     tasa_bcv = Column(Float, nullable=True)
     cedula = Column(String, nullable=True)  # snapshot de la cédula/RIF del cliente al momento del pedido
 
+    # Datos que necesita el aviso al grupo de motorizados
+    precio_delivery = Column(Float, nullable=True)   # lo pone el cajero al calcular la zona
+    paga_con = Column(String, nullable=True)         # "con cuánto paga" si es efectivo, para llevar el vuelto
+    total_bandejas = Column(Integer, nullable=True)  # calculado al crear/editar el pedido
+    total_cajas_pizza = Column(Integer, nullable=True)
+    total_refrescos = Column(Integer, nullable=True)
+
 class HorarioAtencion(Base):
     __tablename__ = "horarios_atencion"
     id = Column(Integer, primary_key=True, index=True)
@@ -67,6 +74,10 @@ class Producto(Base):
     disponible_desde = Column(String, nullable=True)  # "HH:MM", junto con disponible_hasta limita el horario diario
     disponible_hasta = Column(String, nullable=True)  # "HH:MM"
     dias_disponibles = Column(String, nullable=True)  # CSV "0,1,2" (0=lunes...6=domingo); NULL/"" = todos los días
+    # Cuanto ocupa al empacar. Se suman por todo el pedido y salen en el aviso
+    # al grupo de motorizados, para que sepan cuantas manos hacen falta.
+    bandejas = Column(Integer, default=1)
+    cajas_pizza = Column(Integer, default=0)
 
 class Combo(Base):
     __tablename__ = "combos"
@@ -87,6 +98,10 @@ class Combo(Base):
     disponible_desde = Column(String, nullable=True)  # "HH:MM"
     disponible_hasta = Column(String, nullable=True)  # "HH:MM"
     dias_disponibles = Column(String, nullable=True)  # CSV "0,1,2" (0=lunes...6=domingo); NULL/"" = todos los días
+    # Cuanto ocupa al empacar. Se suman por todo el pedido y salen en el aviso
+    # al grupo de motorizados, para que sepan cuantas manos hacen falta.
+    bandejas = Column(Integer, default=1)
+    cajas_pizza = Column(Integer, default=0)
 
 class Anuncio(Base):
     __tablename__ = "anuncios"
