@@ -296,8 +296,17 @@ function abrirModalEditarPedido(idReal, idVisual) {
             const itemCat = typeof CATALOGO_PRODUCTOS !== 'undefined' ? CATALOGO_PRODUCTOS.find(p => p.name.toLowerCase() === nombreLimpio.toLowerCase()) : null;
             const precioFinal = itemCat ? itemCat.price : (precioExtraido || 0);
 
+            // Un combo personalizado se guarda como "Combo Dúo (Rolls: 2x California)",
+            // así que su nombre exacto no está en el catálogo. Lo buscamos por lo que va
+            // antes del paréntesis SOLO para recuperar su id; el precio y el texto de la
+            // línea se quedan tal cual estaban. Ese id es lo que le permite al backend
+            // saber cuántas bandejas ocupa el pedido después de editarlo.
+            const itemBase = itemCat || (typeof CATALOGO_PRODUCTOS !== 'undefined'
+                ? CATALOGO_PRODUCTOS.find(p => nombreLimpio.toLowerCase().startsWith(p.name.toLowerCase() + ' ('))
+                : null);
+
             // AGREGAMOS LA NOTA AL CARRITO EN MEMORIA
-            carritoEdicion.push({ id: itemCat ? itemCat.id : 'custom', name: nombreLimpio, price: precioFinal, qty: cant, note: notaExtraida });
+            carritoEdicion.push({ id: itemBase ? itemBase.id : 'custom', name: nombreLimpio, price: precioFinal, qty: cant, note: notaExtraida });
         }
     });
     
@@ -413,7 +422,12 @@ function guardarEdicionPedido() {
         id: idReal, estado: pedidoAnterior.estado || 'Pago Pendiente', cliente: nuevoCliente, pedido_detallado: nuevoDetalle, total_orden: totalEdicionUSD,   
         telefono: pedidoAnterior.telefono || '', tipo_entrega: pedidoAnterior.tipo_entrega || '', procesado_por: usuarioActivo ? `${usuarioActivo.nombre} (${usuarioActivo.rol})` : "No registrado",
         referencia_pago: pedidoAnterior.referencia_pago || pedidoAnterior.Referencia_pago || "", imagen_pago: pedidoAnterior.imagen_pago || pedidoAnterior.Imagen_pago || "",
-        tasa_bcv: tasaActual 
+        tasa_bcv: tasaActual,
+
+        // Con esto el backend recalcula cuántas bandejas y cajas ocupa el pedido
+        // después de la edición. Las líneas manuales viajan como 'custom' y
+        // simplemente no suman.
+        articulos: carritoEdicion.map(item => ({ id: item.id, qty: item.qty }))
     };
     fetch(API_ACTUALIZAR_ESTADO, { method: 'POST', headers: authHeaders(), body: JSON.stringify(payloadBD) }).catch(e => console.error("Error BD:", e));
 
@@ -728,10 +742,17 @@ function renderizarTablero() {
 
     const pedidosHoy = pedidosEnMemoria.filter(p => esPedidoDeLaFecha(JSON.stringify(p)));
     pedidosHoy.sort((a, b) => parseInt(String(a.id_pedido || a.ID || 0).replace(/\D/g,'')) - parseInt(String(b.id_pedido || b.ID || 0).replace(/\D/g,'')));
+    // Delivery y pickup llevan cuadernos separados: cada uno arranca en 1 cada
+    // día. Tiene que coincidir con lo que numera el backend, porque ese es el
+    // número que el cliente ve en su WhatsApp.
     const mapaIdsDiarios = {};
-    pedidosHoy.forEach((p, index) => {
+    const contadoresDiarios = { delivery: 0, pickup: 0 };
+    pedidosHoy.forEach((p) => {
         const id = p.id_pedido || p['ID_Pedido'] || p.ID || 'S/ID';
-        mapaIdsDiarios[id] = index + 1; 
+        const tipo = String(p.tipo_entrega || '').toLowerCase();
+        const llave = (tipo.includes('pickup') || tipo.includes('retiro')) ? 'pickup' : 'delivery';
+        contadoresDiarios[llave] += 1;
+        mapaIdsDiarios[id] = contadoresDiarios[llave];
     });
 
     pedidosEnMemoria.forEach(pedido => {
@@ -1001,25 +1022,37 @@ function obtenerEmojiPlato() {
     return emojis[Math.floor(Math.random() * emojis.length)];
 }
 
-function pedirPrecioDelivery(cliente) {
+// Devuelve { precio, pagaCon }, o null si el cajero cancela.
+// El "¿con cuánto paga?" solo se pregunta cuando el cliente paga en efectivo,
+// que es el único caso en el que el motorizado tiene que llevar vuelto.
+function pedirPrecioDelivery(cliente, metodoPago = '') {
     return new Promise((resolve) => {
         const modal = document.getElementById('modalPrecioDelivery');
         const inputPrecio = document.getElementById('inputPrecioDelivery');
+        const inputPagaCon = document.getElementById('inputPagaCon');
+        const bloquePagaCon = document.getElementById('bloquePagaCon');
         const txtCliente = document.getElementById('txtClienteDelivery');
-        
+
+        const esEfectivo = String(metodoPago).toLowerCase().includes('efectivo');
+
         txtCliente.innerText = `Cliente: ${cliente}`;
         inputPrecio.value = '';
-        
+        if (inputPagaCon) inputPagaCon.value = '';
+        if (bloquePagaCon) bloquePagaCon.style.display = esEfectivo ? 'block' : 'none';
+
         modal.classList.remove('hidden');
-        modal.classList.add('flex'); 
+        modal.classList.add('flex');
         inputPrecio.focus();
-        
+
         document.getElementById('btnAceptarDelivery').onclick = () => {
             const valor = inputPrecio.value.trim();
             if (valor === '') { alert("Por favor ingresa un monto."); return; }
             modal.classList.add('hidden');
             modal.classList.remove('flex');
-            resolve(valor);
+            resolve({
+                precio: valor,
+                pagaCon: (esEfectivo && inputPagaCon) ? inputPagaCon.value.trim() : ''
+            });
         };
         
         document.getElementById('btnCancelarDelivery').onclick = () => {
@@ -1034,10 +1067,11 @@ async function procesarPrecioDelivery(idPedido) {
     const pedido = pedidosEnMemoria.find(p => String(p.id_pedido || p['ID_Pedido'] || p.ID || 'S/ID') === String(idPedido));
     if (!pedido) return;
 
-    const precioDel = await pedirPrecioDelivery(pedido.cliente);
-    if (precioDel === null) return; 
-    
-    const costoDelivery = parseFloat(precioDel.replace(',', '.'));
+    const metodoPagoPedido = pedido.metodo_pago || pedido['Método de pago'] || pedido.Metodo_pago || '';
+    const respuestaDelivery = await pedirPrecioDelivery(pedido.cliente, metodoPagoPedido);
+    if (respuestaDelivery === null) return;
+
+    const costoDelivery = parseFloat(String(respuestaDelivery.precio).replace(',', '.'));
     if (isNaN(costoDelivery)) {
         alert("Monto inválido.");
         return;
@@ -1072,7 +1106,11 @@ async function procesarPrecioDelivery(idPedido) {
         referencia_pago: pedido.referencia_pago || "", 
         imagen_pago: "Sin comprobante",
         es_cotizacion_delivery: true,
-        tasa_bcv: tasaActual 
+        tasa_bcv: tasaActual,
+
+        // Para el aviso al grupo de motorizados
+        precio_delivery: costoDelivery,
+        paga_con: respuestaDelivery.pagaCon || null
     };
     
     // 1. Actualizamos el estado en la base de datos

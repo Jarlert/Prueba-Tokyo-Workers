@@ -3,6 +3,8 @@ import json
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
+from plantillas import PLANTILLA_AVISO_MOTORIZADOS
+
 
 def ejecutar_migraciones(engine: Engine):
     """Migraciones aditivas e idempotentes: solo agregan columnas/índices que
@@ -162,3 +164,37 @@ def ejecutar_migraciones(engine: Engine):
             conn.execute(text("ALTER TABLE pedidos ADD COLUMN total_bandejas INTEGER"))
             conn.execute(text("ALTER TABLE pedidos ADD COLUMN total_cajas_pizza INTEGER"))
             conn.execute(text("ALTER TABLE pedidos ADD COLUMN total_refrescos INTEGER"))
+
+
+        # --- Plantilla nueva del aviso al grupo de motorizados ---------------
+        # El grupo llevaba anos recibiendo el aviso escrito a mano con un
+        # formato fijo. Lo copiamos tal cual (con emojis) para que no tengan
+        # que reaprender a leerlo. Solo se siembra si la plantilla guardada
+        # todavia es la vieja: en cuanto el restaurante la edite desde el
+        # panel, esta migracion deja de tocarla.
+        fila_aviso = conn.execute(
+            text("SELECT texto FROM mensajes_whatsapp WHERE id = 'aviso_grupo_delivery'")
+        ).fetchone()
+        texto_guardado = fila_aviso[0] if fila_aviso else None
+
+        if texto_guardado is None:
+            print("[migracion] Sembrando la plantilla del aviso a motorizados...")
+            conn.execute(
+                text("INSERT INTO mensajes_whatsapp (id, texto) VALUES ('aviso_grupo_delivery', :t)"),
+                {"t": PLANTILLA_AVISO_MOTORIZADOS},
+            )
+        elif "[BANDEJAS]" not in texto_guardado:
+            print("[migracion] Actualizando la plantilla del aviso a motorizados...")
+            # Guardamos la anterior por si quieren volver a ella.
+            respaldo = conn.execute(
+                text("SELECT texto FROM mensajes_whatsapp WHERE id = 'aviso_grupo_delivery_anterior'")
+            ).fetchone()
+            if respaldo is None:
+                conn.execute(
+                    text("INSERT INTO mensajes_whatsapp (id, texto) VALUES ('aviso_grupo_delivery_anterior', :t)"),
+                    {"t": texto_guardado},
+                )
+            conn.execute(
+                text("UPDATE mensajes_whatsapp SET texto = :t WHERE id = 'aviso_grupo_delivery'"),
+                {"t": PLANTILLA_AVISO_MOTORIZADOS},
+            )

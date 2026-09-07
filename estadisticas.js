@@ -128,12 +128,17 @@ function preprocesarIDsVisuales(pedidos) {
     ordenados.forEach(p => {
         if (p.timestamp) {
             // Cortamos por la 'T' y también por el espacio ' ' para asegurar que solo quede la fecha
-            const fecha = p.timestamp.split('T')[0].split(' ')[0]; 
-            
-            if (!contadores[fecha]) contadores[fecha] = 1;
-            else contadores[fecha]++;
-            
-            p.id_visual = contadores[fecha];
+            const fecha = p.timestamp.split('T')[0].split(' ')[0];
+
+            // Delivery y pickup se numeran por separado, igual que en el tablero
+            // y en el mensaje que recibe el cliente.
+            const tipo = String(p.tipo_entrega || '').toLowerCase();
+            const llave = fecha + ((tipo.includes('pickup') || tipo.includes('retiro')) ? '|pickup' : '|delivery');
+
+            if (!contadores[llave]) contadores[llave] = 1;
+            else contadores[llave]++;
+
+            p.id_visual = contadores[llave];
         } else {
             p.id_visual = p.id_pedido || 'S/N';
         }

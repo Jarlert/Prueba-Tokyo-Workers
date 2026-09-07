@@ -116,6 +116,9 @@ class ProductoGuardar(BaseModel):
     disponible_desde: Optional[str] = None
     disponible_hasta: Optional[str] = None
     dias_disponibles: Optional[str] = None
+    # Cuanto ocupa al empacar; se suma por pedido para el aviso a motorizados
+    bandejas: Optional[int] = 1
+    cajas_pizza: Optional[int] = 0
 
 class ComboGuardar(BaseModel):
     id: Optional[int] = None
@@ -132,6 +135,9 @@ class ComboGuardar(BaseModel):
     disponible_desde: Optional[str] = None
     disponible_hasta: Optional[str] = None
     dias_disponibles: Optional[str] = None
+    # Cuanto ocupa al empacar; se suma por pedido para el aviso a motorizados
+    bandejas: Optional[int] = 1
+    cajas_pizza: Optional[int] = 0
 
 class AnuncioGuardar(BaseModel):
     id: Optional[int] = None

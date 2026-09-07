@@ -11,6 +11,7 @@ import schemas
 from auth import requiere_staff, staff_opcional
 from routers.horarios import esta_abierto_ahora
 from services.evolution_api import enviar_whatsapp
+from plantillas import PLANTILLA_AVISO_MOTORIZADOS
 
 router = APIRouter(
     prefix="/api/pedidos",
@@ -40,6 +41,105 @@ async def notificar_whatsapp(destino: str, mensaje: str, contexto: str) -> tuple
     except Exception as e:
         print(f"Error enviando WhatsApp de {contexto}: {e}")
         return False, str(e)
+
+# ==========================================
+# NUMERACION DIARIA (separada por tipo de entrega)
+# ==========================================
+# Delivery y pickup llevan cuadernos distintos: cada uno arranca en 1 cada dia.
+# Asi, "pedido 12" es el doceavo delivery del dia, sin que los retiros en el
+# local le corran el numero.
+
+def es_entrega_pickup(tipo_entrega) -> bool:
+    texto = (tipo_entrega or "").lower()
+    return "pickup" in texto or "retiro" in texto
+
+
+def buscar_pedido_por_id(db: Session, db_id_str):
+    try:
+        return db.query(models.Pedido).filter(models.Pedido.id == int(db_id_str)).first()
+    except (TypeError, ValueError):
+        return None
+
+
+def contar_numero_diario(db: Session, pedido_db) -> int:
+    """Cuantos pedidos del MISMO tipo van ese dia hasta este (incluido)."""
+    if pedido_db.fecha:
+        filtro_dia = models.Pedido.fecha == pedido_db.fecha
+    elif pedido_db.timestamp:
+        filtro_dia = models.Pedido.timestamp.like(f"{pedido_db.timestamp[:10]}%")
+    else:
+        return pedido_db.id
+
+    filas = db.query(models.Pedido.tipo_entrega).filter(
+        filtro_dia,
+        models.Pedido.id <= pedido_db.id,
+    ).all()
+
+    buscado = es_entrega_pickup(pedido_db.tipo_entrega)
+    return sum(1 for (tipo,) in filas if es_entrega_pickup(tipo) == buscado)
+
+
+# ==========================================
+# EMPAQUE: cuanto ocupa el pedido
+# ==========================================
+# Cada plato declara en el panel cuantas bandejas y cuantas cajas de pizza
+# ocupa. Se suman por pedido y salen en el aviso al grupo de motorizados, para
+# que sepan con que van a cargar. Los refrescos se cuentan aparte.
+CATEGORIAS_REFRESCO = ("bebida", "refresco")
+
+
+def _es_refresco(categoria) -> bool:
+    texto = (categoria or "").lower()
+    return any(clave in texto for clave in CATEGORIAS_REFRESCO)
+
+
+def calcular_empaque(db: Session, articulos) -> dict:
+    """Suma bandejas, cajas de pizza y refrescos de una lista de articulos.
+
+    Acepta objetos del schema (con .id / .qty) y tambien diccionarios crudos,
+    porque el tablero manda el carrito de la edicion como JSON pelado.
+    Las lineas que no son un plato real (manuales "custom_0_1", regalos de un
+    producto ya borrado) simplemente no suman nada.
+    """
+    totales = {"bandejas": 0, "cajas_pizza": 0, "refrescos": 0}
+
+    for art in articulos or []:
+        if isinstance(art, dict):
+            id_item, cantidad_cruda = art.get("id"), art.get("qty")
+        else:
+            id_item, cantidad_cruda = getattr(art, "id", None), getattr(art, "qty", None)
+
+        try:
+            cantidad = int(cantidad_cruda)
+        except (TypeError, ValueError):
+            continue
+        if cantidad <= 0:
+            continue
+
+        partes = str(id_item or "").split("_")
+        if len(partes) < 2 or not partes[1].isdigit():
+            continue
+
+        tipo_item, db_id = partes[0], int(partes[1])
+        if tipo_item == "p":
+            fila = db.query(models.Producto).filter(models.Producto.id == db_id).first()
+            if fila and _es_refresco(fila.categoria):
+                totales["refrescos"] += cantidad
+        elif tipo_item == "c":
+            fila = db.query(models.Combo).filter(models.Combo.id == db_id).first()
+        else:
+            continue
+
+        if not fila:
+            continue
+
+        # 'bandejas' puede venir en NULL en filas viejas: por defecto ocupa una.
+        bandejas = fila.bandejas if fila.bandejas is not None else 1
+        totales["bandejas"] += bandejas * cantidad
+        totales["cajas_pizza"] += (fila.cajas_pizza or 0) * cantidad
+
+    return totales
+
 
 @router.post("/")
 async def crear_pedido(
@@ -107,6 +207,9 @@ async def crear_pedido(
     # línea buscando "Nx Nombre ($precio)") puedan diferenciar cada renglón.
     texto_detallado = "\n".join(resumen_articulos)
 
+    # 2.6 Cuanto ocupa el pedido al empacarlo (para el aviso a motorizados)
+    empaque = calcular_empaque(db, pedido.articulos)
+
     # 3. Guardar en la Base de Datos
     nuevo_pedido = models.Pedido(
         cliente=pedido.cliente,
@@ -125,16 +228,21 @@ async def crear_pedido(
         tasa_bcv=tasa_actual,
 
         timestamp=datetime.now().isoformat(),
-        fecha=date.today()
+        fecha=date.today(),
+
+        # Lo que necesita el aviso al grupo de motorizados
+        total_bandejas=empaque["bandejas"],
+        total_cajas_pizza=empaque["cajas_pizza"],
+        total_refrescos=empaque["refrescos"],
     )
 
     db.add(nuevo_pedido)
     db.commit()
     db.refresh(nuevo_pedido)
 
-    # A. Calcular el ID visual (contamos cuántos pedidos hay HOY en la base de datos)
-    pedidos_de_hoy = db.query(models.Pedido).filter(models.Pedido.fecha == date.today()).count()
-    id_visual = pedidos_de_hoy
+    # A. Numero que vera el cliente: el n-esimo pedido de HOY de su mismo tipo.
+    # Delivery y pickup se numeran por separado, cada uno desde 1.
+    id_visual = contar_numero_diario(db, nuevo_pedido)
 
     # ==========================================
     # LÓGICA DE NOTIFICACIONES PARA PEDIDO NUEVO
@@ -266,6 +374,17 @@ def actualizar_estado(datos: dict, db: Session = Depends(get_db), staff: dict = 
     if "total_orden" in datos: pedido.total_orden = datos["total_orden"]
     if "pedido_detallado" in datos: pedido.pedido_detallado = datos["pedido_detallado"]
     if "tasa_bcv" in datos: pedido.tasa_bcv = datos["tasa_bcv"]
+    if "precio_delivery" in datos: pedido.precio_delivery = datos["precio_delivery"]
+    if "paga_con" in datos: pedido.paga_con = datos["paga_con"]
+
+    # Si la edicion nos manda el carrito, recalculamos cuanto ocupa el pedido.
+    # Si no lo manda (la mayoria de las actualizaciones de estado), dejamos los
+    # totales como estaban en vez de ponerlos en cero.
+    if datos.get("articulos"):
+        empaque = calcular_empaque(db, datos["articulos"])
+        pedido.total_bandejas = empaque["bandejas"]
+        pedido.total_cajas_pizza = empaque["cajas_pizza"]
+        pedido.total_refrescos = empaque["refrescos"]
 
     db.commit()
     # --- NUEVO: Avisar al tablero que un pedido se movió ---
@@ -281,26 +400,10 @@ def actualizar_estado(datos: dict, db: Session = Depends(get_db), staff: dict = 
 # ==========================================
 def obtener_id_diario(db: Session, db_id_str: str):
     try:
-        db_id = int(db_id_str)
-        pedido_db = db.query(models.Pedido).filter(models.Pedido.id == db_id).first()
+        pedido_db = buscar_pedido_por_id(db, db_id_str)
         if not pedido_db:
             return str(db_id_str)
-
-        if pedido_db.fecha:
-            # Cuenta cuántos pedidos hay ese día hasta llegar a este (esto da el número diario real)
-            conteo = db.query(models.Pedido).filter(
-                models.Pedido.fecha == pedido_db.fecha,
-                models.Pedido.id <= db_id
-            ).count()
-            return str(conteo)
-        elif pedido_db.timestamp:
-            # Fallback para filas que por algún motivo no tengan 'fecha' poblada
-            fecha_str = pedido_db.timestamp[:10]
-            conteo = db.query(models.Pedido).filter(
-                models.Pedido.timestamp.like(f"{fecha_str}%"),
-                models.Pedido.id <= db_id
-            ).count()
-            return str(conteo)
+        return str(contar_numero_diario(db, pedido_db))
     except Exception:
         pass
     # Si falla algo, devuelve el ID original por seguridad
@@ -390,6 +493,83 @@ async def notificar_aprobado_pedido(datos: schemas.NotificacionAprobado, db: Ses
     return {"success": False, "error": error}
 
 
+# ==========================================
+# AVISO AL GRUPO DE MOTORIZADOS
+# ==========================================
+
+def formatear_nombre_motorizado(telefono, cliente) -> str:
+    """El grupo lee "8308     +58 416-3988308": los ultimos cuatro digitos y
+    despues el numero completo. Es redundante a proposito; es como lo vienen
+    escribiendo a mano desde siempre y no queremos que tengan que reaprender.
+    """
+    crudo = (telefono or "").strip()
+    digitos = "".join(c for c in crudo if c.isdigit())
+    if not digitos:
+        return cliente or "Sin telefono"
+
+    if crudo.startswith("+"):
+        # Numero extranjero: ya viene en formato internacional, se deja igual.
+        legible = crudo
+    elif len(digitos) == 11 and digitos.startswith("0"):
+        # Formato venezolano guardado: 04163988308 -> +58 416-3988308
+        legible = f"+58 {digitos[1:4]}-{digitos[4:]}"
+    else:
+        legible = crudo
+
+    return f"{digitos[-4:]}     {legible}"
+
+
+def _texto_pago(pedido_db) -> str:
+    """Si ya pago no hay nada que cobrar; si es efectivo, cuanto y con que
+    billete pensaba pagar, para que el motorizado salga con el vuelto."""
+    metodo = (getattr(pedido_db, "metodo_pago", "") or "").strip()
+
+    if "efectivo" not in metodo.lower():
+        return f"YA PAGO ({metodo})" if metodo else "YA PAGO"
+
+    total = getattr(pedido_db, "total_orden", None)
+    texto = "COBRAR EN EFECTIVO"
+    if total is not None:
+        texto += f" ${total:.2f}"
+
+    paga_con = (getattr(pedido_db, "paga_con", "") or "").strip()
+    if paga_con:
+        texto += f" - paga con {paga_con}"
+    return texto
+
+
+def _numero_corto(valor) -> str:
+    """2.0 -> "2", 2.5 -> "2.5" (asi lo escriben ellos: "2$")."""
+    try:
+        return f"{float(valor):g}"
+    except (TypeError, ValueError):
+        return str(valor)
+
+
+def datos_aviso_motorizados(pedido_db, datos, id_diario) -> dict:
+    """Arma los reemplazos de la plantilla del grupo. Si el pedido no aparece
+    en la base de datos igual mandamos el aviso con lo que trae la peticion,
+    porque quedarnos callados es peor que un dato incompleto."""
+    telefono = getattr(pedido_db, "telefono", None) or datos.telefono
+    direccion = (getattr(pedido_db, "direccion", None) or datos.direccion or "").strip()
+
+    precio_delivery = getattr(pedido_db, "precio_delivery", None)
+    texto_delivery = f"{_numero_corto(precio_delivery)}$" if precio_delivery is not None else "-"
+
+    return {
+        "[PEDIDO]": id_diario,
+        "[NOMBRE]": formatear_nombre_motorizado(telefono, datos.cliente),
+        "[CLIENTE]": datos.cliente,
+        "[TELEFONO]": telefono or "",
+        "[DIRECCION]": direccion or "Sin direccion",
+        "[REFRESCOS]": getattr(pedido_db, "total_refrescos", None) or 0,
+        "[BANDEJAS]": getattr(pedido_db, "total_bandejas", None) or 0,
+        "[CAJAS_PIZZA]": getattr(pedido_db, "total_cajas_pizza", None) or 0,
+        "[PAGO]": _texto_pago(pedido_db),
+        "[PRECIO_DELIVERY]": texto_delivery,
+    }
+
+
 @router.post("/notificar-despacho")
 async def notificar_despacho_pedido(datos: schemas.NotificacionDespacho, db: Session = Depends(get_db), staff: dict = Depends(requiere_staff)):
     
@@ -415,16 +595,19 @@ async def notificar_despacho_pedido(datos: schemas.NotificacionDespacho, db: Ses
 
     # --- 2. MENSAJE AL GRUPO DE MOTORIZADOS (Solo si es Delivery) ---
     if "delivery" in datos.tipo_entrega.lower():
+        pedido_db = buscar_pedido_por_id(db, getattr(datos, 'id_visual', ''))
+        reemplazos = datos_aviso_motorizados(pedido_db, datos, id_diario)
+
         plantilla_grupo = db.query(models.MensajeWhatsapp).filter(models.MensajeWhatsapp.id == 'aviso_grupo_delivery').first()
 
-        if plantilla_grupo:
-            mensaje_grupo = aplicar_placeholders(plantilla_grupo.texto, {
-                "[PEDIDO]": id_diario,
-                "[CLIENTE]": datos.cliente,
-                "[DIRECCION]": datos.direccion,
-            })
-        else:
-            mensaje_grupo = f"🛵 *NUEVO PEDIDO LISTO*\n\nEl pedido #{id_diario} a nombre de {datos.cliente} en {datos.direccion} está listo para ser entregado."
+        # Si la plantilla guardada todavía es la vieja (no menciona las
+        # bandejas) usamos la nueva de fábrica, para que el grupo nunca reciba
+        # un aviso a medias mientras el panel no se haya actualizado.
+        texto_plantilla = (plantilla_grupo.texto if plantilla_grupo else "") or ""
+        if "[BANDEJAS]" not in texto_plantilla:
+            texto_plantilla = PLANTILLA_AVISO_MOTORIZADOS
+
+        mensaje_grupo = aplicar_placeholders(texto_plantilla, reemplazos)
 
         ID_GRUPO_WHATSAPP = "120363403360852542@g.us"
         await notificar_whatsapp(ID_GRUPO_WHATSAPP, mensaje_grupo, "aviso al grupo de motorizados")

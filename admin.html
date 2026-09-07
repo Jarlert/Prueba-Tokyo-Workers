@@ -292,6 +292,21 @@
                         <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Marca esto cuando no puedas preparar el producto hoy (ej. se acabó un ingrediente). A diferencia de "no disponible", esto también lo bloquea dentro de los combos que lo incluyen.</p>
 
                         <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">
+                            <label style="margin-top: 0; color: white;">📦 Empaque (para el aviso a motorizados)</label>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin: 4px 0 10px;">Cuánto ocupa este producto al empacarlo. Se suma con el resto del pedido y aparece en el mensaje al grupo de motorizados, para que sepan con qué van a cargar. Puede llevar bandejas y cajas a la vez; deja un 0 en lo que no aplique.</p>
+                            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                                <div style="flex:1; min-width:120px;">
+                                    <label style="font-size:0.8rem;">🍱 Bandejas</label>
+                                    <input type="number" id="prod-bandejas" min="0" step="1" value="1">
+                                </div>
+                                <div style="flex:1; min-width:120px;">
+                                    <label style="font-size:0.8rem;">📦 Cajas de pizza</label>
+                                    <input type="number" id="prod-cajas-pizza" min="0" step="1" value="0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">
                             <label style="margin-top: 0; color: white;">⏰ Disponibilidad programada (opcional)</label>
                             <p style="font-size: 0.75rem; color: var(--text-muted); margin: 4px 0 10px;">Para promociones por tiempo limitado (ej. solo de 2:00pm a 10:00pm, o solo ciertos días). Deja todo vacío/sin marcar para que esté disponible siempre.</p>
                             <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -367,6 +382,21 @@
                             </div>
                             <label>Cantidad de regalo</label>
                             <input type="number" id="combo-promo-producto-cantidad" min="1" placeholder="Ej: 2">
+                        </div>
+
+                        <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">
+                            <label style="margin-top: 0; color: white;">📦 Empaque (para el aviso a motorizados)</label>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin: 4px 0 10px;">Cuánto ocupa este combo al empacarlo. Se suma con el resto del pedido y aparece en el mensaje al grupo de motorizados, para que sepan con qué van a cargar. Puede llevar bandejas y cajas a la vez; deja un 0 en lo que no aplique.</p>
+                            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                                <div style="flex:1; min-width:120px;">
+                                    <label style="font-size:0.8rem;">🍱 Bandejas</label>
+                                    <input type="number" id="combo-bandejas" min="0" step="1" value="1">
+                                </div>
+                                <div style="flex:1; min-width:120px;">
+                                    <label style="font-size:0.8rem;">📦 Cajas de pizza</label>
+                                    <input type="number" id="combo-cajas-pizza" min="0" step="1" value="0">
+                                </div>
+                            </div>
                         </div>
 
                         <div style="background: var(--input-bg); padding: 15px; border-radius: 6px; border: 1px solid #334155; margin-top: 15px;">

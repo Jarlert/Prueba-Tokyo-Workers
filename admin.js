@@ -829,7 +829,8 @@ if (document.getElementById('form-producto')) {
             agotado: document.getElementById('prod-agotado').checked,
             disponible_desde: document.getElementById('prod-disponible-desde').value || null,
             disponible_hasta: document.getElementById('prod-disponible-hasta').value || null,
-            dias_disponibles: leerDiasSeleccionados('prod') || null
+            dias_disponibles: leerDiasSeleccionados('prod') || null,
+            ...leerEmpaque('prod')
         };
         try {
             await fetch(ADMIN_URL_GUARDAR_PROD, { 
@@ -850,6 +851,8 @@ function editarProducto(id) {
     document.getElementById('prod-disponible-desde').value = p.disponible_desde || '';
     document.getElementById('prod-disponible-hasta').value = p.disponible_hasta || '';
     construirChipsDias('prod', parsearDiasDisponibles(p.dias_disponibles));
+    document.getElementById('prod-bandejas').value = (p.bandejas === null || p.bandejas === undefined) ? 1 : p.bandejas;
+    document.getElementById('prod-cajas-pizza').value = p.cajas_pizza || 0;
     document.getElementById('titulo-form-prod').innerText = "Editar Producto"; document.getElementById('btn-save-prod').innerText = "💾 Actualizar Producto"; document.getElementById('btn-cancel-prod').style.display = "block";
     document.getElementById('buscador-productos-admin').value = '';
     renderListaProductos();
@@ -1030,6 +1033,17 @@ function construirChipsDias(prefix, diasSeleccionados = []) {
     }).join('');
 }
 
+// Cuanto ocupa un plato al empacarlo. Vacio o negativo se corrige solo: las
+// bandejas caen a 1 (todo ocupa al menos una) y las cajas a 0.
+function leerEmpaque(prefijo) {
+    const leer = (sufijo, porDefecto) => {
+        const campo = document.getElementById(`${prefijo}-${sufijo}`);
+        const valor = campo ? parseInt(campo.value, 10) : NaN;
+        return (isNaN(valor) || valor < 0) ? porDefecto : valor;
+    };
+    return { bandejas: leer('bandejas', 1), cajas_pizza: leer('cajas-pizza', 0) };
+}
+
 function leerDiasSeleccionados(prefix) {
     const cont = document.getElementById(`${prefix}-chips-dias`);
     if (!cont) return '';
@@ -1174,7 +1188,8 @@ if (formCombo) {
             promo_cantidad_minima: promoCantidadMinima, promo_producto_id: promoProductoId, promo_producto_cantidad: promoProductoCantidad,
             disponible_desde: document.getElementById('combo-disponible-desde').value || null,
             disponible_hasta: document.getElementById('combo-disponible-hasta').value || null,
-            dias_disponibles: leerDiasSeleccionados('combo') || null
+            dias_disponibles: leerDiasSeleccionados('combo') || null,
+            ...leerEmpaque('combo')
         };
         
         try {
@@ -1202,6 +1217,8 @@ function editarCombo(id) {
     document.getElementById('combo-disponible-desde').value = c.disponible_desde || '';
     document.getElementById('combo-disponible-hasta').value = c.disponible_hasta || '';
     construirChipsDias('combo', parsearDiasDisponibles(c.dias_disponibles));
+    document.getElementById('combo-bandejas').value = (c.bandejas === null || c.bandejas === undefined) ? 1 : c.bandejas;
+    document.getElementById('combo-cajas-pizza').value = c.cajas_pizza || 0;
 
     document.getElementById('lista-items-combo').innerHTML = '';
     let parsedItems = [];
