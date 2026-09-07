@@ -478,79 +478,87 @@ function renderizarCategorias() {
 }
 
 // --- 3. ACTUALIZACIÓN DEL SELECTOR DE CATEGORÍAS ---
+// La tarjeta de un plato o combo se pinta igual en el menú del cliente y en el de
+// los trabajadores (que además la reutiliza para los resultados del buscador),
+// así que vive aparte en vez de estar enterrada dentro de selectCategory.
+function construirTarjetaItemHtml(item) {
+    let currentQty = 0;
+    Object.keys(cart).forEach(key => {
+        if (key === String(item.id) || key.startsWith(item.id + "_")) {
+            currentQty += cart[key].qty;
+        }
+    });
+    const pendientesActuales = pendientesPersonalizarCombo[item.id] || 0;
+    currentQty += pendientesActuales;
+
+    const esEnlace = item.image && item.image.startsWith('http');
+    const vistaImagen = esEnlace
+        ? `<img src="${urlImagen(item.image, 192)}" data-original="${escapeHtml(item.image)}" onerror="imagenConRespaldo(this)" alt="${item.name}" loading="lazy" class="w-20 h-20 object-cover rounded-xl flex-shrink-0 bg-gray-100 border border-gray-100 shadow-sm">`
+        : `<div class="w-20 h-20 rounded-xl flex-shrink-0 bg-red-50 text-red-500 border border-red-100 flex items-center justify-center text-4xl shadow-sm">${item.image || '🍣'}</div>`;
+
+    // Los combos con opciones personalizables ya llevan su propia nota dentro del
+    // modal de personalización (cada unidad puede querer una distinta); mostrar
+    // aquí también el campo de nota creaba una línea de carrito fantasma sin piezas
+    // seleccionadas en cuanto el cliente empezaba a escribir.
+    const esComboPersonalizable = esComboConOpciones(item);
+    const bloqueNotaHtml = esComboPersonalizable
+        ? `<p class="text-[10px] text-gray-400 mt-1">📝 Podrás añadir una nota especial al personalizar tu combo</p>`
+        : `
+            <button type="button" onclick="toggleNoteField('${item.id}')" id="note-btn-${item.id}" class="text-[11px] font-medium text-gray-500 hover:text-red-600 flex items-center gap-1 cursor-pointer select-none">
+                📝 Añadir nota especial
+            </button>
+            <input type="text" id="note-input-${item.id}" oninput="updateItemNote('${item.id}', '${item.name}', ${item.price}, this.value)" class="hidden w-full mt-1.5 p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-red-500 placeholder-gray-400" placeholder="Especificación para este plato...">
+        `;
+
+    // Para combos con opciones: elegir la cantidad no abre el modal de una vez, solo
+    // "reserva" cuántos faltan por personalizar. Este botón aparece mientras haya
+    // pendientes y es el único disparador que abre el modal para ese combo.
+    const bloquePersonalizarPendienteHtml = esComboPersonalizable ? `
+        <div id="personalizar-pendiente-${item.id}" class="${pendientesActuales > 0 ? '' : 'hidden'}">
+            <button type="button" onclick="personalizarPendientesCombo('${item.id}')" class="w-full bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer mt-1.5">
+                🎨 Personalizar (${pendientesActuales} pendiente${pendientesActuales === 1 ? '' : 's'})
+            </button>
+        </div>
+    ` : '';
+
+    const itemHtml = `
+        <div id="item-card-${item.id}" class="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm flex flex-col gap-2 transition-all">
+            <div class="flex items-center justify-between gap-3">
+                
+                <div class="flex items-center gap-3 flex-grow min-w-0 cursor-pointer" onclick="abrirDetalleProducto('${item.id}')">
+                    ${vistaImagen}
+                    <div class="flex-grow min-w-0 pr-1">
+                        <h4 class="text-sm font-bold text-gray-800 leading-snug">${item.name}</h4>
+                        <p class="text-xs text-gray-400 my-0.5 line-clamp-2">${item.desc}</p>
+                        <span class="text-red-600 font-bold text-sm block mt-0.5">$${item.price.toFixed(2)}</span>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-1 bg-gray-100 p-1 rounded-xl flex-shrink-0 border border-gray-200">
+                    <button type="button" onclick="updateQty('${item.id}', '${item.name}', ${item.price}, -1)" class="w-8 h-8 bg-white rounded-lg font-bold text-lg text-gray-700 shadow-sm select-none cursor-pointer">-</button>
+                    <input type="number" id="qty-${item.id}" value="${currentQty}" min="0" onchange="setExactQty('${item.id}', '${item.name}', ${item.price}, this.value)" class="w-9 text-center font-black bg-transparent focus:outline-none text-sm text-gray-800">
+                    <button type="button" onclick="updateQty('${item.id}', '${item.name}', ${item.price}, 1)" class="w-8 h-8 bg-white rounded-lg font-bold text-lg text-gray-700 shadow-sm select-none cursor-pointer">+</button>
+                </div>
+            </div>
+            <div class="border-t border-gray-100 pt-1">
+                ${bloqueNotaHtml}
+            </div>
+            ${bloquePersonalizarPendienteHtml}
+        </div>
+    `;
+
+    return itemHtml;
+}
+
 function selectCategory(categoryKey) {
     const container = document.getElementById('items-container');
     container.innerHTML = '';
-    
+
     document.getElementById('category-title').innerText = menuData[categoryKey].titulo;
 
-    menuData[categoryKey].items.filter(item => item.disponible !== false && !item.agotado && itemDentroDeHorarioProgramado(item)).forEach(item => {
-        let currentQty = 0;
-        Object.keys(cart).forEach(key => {
-            if (key === String(item.id) || key.startsWith(item.id + "_")) {
-                currentQty += cart[key].qty;
-            }
-        });
-        const pendientesActuales = pendientesPersonalizarCombo[item.id] || 0;
-        currentQty += pendientesActuales;
+    menuData[categoryKey].items
+        .filter(item => item.disponible !== false && !item.agotado && itemDentroDeHorarioProgramado(item))
+        .forEach(item => container.insertAdjacentHTML('beforeend', construirTarjetaItemHtml(item)));
 
-        const esEnlace = item.image && item.image.startsWith('http');
-        const vistaImagen = esEnlace
-            ? `<img src="${urlImagen(item.image, 192)}" data-original="${escapeHtml(item.image)}" onerror="imagenConRespaldo(this)" alt="${item.name}" loading="lazy" class="w-20 h-20 object-cover rounded-xl flex-shrink-0 bg-gray-100 border border-gray-100 shadow-sm">`
-            : `<div class="w-20 h-20 rounded-xl flex-shrink-0 bg-red-50 text-red-500 border border-red-100 flex items-center justify-center text-4xl shadow-sm">${item.image || '🍣'}</div>`;
-
-        // Los combos con opciones personalizables ya llevan su propia nota dentro del
-        // modal de personalización (cada unidad puede querer una distinta); mostrar
-        // aquí también el campo de nota creaba una línea de carrito fantasma sin piezas
-        // seleccionadas en cuanto el cliente empezaba a escribir.
-        const esComboPersonalizable = esComboConOpciones(item);
-        const bloqueNotaHtml = esComboPersonalizable
-            ? `<p class="text-[10px] text-gray-400 mt-1">📝 Podrás añadir una nota especial al personalizar tu combo</p>`
-            : `
-                <button type="button" onclick="toggleNoteField('${item.id}')" id="note-btn-${item.id}" class="text-[11px] font-medium text-gray-500 hover:text-red-600 flex items-center gap-1 cursor-pointer select-none">
-                    📝 Añadir nota especial
-                </button>
-                <input type="text" id="note-input-${item.id}" oninput="updateItemNote('${item.id}', '${item.name}', ${item.price}, this.value)" class="hidden w-full mt-1.5 p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-red-500 placeholder-gray-400" placeholder="Especificación para este plato...">
-            `;
-
-        // Para combos con opciones: elegir la cantidad no abre el modal de una vez, solo
-        // "reserva" cuántos faltan por personalizar. Este botón aparece mientras haya
-        // pendientes y es el único disparador que abre el modal para ese combo.
-        const bloquePersonalizarPendienteHtml = esComboPersonalizable ? `
-            <div id="personalizar-pendiente-${item.id}" class="${pendientesActuales > 0 ? '' : 'hidden'}">
-                <button type="button" onclick="personalizarPendientesCombo('${item.id}')" class="w-full bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 rounded-xl transition cursor-pointer mt-1.5">
-                    🎨 Personalizar (${pendientesActuales} pendiente${pendientesActuales === 1 ? '' : 's'})
-                </button>
-            </div>
-        ` : '';
-
-        const itemHtml = `
-            <div id="item-card-${item.id}" class="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm flex flex-col gap-2 transition-all">
-                <div class="flex items-center justify-between gap-3">
-                    
-                    <div class="flex items-center gap-3 flex-grow min-w-0 cursor-pointer" onclick="abrirDetalleProducto('${item.id}')">
-                        ${vistaImagen}
-                        <div class="flex-grow min-w-0 pr-1">
-                            <h4 class="text-sm font-bold text-gray-800 leading-snug">${item.name}</h4>
-                            <p class="text-xs text-gray-400 my-0.5 line-clamp-2">${item.desc}</p>
-                            <span class="text-red-600 font-bold text-sm block mt-0.5">$${item.price.toFixed(2)}</span>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-1 bg-gray-100 p-1 rounded-xl flex-shrink-0 border border-gray-200">
-                        <button type="button" onclick="updateQty('${item.id}', '${item.name}', ${item.price}, -1)" class="w-8 h-8 bg-white rounded-lg font-bold text-lg text-gray-700 shadow-sm select-none cursor-pointer">-</button>
-                        <input type="number" id="qty-${item.id}" value="${currentQty}" min="0" onchange="setExactQty('${item.id}', '${item.name}', ${item.price}, this.value)" class="w-9 text-center font-black bg-transparent focus:outline-none text-sm text-gray-800">
-                        <button type="button" onclick="updateQty('${item.id}', '${item.name}', ${item.price}, 1)" class="w-8 h-8 bg-white rounded-lg font-bold text-lg text-gray-700 shadow-sm select-none cursor-pointer">+</button>
-                    </div>
-                </div>
-                <div class="border-t border-gray-100 pt-1">
-                    ${bloqueNotaHtml}
-                </div>
-                ${bloquePersonalizarPendienteHtml}
-            </div>
-        `;
-        container.insertAdjacentHTML('beforeend', itemHtml);
-    });
-    
     goToStep(2);
 }
 
@@ -1011,14 +1019,18 @@ function personalizarDesdeModalPendientes(id) {
     personalizarPendientesCombo(id);
 }
 
-function prepareCheckout() {
+// Pinta el carrito y el total en el paso 3. Devuelve false si el carrito quedó
+// vacío (en ese caso ya devolvió al usuario al paso 1). Lo comparten el checkout
+// del cliente y el de los trabajadores, que sí difieren en el formulario de abajo.
+function renderizarResumenCarrito() {
     const summaryContainer = document.getElementById('checkout-cart-summary');
     summaryContainer.innerHTML = '';
     
     const cartItems = Object.keys(cart);
     if (cartItems.length === 0) {
         document.getElementById('checkout-total-price').innerText = "$0.00";
-        goToStep(1); return;
+        goToStep(1);
+        return false;
     }
     
     let total = 0;
@@ -1057,6 +1069,12 @@ function prepareCheckout() {
     });
     
     document.getElementById('checkout-total-price').innerText = `$${total.toFixed(2)}`;
+
+    return true;
+}
+
+function prepareCheckout() {
+    if (!renderizarResumenCarrito()) return;
 
     document.getElementById('chk-usar-mis-datos').checked = true;
     toggleFormularioDatosEnvio();

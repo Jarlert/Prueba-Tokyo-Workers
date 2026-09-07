@@ -8,11 +8,12 @@ Tokio Sushi is an order-management system for a sushi restaurant: a customer-fac
 
 ## Repo layout
 
-- **Root** — four independent static pages, each with its own HTML + JS file, plus one shared script (no bundler, no module system — everything is globals loaded via `<script>` tags):
-  - `index.html` / `app.js` — kitchen/operations dashboard (order board, status changes, WhatsApp notifications, motorizados/rate management). Requires login (`usuarios` table).
+- **Root** — five independent static pages, each with its own HTML + JS file, plus one shared script (no bundler, no module system — everything is globals loaded via `<script>` tags):
+  - `index.html` / `app.js` — kitchen/operations dashboard (order board, status changes, WhatsApp notifications, motorizados/rate management). Requires login (`usuarios` table). Its "Nuevo Pedido" button no longer opens a form here — it navigates to `menu_trabajadores.html`.
   - `menu.html` / `menu.js` — customer-facing ordering flow (client login by phone, catalog browsing, combo customization, cart, checkout).
   - `admin.html` / `admin.js` — admin panel (CRUD for categories/products/combos/announcements, users, motorizados, WhatsApp message templates, business hours).
   - `estadisticas.html` / `estadisticas.js` — analytics/stats dashboard (Chart.js) + client search.
+  - `menu_trabajadores.html` / `menu_trabajadores.js` — the register: the same customer menu, laid out for desktop, used by staff to take an order. Requires a staff session (`localStorage.usuarioActivo` + `tokioAuthToken`); redirects to `index.html` without one. **It loads `menu.js` wholesale and then overrides only what differs** — see the architecture note below.
   - `config.js` — **shared** helpers used by several pages: `authHeaders()` (reads the JWT from `localStorage.tokioAuthToken`), `escapeHtml()`, and `construirHtmlModalPedido()`. Load it before the page's own JS. New cross-page helpers belong here.
   - `Codigo original funcional` — a legacy single-file (no extension, it's HTML) snapshot of an earlier working version of the ops dashboard, kept as a reference, not wired into the app.
 - **`tokio-backend/`** — FastAPI backend.
@@ -20,7 +21,7 @@ Tokio Sushi is an order-management system for a sushi restaurant: a customer-fac
   - `database.py` — SQLAlchemy engine/session setup, reads `DATABASE_URL` from `.env`.
   - `models.py` — all SQLAlchemy models in one file.
   - `schemas.py` — all Pydantic request/response schemas in one file.
-  - `auth.py` — bcrypt PIN hashing + JWT issue/verify, and the `requiere_staff` / `requiere_admin` dependencies.
+  - `auth.py` — bcrypt PIN hashing + JWT issue/verify, and the `requiere_staff` / `requiere_admin` / `staff_opcional` dependencies.
   - `rate_limit.py` — `limitador(max_intentos, ventana_seg)` dependency factory.
   - `migrations.py` — additive, idempotent schema migrations run on every startup.
   - `routers/` — one router per domain, each with its own `/api/<domain>` prefix: `pedidos.py`, `clientes.py`, `menu.py`, `usuarios.py`, `motorizados.py`, `mensajes.py`, `bcv.py`, `horarios.py`, `anuncios.py`.
@@ -79,6 +80,14 @@ There is no automated test suite (frontend or backend) and no linter configured.
 
 **Image uploads** go straight from the browser to imgbb (API key hardcoded client-side) — the backend only ever stores the resulting URL string, never image bytes. `redimensionarImagen()` in `admin.js` caps the dimension and re-encodes to JPEG 80% in a canvas before uploading; the cap comes from `ANCHOS_SUBIDA`, keyed by what the image is for (categories 300px since they only ever show at 48px, products/combos 900px because they open in a lightbox, announcements 1000px for the full-screen popup). Both `app.js` (payment proofs) and `admin.js` (menu images) resize to max 700px and re-encode as JPEG 80% in a canvas before uploading. `menu.html` opens a `preconnect` to `i.ibb.co`, preloads the announcement image at `fetchpriority=high`, and drops category thumbnails to `fetchpriority=low` so the popup image wins the race.
 
+**The register reuses the customer menu instead of duplicating it.** `menu_trabajadores.html` loads `config.js`, then `menu.js` *whole*, then `menu_trabajadores.js`. Because these are classic scripts sharing one global scope, a function re-declared in the third file silently replaces the one from `menu.js` — that is the override mechanism, and it is why load order in the HTML must not change. What gets replaced is listed at the top of `menu_trabajadores.js`: `window.onload`, `window.onpopstate`, `goToStep`, `renderizarCategorias`, `prepareCheckout`, `resetForm`, `sendOrder` and `cargarYMostrarAnuncios` (no-op'd so staff don't get the promo popup). Everything else — the catalogue, the cart, and all of the combo customization — is the customer code running unmodified, so **a combo fix in `menu.js` fixes both screens at once**. Two consequences worth knowing: the combo/detail/variant/pending modals in `menu_trabajadores.html` are copied verbatim from `menu.html` and must be kept in sync if their inner IDs change; and two helpers exist purely so both screens can share them — `construirTarjetaItemHtml(item)` (split out of `selectCategory`, also used by the register's search) and `renderizarResumenCarrito()` (split out of `prepareCheckout`, which now only handles the form below it).
+
+**Nothing may render the same item card twice on one page.** The card markup hardcodes `id="qty-<itemId>"`, so a plain `getElementById` would find the hidden copy and update the wrong stepper. In the register the search results and the category view can both hold cards, so `goToStep(2)` clears the search and the search clears `#items-container`. Any new place that paints item cards has to do the same.
+
+**Staff are not bound by business hours.** `crear_pedido` takes an optional staff token via `auth.staff_opcional` (a non-blocking `requiere_staff`: valid JWT → payload, anything else including the decorative `Bearer TokioSushi_App_2026_X` → `None`). The closed-restaurant 403 now only fires for callers without a staff token, so the register can take a phone order before opening while customers still can't. This is why `menu_trabajadores.js` posts the order with `authHeaders()` and the customer menu does not.
+
+**Manual order lines are admin-only.** The register lets `admin`/`superadmin` add a free-text line with a typed price (the capability the old modal had). Its cart id is `custom_0_<n>`: the backend's `item.id.split("_")` reads type `custom` and db id `0`, finds no product, and falls back to the client-sent price — which is the intent. The typed name is sanitized on entry (apostrophe → `’`, `"<>\` stripped) because `renderizarResumenCarrito` interpolates names into an `onclick` with single quotes.
+
 ### Menu domain rules
 
 **Three separate availability flags, easy to confuse:**
@@ -120,7 +129,7 @@ The four JS files are large (menu.js ~1900 lines, app.js ~1500, admin.js ~1250) 
 
 **`app.js` — kitchen/ops dashboard**
 - Board: `cargarPedidos`, `renderizarTablero` (the four columns), `abrirModalDetalle`, `esPedidoDeLaFecha`, `normalizarEstado`
-- New order at the register: `abrirModalNuevoPedido`, `agregarFilaArticulo`, `mostrarSugerenciasPedido`, `seleccionarSugerenciaPedido` (renders combo option groups), `buscarClienteNuevoPedido` (phone lookup), `enviarNuevoPedido`
+- New order at the register: gone from here — the button calls `irAMenuTrabajadores`, which navigates to `menu_trabajadores.html`. `cargarCatalogoDesdeDB`/`CATALOGO_PRODUCTOS` stayed because the *edit order* modal still uses them.
 - Edit order: `abrirModalEditarPedido` (parses `pedido_detallado` back), `renderizarCarritoEdicion`, `guardarEdicionPedido`
 - State transitions + WhatsApp: `procesarPasoCocina`, `procesarPasoFinalizado`, `ejecutarActualizacion`, `pedirTiempoEstimado`, `pedirComprobantePago`, `cancelarPedido`
 - Delivery/riders: `pedirPrecioDelivery`, `procesarPrecioDelivery`, `abrirModalRepartidor`, `guardarRepartidor`
@@ -133,6 +142,12 @@ The four JS files are large (menu.js ~1900 lines, app.js ~1500, admin.js ~1250) 
 - Announcements: `cargarAnuncios`, `editarAnuncio`, `buscarItemAnuncio`
 - Scheduling chips: `construirChipsDias`, `leerDiasSeleccionados`, `parsearDiasDisponibles`
 - Users/riders/hours/templates: `cargarUsuariosDesdeDB`, `cargarMotorizadosDesdeDB`, `cargarHorarios`, `guardarHorarios`, `cargarMensajesWP`
+
+**`menu_trabajadores.js` — the register** (thin layer over `menu.js`; see the reuse note above)
+- Overrides of `menu.js`: `window.onload` (staff session + no announcements), `goToStep`, `renderizarCategorias` (desktop 4-per-row tiles), `prepareCheckout`, `resetForm`, `sendOrder`, `cargarYMostrarAnuncios`
+- Search: `buscarEnMenuTrabajador`, `limpiarBusqueda`, `ocultarResultadosBusqueda`
+- Customer lookup: `buscarClienteTrabajador`, `_estadoClienteTrab`, `_limpiarEstadoClienteTrab`
+- Order: `enviarPedidoTrabajador`, `reiniciarPedidoTrabajador`, `agregarLineaManual` (admin only), `esAdminTrabajador`, `volverAlTablero`
 
 **`estadisticas.js` — stats + client search**
 - `aplicarFiltroEstadisticas`, `procesarCalculosEstadisticos` (parses `pedido_detallado`), `dibujarWidgetsEstadisticas`, `buscarClientes`, `exportarCSV`, `abrirModalDetalle`

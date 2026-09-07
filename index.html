@@ -73,7 +73,7 @@
                         <input type="text" id="calendarioFiltro" class="bg-slate-800 text-slate-300 text-sm font-semibold border-none focus:outline-none cursor-pointer py-1 px-2 rounded w-28 text-center" placeholder="Seleccionar fecha">
                     </div>
                     
-                    <button onclick="abrirModalNuevoPedido()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold h-10 px-4 rounded-lg shadow-lg shadow-emerald-900/20 transition flex items-center gap-2 cursor-pointer">
+                    <button onclick="irAMenuTrabajadores()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold h-10 px-4 rounded-lg shadow-lg shadow-emerald-900/20 transition flex items-center gap-2 cursor-pointer">
                         <i class="fa-solid fa-plus"></i> Nuevo Pedido
                     </button>
 
@@ -138,92 +138,6 @@
                 </div>
             </div>
         </main>
-    </div>
-
-    <div id="modalNuevoPedido" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-        <div class="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
-            <div class="p-4 border-b border-slate-700 flex justify-between items-center">
-                <h2 class="text-lg font-bold text-emerald-400 flex items-center gap-2">
-                    <i class="fa-solid fa-plus"></i> Registrar Nuevo Pedido
-                </h2>
-                <button onclick="cerrarModalNuevoPedido()" class="text-slate-400 hover:text-white transition cursor-pointer">
-                    <i class="fa-solid fa-xmark text-lg"></i>
-                </button>
-            </div>
-            <div class="p-5 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-600">
-                <form id="formNuevoPedido" class="space-y-4" onsubmit="return false;">
-                    <div>
-                        <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1">
-                            Teléfono
-                            <span class="normal-case font-normal text-slate-500">— empieza por aquí, buscamos al cliente solo</span>
-                        </label>
-                        <input type="text" id="inputTelefono" placeholder="Ej. 0412... (o +1... si es del exterior)"
-                               onblur="buscarClienteNuevoPedido()"
-                               onkeydown="if (event.key === 'Enter') { event.preventDefault(); buscarClienteNuevoPedido(); }"
-                               class="w-full bg-slate-900 p-2.5 rounded-lg border border-slate-700 text-white text-sm focus:border-emerald-500 focus:outline-none">
-                        <div id="estadoClienteNuevoPedido" class="hidden mt-1.5 text-xs px-2.5 py-2 rounded-lg border"></div>
-                    </div>
-
-                    <div>
-                        <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1">Cliente</label>
-                        <input type="text" id="inputCliente" placeholder="Nombre" class="w-full bg-slate-900 p-2.5 rounded-lg border border-slate-700 text-white text-sm focus:border-emerald-500 focus:outline-none">
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1">Entrega</label>
-                            <select id="inputEntrega" class="w-full bg-slate-900 p-2.5 rounded-lg border border-slate-700 text-white text-sm focus:border-emerald-500 focus:outline-none">
-                                <option value="Pickup">Pickup (Retiro)</option>
-                                <option value="Delivery">Delivery</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1">Método de Pago</label>
-                            <select id="inputPago" class="w-full bg-slate-900 p-2.5 rounded-lg border border-slate-700 text-white text-sm focus:border-emerald-500 focus:outline-none">
-                                <option value="Pago Movil">Pago Móvil</option>
-                                <option value="Efectivo">Efectivo / Divisas</option>
-                                <option value="Zelle">Zelle</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1">Dirección / Mesa / Notas</label>
-                        <input type="text" id="inputDireccion" placeholder="Ej. Mesa 4 o Dirección del delivery" class="w-full bg-slate-900 p-2.5 rounded-lg border border-slate-700 text-white text-sm focus:border-emerald-500 focus:outline-none">
-                    </div>
-                    
-                    <div class="border-t border-slate-700 pt-4">
-                        <label class="block text-[10px] uppercase text-slate-400 font-bold mb-2">Artículos del Pedido</label>
-                        <div id="contenedorArticulos" class="space-y-2">
-                            <div class="flex gap-2 articulo-fila">
-                                <input type="number" value="1" min="1" class="w-16 bg-slate-900 p-2 rounded-lg border border-slate-700 text-white text-sm text-center item-qty" placeholder="Cant">
-                                <input type="text" class="flex-1 bg-slate-900 p-2 rounded-lg border border-slate-700 text-white text-sm item-name" placeholder="Nombre del plato">
-                                <input type="number" step="0.01" min="0" class="w-24 bg-slate-900 p-2 rounded-lg border border-slate-700 text-white text-sm item-price" placeholder="Precio ($)">
-                                <div class="w-8"></div>
-                            </div>
-                        </div>
-                        
-                        <div class="flex items-center gap-4 mt-3">
-                            <button type="button" onclick="agregarFilaArticulo()" class="text-sm text-emerald-400 hover:text-emerald-300 font-bold transition cursor-pointer flex items-center gap-1">
-                                <i class="fa-solid fa-plus"></i> Añadir fila manual
-                            </button>
-                            
-                            <div class="h-4 w-px bg-slate-600"></div>
-                            
-                            <button type="button" onclick="window.open('menu.html', '_blank')" class="text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-md flex items-center gap-2 transition cursor-pointer shadow-lg shadow-indigo-500/20">
-                                <i class="fa-solid fa-mobile-screen"></i> Usar Menú Interactivo
-                            </button>
-                        </div>
-                    </div>
-                </form> 
-            </div>
-            <div class="p-4 border-t border-slate-700 flex justify-end gap-3 bg-slate-800/50 rounded-b-xl">
-                <button type="button" onclick="cerrarModalNuevoPedido()" class="px-4 py-2 text-slate-400 hover:text-white transition font-medium cursor-pointer text-sm">Cancelar</button>
-                <button type="button" onclick="enviarNuevoPedido()" id="btnEnviarNuevoPedido" class="bg-emerald-600 px-5 py-2 rounded-lg font-bold text-white hover:bg-emerald-500 transition shadow-lg cursor-pointer text-sm flex items-center gap-2">
-                    Procesar Pedido <i class="fa-solid fa-paper-plane"></i>
-                </button>
-            </div>
-        </div>
     </div>
 
     <div id="modalEditarPedido" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">

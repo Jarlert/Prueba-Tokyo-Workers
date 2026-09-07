@@ -5,10 +5,8 @@
 const URL_OBTENER_MOTORIZADOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/motorizados/";
 const API_OBTENER_PEDIDOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/";
 const API_ACTUALIZAR_ESTADO = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/actualizar-estado";
-const URL_NUEVO_PEDIDO = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/";
 const URL_OBTENER_MENU = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/menu/";
 const URL_OBTENER_USUARIOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/usuarios/";
-const URL_BUSCAR_CLIENTES = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/clientes/buscar";
 
 let MOTORIZADOS_SISTEMA = []; 
 let USUARIOS_SISTEMA = [];
@@ -20,6 +18,13 @@ let pedidosEnMemoria = [];
 let carritoEdicion = []; 
 let totalEdicionUSD = 0;
 let resolveTiempoEstimado = null; 
+
+// El boton "Nuevo Pedido" del tablero ya no abre un formulario aqui: lleva al
+// menu de trabajadores (menu_trabajadores.html), que es el mismo menu del cliente
+// adaptado a la caja y con la personalizacion de combos incluida.
+function irAMenuTrabajadores() {
+    window.location.href = 'menu_trabajadores.html';
+}
 
 // --- CARGAR CATÁLOGO DESDE LA BASE DE DATOS ---
 async function cargarCatalogoDesdeDB() {
@@ -62,294 +67,6 @@ async function cargarCatalogoDesdeDB() {
     } catch (error) {
         console.error("Error obteniendo el catálogo interno:", error);
     } 
-}
-
-// 1. Dibuja la fila con un espacio oculto para las opciones del combo
-function agregarFilaArticulo() {
-    const puedeEditarPrecio = usuarioActivo && (usuarioActivo.rol === 'superadmin' || usuarioActivo.rol === 'admin');
-    const atributoReadonly = puedeEditarPrecio ? '' : 'readonly';
-    const claseFondoPrecio = puedeEditarPrecio 
-        ? 'bg-slate-900 text-white' 
-        : 'bg-slate-800 text-emerald-400 cursor-not-allowed border-slate-600 font-bold';
-
-    const divWrapper = document.createElement('div');
-    // Envolvemos toda la fila en un contenedor para poder agregarle cosas abajo
-    divWrapper.className = "articulo-wrapper flex flex-col gap-1 mb-2 p-2 bg-slate-800/30 rounded-lg border border-slate-700/50"; 
-    
-    const idSugerencia = 'sugerencias-' + Math.random().toString(36).substr(2, 9);
-
-    divWrapper.innerHTML = `
-        <div class="flex gap-2 articulo-fila relative items-start">
-            <input type="hidden" class="item-id" value="custom_0">
-            <input type="number" value="1" min="1" class="w-16 bg-slate-900 p-2 rounded-lg border border-slate-700 text-white text-sm text-center item-qty h-10" placeholder="Cant">
-            
-            <div class="flex-1 relative">
-                <input type="text" oninput="mostrarSugerenciasPedido(this, '${idSugerencia}')" class="w-full bg-slate-900 p-2 rounded-lg border border-slate-700 text-white text-sm item-name h-10" placeholder="Escribe para buscar plato o combo..." autocomplete="off">
-                <div id="${idSugerencia}" class="hidden absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl max-h-40 overflow-y-auto"></div>
-            </div>
-            
-            <input type="number" step="0.01" min="0" class="w-24 p-2 rounded-lg border border-slate-700 text-sm text-center item-price h-10 ${claseFondoPrecio}" placeholder="Precio ($)" ${atributoReadonly}>
-            
-            <button type="button" onclick="this.closest('.articulo-wrapper').remove()" class="text-red-400 hover:text-red-300 w-8 h-10 flex items-center justify-center cursor-pointer transition">
-                <i class="fa-solid fa-trash"></i>
-            </button>
-        </div>
-        <!-- Aquí aparecerán los desplegables mágicamente si es un combo -->
-        <div class="combo-opciones-container hidden pl-2 border-l-2 border-indigo-500 mt-1 ml-[72px] space-y-1 pr-10"></div>
-    `;
-        
-    document.getElementById('contenedorArticulos').appendChild(divWrapper);
-}
-
-// 2. Filtra el catálogo en tiempo real
-function mostrarSugerenciasPedido(inputElement, idContenedor) {
-    const contenedor = document.getElementById(idContenedor);
-    const texto = inputElement.value.toLowerCase().trim();
-    
-    if (texto.length < 1) {
-        contenedor.classList.add('hidden');
-        return;
-    }
-
-    const resultados = CATALOGO_PRODUCTOS.filter(p => p.name.toLowerCase().includes(texto));
-
-    if (resultados.length > 0) {
-        contenedor.innerHTML = resultados.map(p => `
-            <div onclick="seleccionarSugerenciaPedido(this, '${p.id}', '${p.name.replace(/'/g, "\\'")}', ${p.price})" class="p-2 border-b border-slate-700 hover:bg-slate-600 cursor-pointer text-sm text-white flex justify-between items-center transition">
-                <span class="truncate">${p.name}</span>
-                <span class="text-emerald-400 font-bold ml-2">$${p.price.toFixed(2)}</span>
-            </div>
-        `).join('');
-        contenedor.classList.remove('hidden');
-    } else {
-        contenedor.innerHTML = `<div class="p-2 text-sm text-slate-400 italic">No hay coincidencias...</div>`;
-        contenedor.classList.remove('hidden');
-    }
-}
-
-// 3. Rellena los datos Y despliega las opciones si es un combo
-function seleccionarSugerenciaPedido(elementoOpcion, idProducto, nombre, precio) {
-    const wrapper = elementoOpcion.closest('.articulo-wrapper');
-    const inputId = wrapper.querySelector('.item-id');
-    const inputNombre = wrapper.querySelector('.item-name');
-    const inputPrecio = wrapper.querySelector('.item-price');
-    const containerOpciones = wrapper.querySelector('.combo-opciones-container');
-    
-    inputId.value = idProducto; 
-    inputNombre.value = nombre;
-    inputPrecio.value = precio;
-    elementoOpcion.parentElement.classList.add('hidden');
-
-    // Revisamos si el producto tiene opciones internas
-    const prod = CATALOGO_PRODUCTOS.find(p => p.id === idProducto);
-    containerOpciones.innerHTML = '';
-    containerOpciones.classList.add('hidden');
-
-    if (prod && prod.opciones_combo && prod.opciones_combo !== '[]') {
-        let opcionesArr = [];
-        try { opcionesArr = typeof prod.opciones_combo === 'string' ? JSON.parse(prod.opciones_combo) : prod.opciones_combo; } catch(e){}
-
-        if (opcionesArr.length > 0) {
-            containerOpciones.classList.remove('hidden');
-            
-            opcionesArr.forEach((grupo) => {
-                if (grupo.tipo === 'categoria') {
-                    // Filtramos los productos que pertenecen a la categoría que pide el combo (Ej: "Roles")
-                    const opcionesCat = CATALOGO_PRODUCTOS.filter(p => p.categoria.toLowerCase() === grupo.valor.toLowerCase());
-                    
-                    if (opcionesCat.length > 0) {
-                        let optionsHtml = opcionesCat.map(opt => `<option value="${opt.name}">${opt.name}</option>`).join('');
-                        
-                        // Creamos un desplegable por cada cantidad que pida (Ej: si son 2 roles, crea 2 selects)
-                        for (let i = 0; i < grupo.cantidad; i++) {
-                            let titulo = grupo.cantidad > 1 ? `${grupo.valor} (${i+1}/${grupo.cantidad})` : grupo.valor;
-                            containerOpciones.insertAdjacentHTML('beforeend', `
-                                <div class="flex items-center gap-2 mt-1">
-                                    <span class="text-[10px] text-slate-400 font-bold uppercase w-[70px] truncate" title="${titulo}">${titulo}</span>
-                                    <select class="combo-select-choice flex-1 bg-slate-900 border border-slate-700 text-white text-xs p-1.5 rounded focus:border-indigo-500 focus:outline-none">
-                                        ${optionsHtml}
-                                    </select>
-                                </div>
-                            `);
-                        }
-                    } else {
-                        containerOpciones.insertAdjacentHTML('beforeend', `<div class="text-[10px] text-red-400">⚠️ Categoría '${grupo.valor}' vacía en BD</div>`);
-                    }
-                } else if (grupo.tipo === 'producto') {
-                    // Si el combo trae un producto fijo (Ej: 1x Refresco)
-                    let prodName = grupo.nombre_producto || grupo.valor;
-                    if (!grupo.nombre_producto) {
-                       let pFound = CATALOGO_PRODUCTOS.find(p => String(p.id).includes(grupo.valor));
-                       if (pFound) prodName = pFound.name;
-                    }
-                    containerOpciones.insertAdjacentHTML('beforeend', `
-                        <div class="flex items-center gap-2 mt-1">
-                            <span class="text-[10px] text-slate-400 font-bold uppercase w-[70px]">Fijo</span>
-                            <div class="flex-1 bg-slate-800/50 border border-slate-700 text-emerald-400 text-xs p-1.5 rounded flex justify-between">
-                                <span class="truncate">✔️ ${prodName}</span>
-                                <span class="font-bold">x${grupo.cantidad}</span>
-                            </div>
-                        </div>
-                    `);
-                }
-            });
-        }
-    }
-}
-
-// --- BUSCAR AL CLIENTE POR TELÉFONO AL REGISTRAR UN PEDIDO EN CAJA ---
-// El teléfono es la clave primaria de `clientes`, así que es el punto de
-// partida natural del formulario: si el cliente ya existe se arrastran sus
-// datos, y si no, se avisa para que el cajero se los pida.
-let _ultimoTelefonoBuscado = null;
-
-function _mostrarEstadoCliente(tipo, html) {
-    const aviso = document.getElementById('estadoClienteNuevoPedido');
-    if (!aviso) return;
-
-    const estilos = {
-        buscando: 'bg-slate-900 border-slate-700 text-slate-400',
-        encontrado: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300',
-        nuevo: 'bg-amber-500/10 border-amber-500/40 text-amber-300',
-        error: 'bg-red-500/10 border-red-500/30 text-red-300',
-    };
-    aviso.className = `mt-1.5 text-xs px-2.5 py-2 rounded-lg border ${estilos[tipo] || estilos.buscando}`;
-    aviso.innerHTML = html;
-}
-
-function _limpiarEstadoCliente() {
-    const aviso = document.getElementById('estadoClienteNuevoPedido');
-    if (aviso) { aviso.className = 'hidden'; aviso.innerHTML = ''; }
-    _ultimoTelefonoBuscado = null;
-}
-
-async function buscarClienteNuevoPedido() {
-    const inputTel = document.getElementById('inputTelefono');
-    const telefono = normalizarTelefono(inputTel.value);
-
-    if (!telefono) { _limpiarEstadoCliente(); return; }
-
-    // Dejamos a la vista el número ya normalizado, que es el que se guardará
-    inputTel.value = telefono;
-
-    // El onblur se dispara cada vez que sale del campo: no repetimos la consulta
-    // si el número no cambió desde la última búsqueda.
-    if (telefono === _ultimoTelefonoBuscado) return;
-    _ultimoTelefonoBuscado = telefono;
-
-    _mostrarEstadoCliente('buscando', '<i class="fa-solid fa-spinner fa-spin"></i> Buscando cliente...');
-
-    try {
-        const res = await fetch(`${URL_BUSCAR_CLIENTES}?q=${encodeURIComponent(telefono)}`, { headers: authHeaders() });
-        if (!res.ok) throw new Error('Respuesta ' + res.status);
-
-        const resultados = await res.json();
-        // `buscar` hace LIKE, así que exigimos la coincidencia exacta del teléfono
-        const cliente = (Array.isArray(resultados) ? resultados : []).find(c => c.telefono === telefono);
-
-        if (!cliente) {
-            _mostrarEstadoCliente('nuevo',
-                '<i class="fa-solid fa-user-plus"></i> <b>Cliente nuevo.</b> Este número no está registrado — pídele los datos al cliente y llénalos abajo.');
-            return;
-        }
-
-        // Arrastramos los datos del cliente a la pantalla
-        document.getElementById('inputCliente').value = cliente.nombre || '';
-
-        const inputDireccion = document.getElementById('inputDireccion');
-        let notaDireccion = '';
-        if (cliente.direccion_principal && !inputDireccion.value.trim()) {
-            inputDireccion.value = cliente.direccion_principal;
-            notaDireccion = ' Se cargó su dirección guardada.';
-        }
-
-        const detalles = [];
-        if (cliente.cedula) detalles.push(escapeHtml(cliente.cedula));
-        if (cliente.total_pedidos) detalles.push(`${cliente.total_pedidos} pedido${cliente.total_pedidos === 1 ? '' : 's'}`);
-
-        _mostrarEstadoCliente('encontrado',
-            `<i class="fa-solid fa-user-check"></i> <b>${escapeHtml(cliente.nombre || 'Cliente')}</b>` +
-            (detalles.length ? ` <span class="opacity-70">· ${detalles.join(' · ')}</span>` : '') +
-            notaDireccion);
-
-    } catch (e) {
-        console.error('Error buscando cliente:', e);
-        // No bloqueamos el pedido: el cajero puede llenar los datos a mano
-        _ultimoTelefonoBuscado = null; // permitimos reintentar
-        _mostrarEstadoCliente('error',
-            '<i class="fa-solid fa-triangle-exclamation"></i> No se pudo consultar la base de datos. Llena los datos a mano y continúa.');
-    }
-}
-
-// 4. Enviar pedido adjuntando las opciones elegidas
-async function enviarNuevoPedido() {
-    const btn = document.getElementById('btnEnviarNuevoPedido');
-    const cliente = document.getElementById('inputCliente').value.trim();
-    if(!cliente) { alert("Por favor ingresa el nombre del cliente."); return; }
-
-    const articulos = Array.from(document.querySelectorAll('.articulo-wrapper')).map(wrapper => {
-        let idVal = wrapper.querySelector('.item-id').value || 'custom_0';
-        let qtyVal = parseInt(wrapper.querySelector('.item-qty').value) || 1;
-        let nameVal = wrapper.querySelector('.item-name').value.trim() || 'Artículo sin nombre';
-        let priceVal = parseFloat(wrapper.querySelector('.item-price').value) || 0;
-        
-        // Cosechar las opciones de combo que el cajero seleccionó
-        let selectChoices = Array.from(wrapper.querySelectorAll('.combo-select-choice'));
-        if (selectChoices.length > 0) {
-            let elecciones = selectChoices.map(s => s.value).join(', ');
-            nameVal = `${nameVal} (${elecciones})`;
-        }
-
-        return {
-            id: idVal,
-            qty: qtyVal,
-            name: nameVal, 
-            price: priceVal,
-            note: ""
-        };
-    });
-
-    const pedidosHoy = pedidosEnMemoria.filter(p => esPedidoDeLaFecha(JSON.stringify(p)));
-    const proximoIdVisual = pedidosHoy.length + 1;
-
-    // --- MAGIA NUEVA: Lógica inteligente para el estado inicial ---
-    const tipoEntregaSeleccionado = document.getElementById('inputEntrega').value;
-    const estadoDinamico = tipoEntregaSeleccionado === 'Delivery' ? 'Calculando Delivery' : 'Pago Pendiente';
-    // --------------------------------------------------------------
-
-    const payload = {
-        timestamp: new Date().toISOString(),
-        cliente: cliente, 
-        telefono: normalizarTelefono(document.getElementById('inputTelefono').value) || 'No registrado',
-        tipo_entrega: tipoEntregaSeleccionado, 
-        metodo_pago: document.getElementById('inputPago').value,
-        direccion: document.getElementById('inputDireccion').value.trim() || 'Retiro por local', 
-        estado_inicial: estadoDinamico, // Usamos la variable inteligente aquí
-        articulos: articulos,
-        pedido_detallado: "Generado por Backend",
-        metadata_titular: "Pedido registrado en caja",
-        id_visual: proximoIdVisual
-    };
-
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Procesando...';
-    try {
-        const res = await fetch(URL_NUEVO_PEDIDO, { 
-            method: 'POST', 
-            body: JSON.stringify(payload), 
-            headers: authHeaders()
-        });
-        if(res.ok) { 
-            document.getElementById('formNuevoPedido').reset();
-            document.getElementById('contenedorArticulos').innerHTML = '';
-            agregarFilaArticulo();
-            cerrarModalNuevoPedido(); 
-            cargarPedidos(); 
-        } else {
-            console.error("Respuesta del servidor:", await res.text());
-            alert("Error al procesar el paquete en el backend.");
-        }
-    } catch(e) { alert("Error de conexión al intentar enviar el pedido."); } 
-    finally { btn.disabled = false; btn.innerHTML = 'Procesar Pedido <i class="fa-solid fa-paper-plane"></i>'; }
 }
 
 async function cargarMotorizadosDesdeDB() {
@@ -538,29 +255,6 @@ function aplicarRestriccionesRol() {
         inputTasa.disabled = false;
         inputTasa.classList.remove('opacity-40', 'cursor-not-allowed');
     }
-}
-
-// --- ABRIR MODAL (VERSIÓN BLINDADA) ---
-async function abrirModalNuevoPedido() { 
-    const contenedor = document.getElementById('contenedorArticulos');
-    
-    if (CATALOGO_PRODUCTOS.length === 0) {
-        console.log("Memoria vacía. Descargando menú fresco para las sugerencias...");
-        await cargarCatalogoDesdeDB();
-    }
-
-    if (!contenedor.innerHTML.includes('sugerencias-')) {
-        contenedor.innerHTML = '';
-        agregarFilaArticulo();
-    }
-
-    _limpiarEstadoCliente();
-    document.getElementById('modalNuevoPedido').classList.remove('hidden');
-    document.getElementById('inputTelefono').focus(); // el teléfono es el punto de partida
-}
-function cerrarModalNuevoPedido() {
-    document.getElementById('modalNuevoPedido').classList.add('hidden');
-    _limpiarEstadoCliente();
 }
 
 function abrirModalEditarPedido(idReal, idVisual) {

@@ -8,7 +8,7 @@ import json
 import pusher
 import models
 import schemas
-from auth import requiere_staff
+from auth import requiere_staff, staff_opcional
 from routers.horarios import esta_abierto_ahora
 from services.evolution_api import enviar_whatsapp
 
@@ -42,9 +42,16 @@ async def notificar_whatsapp(destino: str, mensaje: str, contexto: str) -> tuple
         return False, str(e)
 
 @router.post("/")
-async def crear_pedido(pedido: schemas.PedidoCreate, db: Session = Depends(get_db)):
+async def crear_pedido(
+    pedido: schemas.PedidoCreate,
+    db: Session = Depends(get_db),
+    staff: dict | None = Depends(staff_opcional),
+):
 
-    if not esta_abierto_ahora(db):
+    # El horario solo limita al cliente. El personal toma pedidos por teléfono
+    # antes de abrir y esos tienen que poder entrar igual, así que un trabajador
+    # con sesión iniciada se salta el cierre.
+    if staff is None and not esta_abierto_ahora(db):
         raise HTTPException(status_code=403, detail="El restaurante está cerrado en este momento. Intenta durante el horario de atención.")
 
     # 1. Leer la tasa central directamente de la BD (pizarra central)

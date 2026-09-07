@@ -62,3 +62,20 @@ def requiere_admin(authorization: str = Header(default=None)) -> dict:
     if payload.get("rol", "").lower() not in ("admin", "superadmin"):
         raise HTTPException(status_code=403, detail="Requiere privilegios de administrador")
     return payload
+
+
+def staff_opcional(authorization: str = Header(default=None)) -> dict | None:
+    """Como requiere_staff, pero sin bloquear: devuelve el payload si viene un
+    token de personal válido y None si no viene ninguno o no sirve.
+
+    Lo usan los endpoints públicos que necesitan distinguir a un cliente de un
+    trabajador sin dejar de atender al cliente. Ojo: el menú del cliente manda
+    un 'Bearer TokioSushi_App_2026_X' decorativo que no es un JWT; cae en el
+    except y se trata como visitante anónimo, que es justo lo que queremos.
+    """
+    if not authorization:
+        return None
+    try:
+        return _decodificar(authorization)
+    except HTTPException:
+        return None
