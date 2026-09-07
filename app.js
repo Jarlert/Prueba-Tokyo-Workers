@@ -672,6 +672,9 @@ async function cargarPedidos() {
         if (fechaCalendario) urlFetch += '&fecha=' + fechaCalendario;
         
         const response = await fetch(urlFetch, { headers: authHeaders() });
+        // Sin esto, un token vencido dejaba el tablero en blanco y parecia que
+        // simplemente no habia pedidos ese dia.
+        if (sesionCaducada(response)) { forzarNuevoLogin(); return; }
         if (!response.ok) throw new Error('Error API');
         
         const datos = await response.json(); 

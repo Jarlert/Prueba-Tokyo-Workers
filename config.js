@@ -24,6 +24,25 @@ function authHeaders() {
         : { 'Content-Type': 'application/json' };
 }
 
+// El token del personal dura 12 horas, pero las pantallas daban la sesión por
+// buena solo porque `usuarioActivo` seguía guardado en el navegador. Al vencer
+// el token, todas las llamadas empezaban a fallar sin avisar: el tablero se veía
+// vacío como si no hubiera pedidos, y el buscador de clientes decía que no podía
+// consultar la base de datos. Un 401 significa siempre que la sesión ya no sirve.
+//
+// Ojo: solo el 401. Un 403 es "estás dentro pero esto es de administradores", y
+// sacar a un cajero por eso sería un error.
+function sesionCaducada(response) {
+    return !!response && response.status === 401;
+}
+
+function forzarNuevoLogin(mensaje) {
+    localStorage.removeItem('tokioAuthToken');
+    localStorage.removeItem('usuarioActivo');
+    alert(mensaje || 'Tu sesión venció. Inicia sesión de nuevo para continuar.');
+    window.location.href = 'index.html';
+}
+
 function escapeHtml(valor) {
     if (valor === null || valor === undefined) return '';
     return String(valor)

@@ -33,6 +33,18 @@ function esAdminTrabajador() {
     return rol === 'admin' || rol === 'superadmin';
 }
 
+// La flecha de la cabecera retrocede un paso dentro del pedido. Para salir al
+// tablero esta el boton "Tablero", que es lo que se espera de cada uno.
+function retrocederPaso() {
+    const activo = document.querySelector('.step.active');
+    const paso = activo ? parseInt(String(activo.id).replace('step-', ''), 10) : 1;
+
+    // Desde el cierre se vuelve a la lista de categorias, igual que hace el
+    // boton "Anadir mas platos" del propio carrito.
+    if (paso === 2 || paso === 3) goToStep(1);
+    // En los pasos 1 y 4 no hay a donde volver: ahi la flecha esta oculta.
+}
+
 function volverAlTablero() {
     window.location.href = 'index.html';
 }
@@ -105,6 +117,11 @@ function goToStep(stepNumber, pushState = true) {
     // El buscador solo sirve mientras se agregan artículos.
     const barra = document.getElementById('barra-busqueda');
     if (barra) barra.classList.toggle('hidden', stepNumber === 3 || stepNumber === 4);
+
+    // La flecha de atrás solo tiene sentido si hay un paso anterior. Se usa
+    // `invisible` y no `hidden` para que el título no salte de sitio.
+    const btnAtras = document.getElementById('btn-atras');
+    if (btnAtras) btnAtras.classList.toggle('invisible', stepNumber === 1 || stepNumber === 4);
 
     // Al entrar a una categoría se cierra el buscador. Si el mismo plato quedara
     // pintado en los dos sitios habría dos elementos con el mismo id, y los
@@ -279,6 +296,12 @@ function _estadoClienteTrab(tipo, html) {
     caja.innerHTML = html;
 }
 
+// Permite volver a buscar el mismo numero tras un fallo (si no, el guard de
+// "no repetir la consulta" impediria el reintento).
+function _ultimoTelefonoBuscado_reintentable() {
+    _ultimoTelefonoBuscadoTrab = null;
+}
+
 function _limpiarEstadoClienteTrab() {
     const caja = document.getElementById('trab-estado-cliente');
     if (caja) { caja.className = 'hidden'; caja.innerHTML = ''; }
@@ -303,6 +326,19 @@ async function buscarClienteTrabajador() {
 
     try {
         const res = await fetch(`${URL_BUSCAR_CLIENTES_TRAB}?q=${encodeURIComponent(telefono)}`, { headers: authHeaders() });
+
+        // Un 401 no es "no encontre al cliente": es que la sesion del trabajador
+        // vencio. Decirlo claro evita pensar que el cliente no esta registrado.
+        // No cerramos sesion solos porque se perderia el pedido a medio armar.
+        if (sesionCaducada(res)) {
+            _ultimoTelefonoBuscado_reintentable();
+            _estadoClienteTrab('error',
+                '<i class="fa-solid fa-lock"></i> <b>Tu sesión venció.</b> No se puede buscar al cliente. ' +
+                'Termina este pedido a mano o <a href="index.html" class="underline font-bold">inicia sesión otra vez</a> ' +
+                '(perderías lo que llevas en el carrito).');
+            return;
+        }
+
         if (!res.ok) throw new Error('Respuesta ' + res.status);
 
         const resultados = await res.json();
