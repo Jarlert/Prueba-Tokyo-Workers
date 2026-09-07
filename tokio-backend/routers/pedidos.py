@@ -1,4 +1,5 @@
 import os
+import re
 
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import date, datetime
@@ -477,15 +478,25 @@ async def notificar_aprobado_pedido(datos: schemas.NotificacionAprobado, db: Ses
     
     plantilla = db.query(models.MensajeWhatsapp).filter(models.MensajeWhatsapp.id == 'aprobado').first()
 
+    # El tablero ya manda la frase completa ("25 a 30 minutos", "1 hora y 30
+    # minutos"). Solo se le agrega la unidad si viniera un numero pelado, como
+    # mandaba la version vieja del modal.
+    tiempo_str = (datos.tiempo_estimado or "").strip()
+    if tiempo_str and not re.search(r"minuto|hora", tiempo_str, re.IGNORECASE):
+        tiempo_str = f"{tiempo_str} minutos"
+
     if plantilla:
-        tiempo_str = datos.tiempo_estimado if "minuto" in datos.tiempo_estimado.lower() else f"{datos.tiempo_estimado} minutos"
-        mensaje = aplicar_placeholders(plantilla.texto, {
+        # Las plantillas viejas escribian "[TIEMPO_ESTIMADO] minutos", y ahora
+        # el reemplazo ya trae la unidad: se quita la de la plantilla para que
+        # no salga "25 a 30 minutos minutos".
+        texto = re.sub(r"\[TIEMPO_ESTIMADO\]\s*(?:minutos|minuto|mins|min)\.?", "[TIEMPO_ESTIMADO]", plantilla.texto, flags=re.IGNORECASE)
+        mensaje = aplicar_placeholders(texto, {
             "[CLIENTE]": datos.cliente,
             "[PEDIDO]": id_diario,
             "[TIEMPO_ESTIMADO]": tiempo_str,
         })
     else:
-        mensaje = f"¡Hola {datos.cliente}! ✅ Tu pago ha sido aprobado. Tu pedido ya está preparándose y estará listo en {datos.tiempo_estimado} minutos aproximadamente."
+        mensaje = f"¡Hola {datos.cliente}! ✅ Tu pago ha sido aprobado. Tu pedido ya está preparándose y estará listo en {tiempo_str} aproximadamente."
 
     exito, error = await notificar_whatsapp(datos.telefono, mensaje, "aprobación")
     if exito:

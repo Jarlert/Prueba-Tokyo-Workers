@@ -144,6 +144,59 @@ def ejecutar_migraciones(engine: Engine):
             print(f"[migracion] Combos con 'piezas compartidas' convertidos a 'excluyente': {convertidos}.")
 
 
+        # --- Un combo de X piezas es X piezas de UN roll ----------------------
+        # Antes el cliente repartia las 12 piezas entre los rolls que quisiera.
+        # En el local no se vende asi: se elige un roll y ese roll trae las 12.
+        # Ahora cada fila del grupo declara cuantas opciones elige el cliente y
+        # cuantas piezas vale cada una (24 pz = 3 rolls x 8 pz).
+        #
+        # A lo que ya existe se le pone la lectura literal de la regla: 1 sola
+        # eleccion que se lleva todas las piezas. No hace falta respaldo: basta
+        # con borrar las dos claves nuevas para volver al JSON de antes.
+        filas_piezas = conn.execute(text("""
+            SELECT id, items_json FROM combos
+            WHERE items_json IS NOT NULL
+              AND items_json LIKE '%piezas_alternativas%'
+              AND items_json NOT LIKE '%piezas_por_seleccion%'
+        """)).fetchall()
+
+        con_selecciones = 0
+        for fila in filas_piezas:
+            try:
+                grupos = json.loads(fila.items_json)
+            except (ValueError, TypeError):
+                continue
+            if not isinstance(grupos, list):
+                continue
+
+            cambio = False
+            for grupo in grupos:
+                if not isinstance(grupo, dict) or grupo.get("tipo") != "piezas_alternativas":
+                    continue
+                for alt in grupo.get("alternativas") or []:
+                    if not isinstance(alt, dict) or "piezas_por_seleccion" in alt:
+                        continue
+                    objetivo = alt.get("piezas_objetivo")
+                    if not objetivo:
+                        # Sin piezas no hay nada que repartir; se deja igual.
+                        continue
+                    alt["selecciones"] = 1
+                    alt["piezas_por_seleccion"] = objetivo
+                    cambio = True
+
+            if not cambio:
+                continue
+
+            conn.execute(
+                text("UPDATE combos SET items_json = :nuevo WHERE id = :id"),
+                {"nuevo": json.dumps(grupos, ensure_ascii=False), "id": fila.id},
+            )
+            con_selecciones += 1
+
+        if con_selecciones:
+            print(f"[migracion] Combos por piezas pasados a 'una eleccion por roll': {con_selecciones}.")
+
+
         # --- Empaque y datos del aviso a motorizados --------------------------
         # bandejas/cajas_pizza dicen cuanto ocupa cada plato al empacarlo; se
         # suman por pedido para decirle al motorizado cuantas manos necesita.

@@ -225,19 +225,25 @@
                 <p id="txtClienteDelivery" class="text-xs text-slate-400 mt-1">Cliente: ...</p>
             </div>
             <div class="p-5 space-y-4">
-                <div>
-                    <label class="block text-[10px] uppercase text-slate-400 font-bold tracking-wider mb-1">Costo en Dólares ($)</label>
-                    <input type="number" id="inputPrecioDelivery" step="0.01" min="0" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm focus:border-purple-500 focus:outline-none transition" placeholder="Ej. 1.50">
-                </div>
                 <div id="bloquePagaCon">
                     <label class="block text-[10px] uppercase text-slate-400 font-bold tracking-wider mb-1">¿Con cuánto paga? (opcional)</label>
                     <input type="text" id="inputPagaCon" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm focus:border-purple-500 focus:outline-none transition" placeholder="Ej. 30$, 50$, justo">
                     <p class="text-[10px] text-slate-500 mt-1">Va en el mensaje al grupo de motorizados para que salgan con el vuelto.</p>
                 </div>
+                <div>
+                    <label class="block text-[10px] uppercase text-slate-400 font-bold tracking-wider mb-2">Costo del delivery</label>
+                    <button id="btnDeliveryEstandar" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-lg shadow-md transition cursor-pointer">Delivery estándar · $2</button>
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase text-slate-400 font-bold tracking-wider mb-1">Otro monto</label>
+                    <div class="flex gap-2">
+                        <input type="number" id="inputPrecioDelivery" step="0.01" min="0" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm focus:border-purple-500 focus:outline-none transition" placeholder="Ej. 3.50">
+                        <button id="btnAceptarDelivery" class="bg-slate-700 hover:bg-slate-600 border border-slate-600 px-5 rounded-lg font-bold text-white text-sm transition cursor-pointer">Aplicar</button>
+                    </div>
+                </div>
             </div>
             <div class="p-4 bg-slate-800/50 flex justify-end gap-3 border-t border-slate-700/50">
                 <button id="btnCancelarDelivery" class="px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white transition cursor-pointer">Cancelar</button>
-                <button id="btnAceptarDelivery" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold rounded-lg shadow-md transition cursor-pointer">Confirmar Precio</button>
             </div>
         </div>
     </div>
@@ -299,11 +305,17 @@
                 <p class="text-xs text-slate-400 mt-1">¿En cuánto tiempo estará listo el pedido?</p>
             </div>
             <div class="p-5 space-y-3">
-                <button onclick="seleccionarTiempo('30')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg border border-slate-600 transition cursor-pointer">30 Minutos</button>
-                <button onclick="seleccionarTiempo('45')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg border border-slate-600 transition cursor-pointer">45 Minutos</button>
-                <div class="flex gap-2 pt-2">
-                    <input type="number" id="inputTiempoPersonalizado" placeholder="Otro (min)" class="flex-1 bg-slate-900 p-3 rounded-lg border border-slate-700 text-white focus:border-sky-500 focus:outline-none">
-                    <button onclick="seleccionarTiempo(document.getElementById('inputTiempoPersonalizado').value)" class="bg-sky-600 hover:bg-sky-500 px-4 rounded-lg font-bold text-white transition cursor-pointer">Aplicar</button>
+                <button onclick="seleccionarTiempo('25 a 30 minutos')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg border border-slate-600 transition cursor-pointer">25 a 30 minutos</button>
+                <button onclick="seleccionarTiempo('30 a 45 minutos')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg border border-slate-600 transition cursor-pointer">30 a 45 minutos</button>
+                <div class="pt-2 border-t border-slate-700/60">
+                    <label class="block text-[10px] uppercase text-slate-400 font-bold tracking-wider mb-2 mt-2">Otro tiempo</label>
+                    <div class="flex gap-2 items-center">
+                        <input type="number" id="inputTiempoHoras" min="0" max="12" placeholder="0" class="w-16 bg-slate-900 p-3 rounded-lg border border-slate-700 text-white text-center focus:border-sky-500 focus:outline-none">
+                        <span class="text-xs text-slate-400">h</span>
+                        <input type="number" id="inputTiempoMinutos" min="0" max="59" step="5" placeholder="0" class="w-16 bg-slate-900 p-3 rounded-lg border border-slate-700 text-white text-center focus:border-sky-500 focus:outline-none">
+                        <span class="text-xs text-slate-400">min</span>
+                        <button onclick="aplicarTiempoPersonalizado()" class="flex-1 bg-sky-600 hover:bg-sky-500 px-4 py-3 rounded-lg font-bold text-white transition cursor-pointer">Aplicar</button>
+                    </div>
                 </div>
             </div>
             <div class="p-4 border-t border-slate-700 flex justify-end">

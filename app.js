@@ -71,6 +71,8 @@ async function cargarCatalogoDesdeDB() {
 }
 
 async function cargarMotorizadosDesdeDB() {
+    // Funcion apagada desde config.js: no se pide nada al backend.
+    if (typeof FUNCION_MOTORIZADOS !== "undefined" && !FUNCION_MOTORIZADOS) return;
     try {
         const response = await fetch(URL_OBTENER_MOTORIZADOS + "?t=" + new Date().getTime(), { headers: authHeaders() });
         if (!response.ok) throw new Error('Error al conectar con servidor de motorizados');
@@ -550,17 +552,41 @@ function pedirComprobantePago(metodoPago) {
     });
 }
 
+// El tiempo ya no viaja como un numero suelto ("30") sino como la frase
+// completa que va a leer el cliente ("25 a 30 minutos", "1 hora y 30
+// minutos"), porque el restaurante prefiere prometer un rango y no una hora
+// exacta. El backend la inserta tal cual en [TIEMPO_ESTIMADO].
 function pedirTiempoEstimado() {
     return new Promise((resolve) => {
         resolveTiempoEstimado = resolve;
-        document.getElementById('inputTiempoPersonalizado').value = '';
+        const horas = document.getElementById('inputTiempoHoras');
+        const minutos = document.getElementById('inputTiempoMinutos');
+        if (horas) horas.value = '';
+        if (minutos) minutos.value = '';
         document.getElementById('modalTiempoEstimado').classList.remove('hidden');
     });
 }
-function seleccionarTiempo(minutos) {
-    if (!minutos || minutos.trim() === '') { alert('Por favor ingresa un tiempo válido.'); return; }
+
+function seleccionarTiempo(texto) {
+    if (!texto || String(texto).trim() === '') { alert('Por favor ingresa un tiempo válido.'); return; }
     document.getElementById('modalTiempoEstimado').classList.add('hidden');
-    if (resolveTiempoEstimado) resolveTiempoEstimado(minutos);
+    if (resolveTiempoEstimado) resolveTiempoEstimado(String(texto).trim());
+}
+
+// Arma la frase a partir de las casillas de horas y minutos:
+// 0h 40min -> "40 minutos" | 1h 0min -> "1 hora" | 1h 30min -> "1 hora y 30 minutos"
+function aplicarTiempoPersonalizado() {
+    const horas = parseInt(document.getElementById('inputTiempoHoras').value, 10) || 0;
+    const minutos = parseInt(document.getElementById('inputTiempoMinutos').value, 10) || 0;
+
+    if (horas <= 0 && minutos <= 0) { alert('Escribe cuántas horas o minutos va a tardar.'); return; }
+    if (minutos > 59) { alert('Los minutos van de 0 a 59. Si es más de una hora, súbelo a las horas.'); return; }
+
+    const partes = [];
+    if (horas > 0) partes.push(horas === 1 ? '1 hora' : `${horas} horas`);
+    if (minutos > 0) partes.push(minutos === 1 ? '1 minuto' : `${minutos} minutos`);
+
+    seleccionarTiempo(partes.join(' y '));
 }
 function cancelarTiempoEstimado() {
     document.getElementById('modalTiempoEstimado').classList.add('hidden');
@@ -883,7 +909,10 @@ function renderizarTablero() {
             const repartidorAsignado = pedido.repartidor || pedido.Repartidor || '';
             let btnMoto = '';
             
-            if (esDelivery) {
+            // El boton de pagar al repartidor solo aparece si la gestion de
+            // motorizados esta encendida en config.js.
+            const gestionMotos = (typeof FUNCION_MOTORIZADOS === "undefined") || FUNCION_MOTORIZADOS;
+            if (esDelivery && gestionMotos) {
                 // Si el motorizado ya está asignado se pinta de verde, si no, gris
                 const colorMoto = repartidorAsignado !== '' ? 'text-emerald-400' : 'text-slate-400 hover:text-emerald-400';
                 const tituloMoto = repartidorAsignado !== '' ? `Pagado a: ${repartidorAsignado}` : 'Asignar Motorizado';
@@ -1022,7 +1051,13 @@ function obtenerEmojiPlato() {
     return emojis[Math.floor(Math.random() * emojis.length)];
 }
 
+// Precio que se cobra por casi todos los deliveries. Cambiarlo aqui cambia
+// el boton del modal y lo que se cobra al tocarlo.
+const PRECIO_DELIVERY_ESTANDAR = 2;
+
 // Devuelve { precio, pagaCon }, o null si el cajero cancela.
+// Hay dos caminos: el boton del precio estandar ($2), que es el de todos los
+// dias, y el campo "otro monto" para las direcciones lejanas.
 // El "¿con cuánto paga?" solo se pregunta cuando el cliente paga en efectivo,
 // que es el único caso en el que el motorizado tiene que llevar vuelto.
 function pedirPrecioDelivery(cliente, metodoPago = '') {
@@ -1032,6 +1067,7 @@ function pedirPrecioDelivery(cliente, metodoPago = '') {
         const inputPagaCon = document.getElementById('inputPagaCon');
         const bloquePagaCon = document.getElementById('bloquePagaCon');
         const txtCliente = document.getElementById('txtClienteDelivery');
+        const btnEstandar = document.getElementById('btnDeliveryEstandar');
 
         const esEfectivo = String(metodoPago).toLowerCase().includes('efectivo');
 
@@ -1039,14 +1075,13 @@ function pedirPrecioDelivery(cliente, metodoPago = '') {
         inputPrecio.value = '';
         if (inputPagaCon) inputPagaCon.value = '';
         if (bloquePagaCon) bloquePagaCon.style.display = esEfectivo ? 'block' : 'none';
+        if (btnEstandar) btnEstandar.innerText = `Delivery estándar · $${PRECIO_DELIVERY_ESTANDAR}`;
 
         modal.classList.remove('hidden');
         modal.classList.add('flex');
-        inputPrecio.focus();
 
-        document.getElementById('btnAceptarDelivery').onclick = () => {
-            const valor = inputPrecio.value.trim();
-            if (valor === '') { alert("Por favor ingresa un monto."); return; }
+        // Cierra el modal y entrega el monto elegido, venga del boton o del campo.
+        const confirmar = (valor) => {
             modal.classList.add('hidden');
             modal.classList.remove('flex');
             resolve({
@@ -1054,7 +1089,20 @@ function pedirPrecioDelivery(cliente, metodoPago = '') {
                 pagaCon: (esEfectivo && inputPagaCon) ? inputPagaCon.value.trim() : ''
             });
         };
-        
+
+        if (btnEstandar) btnEstandar.onclick = () => confirmar(String(PRECIO_DELIVERY_ESTANDAR));
+
+        document.getElementById('btnAceptarDelivery').onclick = () => {
+            const valor = inputPrecio.value.trim();
+            if (valor === '') { alert("Escribe el otro monto, o usa el botón del precio estándar."); return; }
+            confirmar(valor);
+        };
+
+        // Enter en el campo de "otro monto" equivale a tocar Aplicar.
+        inputPrecio.onkeydown = (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btnAceptarDelivery').click(); }
+        };
+
         document.getElementById('btnCancelarDelivery').onclick = () => {
             modal.classList.add('hidden');
             modal.classList.remove('flex');

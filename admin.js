@@ -195,6 +195,7 @@ async function cargarDatosAdmin() {
         actualizarSelectCategorias();
         actualizarSelectsCombos();
 
+        ocultarPestanaMotorizados();
         await cargarMotorizadosDesdeDB();
         await cargarUsuariosDesdeDB();
         
@@ -382,7 +383,21 @@ async function eliminarUsuario(id) {
 // ==========================================
 // 5. GESTIÓN DE MOTORIZADOS
 // ==========================================
+
+// Esconde la pestana "Motorizados" cuando la funcion esta apagada en
+// config.js. Solo oculta: el formulario y la lista siguen en el HTML y
+// vuelven solos poniendo FUNCION_MOTORIZADOS en true.
+function ocultarPestanaMotorizados() {
+    if (typeof FUNCION_MOTORIZADOS === "undefined" || FUNCION_MOTORIZADOS) return;
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        if ((btn.getAttribute('onclick') || '').includes('motorizados')) btn.style.display = 'none';
+    });
+    ocultarSiExiste('#tab-motorizados');
+}
+
 async function cargarMotorizadosDesdeDB() {
+    // Funcion apagada desde config.js: no se pide nada al backend.
+    if (typeof FUNCION_MOTORIZADOS !== "undefined" && !FUNCION_MOTORIZADOS) return;
     try {
         const res = await fetch(URL_OBTENER_MOTORIZADOS + "?t=" + new Date().getTime(), { headers: authHeaders() });
         const data = await res.json();
@@ -966,7 +981,7 @@ function agregarGrupoPiezasAlternativas(alternativasExistentes = null, modoExist
         <div style="display:flex; justify-content: space-between; align-items:flex-start; gap: 10px; margin-bottom: 12px;">
             <div>
                 <p style="color:#fbbf24; font-size: 13px; font-weight: bold; margin: 0;">🍥 Elección por piezas</p>
-                <p style="color:#94a3b8; font-size: 11.5px; margin: 4px 0 0; line-height: 1.5;">1 fila = el cliente combina libremente sabores de 1 o varias categorías hasta sumar las piezas (ej. 76 piezas de sushi variado). Con 2+ filas, cada fila es una pestaña (ej. Roll Clásico, Roll Tempura); elige abajo cómo se comportan esas pestañas.</p>
+                <p style="color:#94a3b8; font-size: 11.5px; margin: 4px 0 0; line-height: 1.5;">El cliente elige rolls completos tocándolos, no piezas sueltas: en cada fila defines cuántos rolls elige y cuántas piezas vale cada uno. Con 2+ filas, cada fila es una pestaña (ej. Tempura 12pz, Frío 10pz); elige abajo cómo se comportan esas pestañas.</p>
             </div>
             <button type="button" onclick="this.closest('.fila-piezas-alternativas').remove()" style="flex-shrink:0; background:#e11d48; color:white; border:none; border-radius:6px; padding:6px 12px; cursor:pointer; font-weight:bold; font-size: 11px;">Quitar</button>
         </div>
@@ -995,9 +1010,9 @@ function sincronizarModoPiezas(grupo) {
     const modo = grupo.querySelector('.grupo-modo-piezas').value;
     const filas = grupo.querySelectorAll('.fila-alternativa-piezas');
     filas.forEach((fila, i) => {
-        const inputPiezas = fila.querySelector('.alt-piezas');
+        const inputPiezas = fila.querySelector('.alt-cantidades');
         const ocultar = modo === 'compartido' && i > 0;
-        inputPiezas.style.display = ocultar ? 'none' : '';
+        inputPiezas.style.display = ocultar ? 'none' : 'flex';
 
         let nota = fila.querySelector('.nota-piezas-compartidas');
         if (ocultar) {
@@ -1070,16 +1085,43 @@ function agregarFilaAlternativaPiezas(listaAlt, datos = {}) {
         return `<button type="button" class="${claseChipCategoria(activo)}" data-valor="${escapeHtml(c.nombre)}" data-activo="${activo ? '1' : '0'}" onclick="toggleChipCategoria(this)">${escapeHtml(c.nombre)}</button>`;
     }).join('');
 
+    // Los combos guardados antes de esta pantalla solo traen piezas_objetivo:
+    // eran 1 sola eleccion que se llevaba todas las piezas.
+    const selecciones = parseInt(datos.selecciones, 10) > 0 ? parseInt(datos.selecciones, 10) : 1;
+    const objetivoGuardado = parseInt(datos.piezas_objetivo, 10) || 0;
+    const porSeleccion = parseInt(datos.piezas_por_seleccion, 10) || (objetivoGuardado ? Math.round(objetivoGuardado / selecciones) : '');
+
     fila.innerHTML = `
         <div style="display:flex; gap:8px; align-items:center;">
             <input type="text" class="alt-nombre" placeholder="Nombre (ej. Tempura, o 'Sushi variado')" value="${escapeHtml(datos.nombre || '')}" style="flex:1; padding:8px; background:#0b1120; border:1px solid #334155; color:white; border-radius:6px; font-size:13px; margin:0;">
-            <input type="number" class="alt-piezas" min="1" placeholder="Piezas" value="${datos.piezas_objetivo || ''}" style="width:80px; padding:8px; background:#0b1120; border:1px solid #334155; color:white; border-radius:6px; font-size:13px; margin:0; text-align:center;">
             <button type="button" onclick="this.closest('.fila-alternativa-piezas').remove()" title="Quitar esta fila" style="flex-shrink:0; background:transparent; color:#f87171; border:1px solid #7f1d1d; border-radius:6px; width:34px; height:34px; cursor:pointer; font-size:14px;"><i class="fa-solid fa-trash-can"></i></button>
         </div>
+        <div class="alt-cantidades" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px;">
+            <label style="font-size:11px; color:#94a3b8; margin:0; text-transform:none; font-weight:normal;">El cliente elige</label>
+            <input type="number" class="alt-selecciones" min="1" value="${selecciones}" onchange="recalcularTotalPiezas(this)" oninput="recalcularTotalPiezas(this)" style="width:64px; padding:8px; background:#0b1120; border:1px solid #334155; color:white; border-radius:6px; font-size:13px; margin:0; text-align:center;">
+            <label style="font-size:11px; color:#94a3b8; margin:0; text-transform:none; font-weight:normal;">opción(es), y cada una vale</label>
+            <input type="number" class="alt-piezas" min="1" placeholder="Piezas" value="${porSeleccion}" onchange="recalcularTotalPiezas(this)" oninput="recalcularTotalPiezas(this)" style="width:70px; padding:8px; background:#0b1120; border:1px solid #334155; color:white; border-radius:6px; font-size:13px; margin:0; text-align:center;">
+            <label style="font-size:11px; color:#94a3b8; margin:0; text-transform:none; font-weight:normal;">piezas</label>
+            <span class="alt-total-piezas" style="font-size:12px; font-weight:bold; color:#fbbf24; margin-left:auto;"></span>
+        </div>
+        <p style="font-size:10px; color:#64748b; margin:6px 0 0; line-height:1.5;">Ej: 12 piezas de un solo roll = 1 opción x 12 piezas. 24 piezas repartidas en 3 rolls = 3 opciones x 8 piezas. El cliente elige tocando el roll: no puede mezclar piezas sueltas.</p>
         <p style="font-size:10px; text-transform:uppercase; letter-spacing:0.03em; color:#64748b; font-weight:bold; margin:10px 0 6px;">Categorías de sabores (toca las que apliquen)</p>
         <div class="chips-categorias" style="display:flex; flex-wrap:wrap; gap:6px;">${chipsCategorias}</div>
     `;
     listaAlt.appendChild(fila);
+    recalcularTotalPiezas(fila.querySelector('.alt-selecciones'));
+}
+
+// Muestra el total resultante (opciones x piezas) al lado de los dos campos,
+// para que quien arma el combo vea de una que le dio 24 y no 26.
+function recalcularTotalPiezas(input) {
+    const fila = input ? input.closest('.fila-alternativa-piezas') : null;
+    if (!fila) return;
+    const selecciones = parseInt(fila.querySelector('.alt-selecciones').value, 10) || 0;
+    const porSeleccion = parseInt(fila.querySelector('.alt-piezas').value, 10) || 0;
+    const etiqueta = fila.querySelector('.alt-total-piezas');
+    if (!etiqueta) return;
+    etiqueta.textContent = (selecciones > 0 && porSeleccion > 0) ? `= ${selecciones * porSeleccion} piezas en total` : '';
 }
 
 function toggleChipCategoria(btn) {
@@ -1145,6 +1187,7 @@ if (formCombo) {
             grupoEl.querySelectorAll('.fila-alternativa-piezas').forEach((fila, i) => {
                 const nombre = fila.querySelector('.alt-nombre').value.trim();
                 const categorias = Array.from(fila.querySelectorAll('.chip-categoria')).filter(b => b.dataset.activo === '1').map(b => b.dataset.valor);
+                const seleccionesInput = parseInt(fila.querySelector('.alt-selecciones').value);
                 const piezasInput = parseInt(fila.querySelector('.alt-piezas').value);
                 if (!nombre && categorias.length === 0 && !piezasInput) return;
 
@@ -1152,14 +1195,23 @@ if (formCombo) {
                 const piezas = (modo === 'compartido' && i > 0) ? piezasCompartidas : piezasInput;
                 if (i === 0) piezasCompartidas = piezasInput;
 
+                const selecciones = seleccionesInput > 0 ? seleccionesInput : 1;
                 if (!nombre || categorias.length === 0 || !(piezas > 0)) { faltaCompletarPiezas = true; return; }
-                alternativas.push({ nombre, categorias, piezas_objetivo: piezas });
+                // piezas_objetivo queda guardado (el total) para que lo lea todo lo
+                // que ya existía; los dos campos nuevos son los que mandan.
+                alternativas.push({
+                    nombre,
+                    categorias,
+                    selecciones,
+                    piezas_por_seleccion: piezas,
+                    piezas_objetivo: selecciones * piezas
+                });
             });
             if (alternativas.length > 0) itemsSeleccionados.push({ tipo: 'piezas_alternativas', alternativas, modo });
         });
 
         if (faltaHacerClic) { alert('⚠️ Importante: Debes HACER CLIC en una de las opciones flotantes.'); return; }
-        if (faltaCompletarPiezas) { alert('⚠️ En cada "Elección por piezas" completa nombre, al menos 1 categoría y cantidad de piezas de todas las filas (o quítalas).'); return; }
+        if (faltaCompletarPiezas) { alert('⚠️ En cada "Elección por piezas" completa nombre, al menos 1 categoría, cuántas opciones elige el cliente y cuántas piezas vale cada una (o quita la fila).'); return; }
         if (itemsSeleccionados.length === 0) { alert('Añade al menos 1 elemento válido al combo.'); return; }
 
         let imgFinalCombo = document.getElementById('combo-imagen').value.trim();

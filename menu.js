@@ -1499,45 +1499,54 @@ function abrirModalCombo(item) {
             container.insertAdjacentHTML('beforeend', fijoHtml);
         } else if (grupo.tipo === 'piezas_alternativas') {
             const pgIndex = piezasGroupIndex++;
-            const modo = grupo.modo || (grupo.compartido === true ? 'compartido' : 'excluyente');
-            const alternativasResueltas = (grupo.alternativas || []).map(alt => ({
-                nombre: alt.nombre,
-                piezas_objetivo: alt.piezas_objetivo,
-                opciones: resolverOpcionesCategorias(alt.categorias || (alt.categoria ? [alt.categoria] : []))
-            })).filter(alt => alt.piezas_objetivo > 0);
+            // "compartido" quedó retirado: mezclar rolls dentro de un mismo
+            // estilo no existe. Lo que llegue así se trata como excluyente.
+            const modoCrudo = grupo.modo || (grupo.compartido === true ? 'compartido' : 'excluyente');
+            const modo = modoCrudo === 'todas' ? 'todas' : 'excluyente';
+
+            // Cada estilo dice cuántas opciones elige el cliente y cuántas
+            // piezas vale cada una (ej. 3 rolls x 8 pz = 24 pz). Los combos
+            // viejos solo traen piezas_objetivo: son 1 elección que se lleva
+            // todas las piezas.
+            const alternativasResueltas = (grupo.alternativas || []).map(alt => {
+                const selecciones = Math.max(1, parseInt(alt.selecciones, 10) || 1);
+                const objetivoGuardado = parseInt(alt.piezas_objetivo, 10) || 0;
+                const porSeleccion = parseInt(alt.piezas_por_seleccion, 10) || (selecciones > 0 ? Math.round(objetivoGuardado / selecciones) : 0);
+                return {
+                    nombre: alt.nombre,
+                    selecciones,
+                    piezas_por_seleccion: porSeleccion,
+                    piezas_objetivo: objetivoGuardado || (selecciones * porSeleccion),
+                    opciones: resolverOpcionesCategorias(alt.categorias || (alt.categoria ? [alt.categoria] : []))
+                };
+            }).filter(alt => alt.piezas_objetivo > 0);
 
             if (alternativasResueltas.length === 0) return;
 
             estadoPiezasCombo[pgIndex] = { alternativas: alternativasResueltas, alternativaActiva: 0, seleccion: {}, modo };
 
             const hayVariosEstilos = alternativasResueltas.length > 1;
-            const tituloEstilos = modo === 'todas' ? 'Completa cada elección' : (modo === 'compartido' ? 'Navega por categoría' : 'Elige tu estilo');
+            const tituloEstilos = modo === 'todas' ? 'Completa cada elección' : 'Elige tu estilo';
             const explicacionModo = modo === 'todas'
                 ? 'Debes completar cada una de estas categorías antes de confirmar.'
-                : (modo === 'compartido'
-                    ? 'Puedes combinar piezas de varias categorías: lo que cuenta es el total.'
-                    : 'Elige solo UNA de estas categorías para tu combo, las demás no aplican.');
+                : 'Elige solo UNA de estas categorías para tu combo, las demás no aplican.';
             const selectorEstiloHtml = hayVariosEstilos ? `
                 <label class="block text-gray-600 font-bold text-[10px] uppercase tracking-wider">${tituloEstilos}</label>
                 <p class="text-[11px] text-gray-500 leading-snug">${explicacionModo}</p>
                 <div class="flex gap-2 flex-wrap" id="estilos-piezas-${pgIndex}">${alternativasResueltas.map((alt, i) => `
                     <button type="button" onclick="seleccionarEstiloPiezas(${pgIndex}, ${i})" data-idx="${i}"
                         class="flex-1 py-2 rounded-xl text-xs font-bold border transition estilo-btn-${pgIndex} ${i === 0 ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 border-gray-300'}">
-                        <span class="chulo-estilo-${pgIndex}-${i}"></span>${escapeHtml(alt.nombre)}${modo === 'compartido' ? '' : ` <span class="opacity-70">(${alt.piezas_objetivo}pz)</span>`}
+                        <span class="chulo-estilo-${pgIndex}-${i}"></span>${escapeHtml(alt.nombre)} <span class="opacity-70">(${alt.piezas_objetivo}pz)</span>
                     </button>
                 `).join('')}</div>
             ` : '';
-
-            const subtituloHtml = hayVariosEstilos
-                ? `<span class="text-[10px] text-gray-400">${modo === 'compartido' ? 'Ve sumando piezas de cualquier categoría' : (modo === 'todas' ? 'Completa esta categoría antes de pasar a la siguiente' : 'Completa esta categoría para continuar')}</span>`
-                : `<label class="text-gray-600 font-bold text-[10px] uppercase tracking-wider">${escapeHtml(alternativasResueltas[0].nombre)}</label>`;
 
             const grupoPiezasHtml = `
                 <div class="space-y-2 mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
                     ${selectorEstiloHtml}
                     <div class="flex items-center flex-wrap justify-between gap-x-3 gap-y-1 mt-1.5">
-                        ${subtituloHtml}
-                        <span id="contador-piezas-${pgIndex}" class="text-xs font-black px-2.5 py-1 rounded-full bg-red-100 text-red-600 flex-shrink-0 whitespace-nowrap">0 / ${alternativasResueltas[0].piezas_objetivo} pz</span>
+                        <span id="instruccion-piezas-${pgIndex}" class="text-[11px] text-gray-600 font-semibold"></span>
+                        <span id="contador-piezas-${pgIndex}" class="text-xs font-black px-2.5 py-1 rounded-full bg-red-100 text-red-600 flex-shrink-0 whitespace-nowrap">Falta elegir</span>
                     </div>
                     <div id="lista-sabores-piezas-${pgIndex}" class="space-y-2 mt-2"></div>
                 </div>
@@ -1624,14 +1633,28 @@ function seleccionarEstiloPiezas(pgIndex, altIndex) {
     const estado = estadoPiezasCombo[pgIndex];
     if (!estado) return;
     estado.alternativaActiva = altIndex;
-    if (estado.modo === 'excluyente') estado.seleccion = {};
+    // Cambiar de estilo borra lo elegido: el cliente se lleva SOLO uno de los
+    // estilos. En modo "todas" cada pestaña es obligatoria, así que se respeta.
+    if (estado.modo !== 'todas') estado.seleccion = {};
     renderSaboresPiezas(pgIndex);
 }
 
+// Cuántas elecciones lleva hechas el cliente dentro de un estilo.
+// Ojo: cuenta ROLLS elegidos, no piezas. Las piezas salen de multiplicar por
+// alt.piezas_por_seleccion.
 function subtotalParaAlt(estado, alt) {
     let total = 0;
     alt.opciones.forEach(item => { total += estado.seleccion[item.id] || 0; });
     return total;
+}
+
+// Frase que le dice al cliente qué tiene que hacer en el estilo activo.
+function instruccionParaAlt(alt, mostrarNombre) {
+    const prefijo = mostrarNombre ? `${escapeHtml(alt.nombre)} · ` : '';
+    if (alt.selecciones === 1) {
+        return `${prefijo}Elige 1 opción para tus ${alt.piezas_objetivo} piezas`;
+    }
+    return `${prefijo}Elige ${alt.selecciones} opciones (${alt.piezas_por_seleccion} piezas cada una)`;
 }
 
 function renderSaboresPiezas(pgIndex) {
@@ -1643,7 +1666,7 @@ function renderSaboresPiezas(pgIndex) {
         const idx = parseInt(btn.dataset.idx);
         const activo = idx === estado.alternativaActiva;
         const altBtn = estado.alternativas[idx];
-        const completo = estado.modo === 'todas' && subtotalParaAlt(estado, altBtn) === altBtn.piezas_objetivo;
+        const completo = estado.modo === 'todas' && subtotalParaAlt(estado, altBtn) === altBtn.selecciones;
         let clases = `flex-1 py-2 rounded-xl text-xs font-bold border transition estilo-btn-${pgIndex} `;
         if (activo) clases += 'bg-red-600 text-white border-red-600';
         else if (completo) clases += 'bg-emerald-50 text-emerald-700 border-emerald-300';
@@ -1653,27 +1676,54 @@ function renderSaboresPiezas(pgIndex) {
         if (chulo) chulo.textContent = (completo && !activo) ? '✓ ' : '';
     });
 
+    const instruccion = document.getElementById(`instruccion-piezas-${pgIndex}`);
+    if (instruccion) instruccion.innerHTML = instruccionParaAlt(alt, estado.alternativas.length === 1);
+
     const contenedor = document.getElementById(`lista-sabores-piezas-${pgIndex}`);
     if (!contenedor) return;
+
+    const usadas = subtotalParaAlt(estado, alt);
+    // Con una sola elección siempre se puede tocar otra tarjeta (cambia la
+    // elegida). Con varias, se apagan las que ya no caben.
+    const quedaCupo = alt.selecciones === 1 || usadas < alt.selecciones;
 
     if (alt.opciones.length === 0) {
         contenedor.innerHTML = `<p class="text-xs text-red-500 font-bold px-1">⚠️ No hay sabores disponibles para "${escapeHtml(alt.nombre)}" en este momento.</p>`;
     } else {
         contenedor.innerHTML = alt.opciones.map(item => {
-            const cantActual = estado.seleccion[item.id] || 0;
+            const veces = estado.seleccion[item.id] || 0;
+            const elegido = veces > 0;
+            const apagado = !elegido && !quedaCupo;
+
+            let clasesTarjeta = 'p-2.5 rounded-lg border transition ';
+            if (elegido) clasesTarjeta += 'bg-emerald-50 border-emerald-400 ring-1 ring-emerald-300 cursor-pointer';
+            else if (apagado) clasesTarjeta += 'bg-white border-gray-200 opacity-40 cursor-not-allowed';
+            else clasesTarjeta += 'bg-white border-gray-200 hover:border-red-400 cursor-pointer';
+
+            // Insignia de la derecha: chulo cuando es una sola elección, contador
+            // con su botón de quitar cuando el combo permite varias.
+            let insignia = '';
+            if (elegido && alt.selecciones === 1) {
+                insignia = `<span class="text-emerald-600 text-lg leading-none flex-shrink-0">✓</span>`;
+            } else if (elegido) {
+                insignia = `
+                    <span class="flex items-center gap-1.5 flex-shrink-0">
+                        <span class="text-[11px] font-black text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5">×${veces}</span>
+                        <span onclick="quitarSaborPieza(${pgIndex}, '${item.id}', event)" title="Quitar uno" class="w-6 h-6 rounded-full bg-white border border-gray-300 text-gray-500 hover:text-red-600 hover:border-red-300 text-sm font-bold flex items-center justify-center cursor-pointer">−</span>
+                    </span>`;
+            }
+
+            const alTocar = apagado ? '' : `onclick="elegirSaborPieza(${pgIndex}, '${item.id}')"`;
+
             return `
-            <div class="p-2.5 bg-white rounded-lg border border-gray-200">
-                <div class="flex items-start gap-2">
+            <div ${alTocar} class="${clasesTarjeta}">
+                <div class="flex items-center gap-2">
                     ${construirMiniaturaComboHtml(item.image)}
                     <div class="flex-grow min-w-0">
                         <p class="text-xs font-bold text-gray-800 leading-snug">${escapeHtml(item.name)}</p>
                         ${item.desc ? `<p class="text-[10px] text-gray-400 italic leading-snug mt-0.5">${escapeHtml(item.desc)}</p>` : ''}
                     </div>
-                </div>
-                <div class="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-gray-100">
-                    <button type="button" onclick="ajustarCantidadPiezas(${pgIndex}, '${item.id}', -1)" class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm cursor-pointer">−</button>
-                    <input type="number" id="cant-pieza-${pgIndex}-${item.id}" value="${cantActual}" min="0" onchange="escribirCantidadPieza(${pgIndex}, '${item.id}', this.value)" class="w-10 text-center text-xs font-bold border border-gray-200 rounded-md py-0.5 focus:outline-none focus:border-red-500">
-                    <button type="button" onclick="ajustarCantidadPiezas(${pgIndex}, '${item.id}', 1)" class="btn-mas-pieza-${pgIndex} w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed">+</button>
+                    ${insignia}
                 </div>
             </div>
         `;
@@ -1683,57 +1733,41 @@ function renderSaboresPiezas(pgIndex) {
     actualizarContadorPiezas(pgIndex);
 }
 
-function ajustarCantidadPiezas(pgIndex, itemId, delta) {
+// Tocar una tarjeta. Con una sola elección permitida, tocar otra cambia la
+// elegida; con varias, va sumando hasta llenar el cupo.
+function elegirSaborPieza(pgIndex, itemId) {
     const estado = estadoPiezasCombo[pgIndex];
     if (!estado) return;
-
-    if (delta > 0) {
-        const { total, objetivo } = calcularPiezasSeleccionadas(estado);
-        if (total >= objetivo) return;
-    }
-
-    const actual = estado.seleccion[itemId] || 0;
-    const nuevo = Math.max(0, actual + delta);
-    if (nuevo === 0) delete estado.seleccion[itemId];
-    else estado.seleccion[itemId] = nuevo;
-
-    const input = document.getElementById(`cant-pieza-${pgIndex}-${itemId}`);
-    if (input) input.value = nuevo;
-
-    actualizarContadorPiezas(pgIndex);
-}
-
-function escribirCantidadPieza(pgIndex, itemId, valor) {
-    const estado = estadoPiezasCombo[pgIndex];
-    if (!estado) return;
-
-    let nuevo = parseInt(valor, 10);
-    if (isNaN(nuevo) || nuevo < 0) nuevo = 0;
-
-    const actual = estado.seleccion[itemId] || 0;
-    const { total, objetivo } = calcularPiezasSeleccionadas(estado);
-    const maximoPermitido = Math.max(0, objetivo - (total - actual));
-    if (nuevo > maximoPermitido) nuevo = maximoPermitido;
-
-    if (nuevo === 0) delete estado.seleccion[itemId];
-    else estado.seleccion[itemId] = nuevo;
-
-    const input = document.getElementById(`cant-pieza-${pgIndex}-${itemId}`);
-    if (input) input.value = nuevo;
-
-    actualizarContadorPiezas(pgIndex);
-}
-
-function calcularPiezasSeleccionadas(estado) {
-    if (estado.modo === 'compartido') {
-        const objetivo = estado.alternativas[0].piezas_objetivo;
-        let total = 0;
-        Object.keys(estado.seleccion).forEach(itemId => { total += estado.seleccion[itemId]; });
-        return { total, objetivo };
-    }
-    // 'excluyente' y 'todas' muestran/limitan el avance de la pestaña activa
     const alt = estado.alternativas[estado.alternativaActiva];
-    return { total: subtotalParaAlt(estado, alt), objetivo: alt.piezas_objetivo };
+
+    if (alt.selecciones === 1) {
+        alt.opciones.forEach(o => { delete estado.seleccion[o.id]; });
+        estado.seleccion[itemId] = 1;
+        renderSaboresPiezas(pgIndex);
+        return;
+    }
+
+    if (subtotalParaAlt(estado, alt) >= alt.selecciones) return;
+    estado.seleccion[itemId] = (estado.seleccion[itemId] || 0) + 1;
+    renderSaboresPiezas(pgIndex);
+}
+
+function quitarSaborPieza(pgIndex, itemId, evento) {
+    if (evento) evento.stopPropagation();
+    const estado = estadoPiezasCombo[pgIndex];
+    if (!estado) return;
+
+    const actual = estado.seleccion[itemId] || 0;
+    if (actual <= 1) delete estado.seleccion[itemId];
+    else estado.seleccion[itemId] = actual - 1;
+
+    renderSaboresPiezas(pgIndex);
+}
+
+// Devuelve el avance del estilo activo, contado en elecciones (no en piezas).
+function calcularPiezasSeleccionadas(estado) {
+    const alt = estado.alternativas[estado.alternativaActiva];
+    return { total: subtotalParaAlt(estado, alt), objetivo: alt.selecciones, alt };
 }
 
 function actualizarContadorPiezas(pgIndex) {
@@ -1743,18 +1777,16 @@ function actualizarContadorPiezas(pgIndex) {
 
     const badge = document.getElementById(`contador-piezas-${pgIndex}`);
     if (badge) {
-        badge.innerText = `${total} / ${objetivo} pz`;
-        badge.className = `text-xs font-black px-2 py-0.5 rounded-full ${total === objetivo ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`;
+        badge.innerText = objetivo === 1 ? (total === 1 ? 'Listo' : 'Falta elegir') : `${total} / ${objetivo}`;
+        badge.className = `text-xs font-black px-2.5 py-1 rounded-full flex-shrink-0 whitespace-nowrap ${total === objetivo ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`;
     }
-
-    document.querySelectorAll(`.btn-mas-pieza-${pgIndex}`).forEach(btn => { btn.disabled = total >= objetivo; });
 
     actualizarEstadoBotonConfirmar();
 }
 
 function grupoPiezasCompleto(estado) {
     if (estado.modo === 'todas') {
-        return estado.alternativas.every(alt => subtotalParaAlt(estado, alt) === alt.piezas_objetivo);
+        return estado.alternativas.every(alt => subtotalParaAlt(estado, alt) === alt.selecciones);
     }
     const { total, objetivo } = calcularPiezasSeleccionadas(estado);
     return total === objetivo;
@@ -1792,7 +1824,7 @@ function guardarSeleccionCombo() {
     if (!comboEnPersonalizacion) return;
 
     if (!todosLosGruposPiezasCompletos()) {
-        alert('⚠️ Completa la cantidad exacta de piezas antes de continuar.');
+        alert('⚠️ Elige todas las opciones del combo antes de continuar.');
         return;
     }
 
@@ -1808,23 +1840,28 @@ function guardarSeleccionCombo() {
     Object.keys(estadoPiezasCombo).forEach(pgIndex => {
         const estado = estadoPiezasCombo[pgIndex];
         const todasLasOpciones = estado.alternativas.flatMap(a => a.opciones);
-        const formatearDetalles = (itemIds) => itemIds.map(itemId => {
+        // La cocina necesita ver las piezas, no solo el nombre del roll:
+        //   1 eleccion  -> "Tiger roll (12pz)"
+        //   3 elecciones -> "2x Tiger roll (8pz c/u), 1x Sensei roll (8pz c/u)"
+        const formatearDetalles = (itemIds, alt) => itemIds.map(itemId => {
             const item = todasLasOpciones.find(o => o.id === itemId);
             const cant = estado.seleccion[itemId];
             clavesVariante.push(`${itemId}x${cant}`);
-            return `${cant}x ${item ? item.name : itemId}`;
+            const nombre = item ? item.name : itemId;
+            if (alt.selecciones === 1) return `${nombre} (${alt.piezas_objetivo}pz)`;
+            return `${cant}x ${nombre} (${alt.piezas_por_seleccion}pz c/u)`;
         }).join(', ');
 
         if (estado.modo === 'todas') {
             estado.alternativas.forEach(alt => {
                 const idsDeEstaAlt = alt.opciones.map(o => o.id).filter(id => estado.seleccion[id] > 0);
-                if (idsDeEstaAlt.length > 0) elecciones.push(`${alt.nombre}: ${formatearDetalles(idsDeEstaAlt)}`);
+                if (idsDeEstaAlt.length > 0) elecciones.push(`${alt.nombre}: ${formatearDetalles(idsDeEstaAlt, alt)}`);
             });
         } else {
+            const altActiva = estado.alternativas[estado.alternativaActiva];
             const idsSeleccionados = Object.keys(estado.seleccion);
             if (idsSeleccionados.length > 0) {
-                const texto = formatearDetalles(idsSeleccionados);
-                elecciones.push(estado.modo === 'compartido' ? texto : `${estado.alternativas[estado.alternativaActiva].nombre}: ${texto}`);
+                elecciones.push(`${altActiva.nombre}: ${formatearDetalles(idsSeleccionados, altActiva)}`);
             }
         }
     });

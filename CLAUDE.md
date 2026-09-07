@@ -14,7 +14,7 @@ Tokio Sushi is an order-management system for a sushi restaurant: a customer-fac
   - `admin.html` / `admin.js` — admin panel (CRUD for categories/products/combos/announcements, users, motorizados, WhatsApp message templates, business hours).
   - `estadisticas.html` / `estadisticas.js` — analytics/stats dashboard (Chart.js) + client search.
   - `menu_trabajadores.html` / `menu_trabajadores.js` — the register: the same customer menu, laid out for desktop, used by staff to take an order. Requires a staff session (`localStorage.usuarioActivo` + `tokioAuthToken`); redirects to `index.html` without one. **It loads `menu.js` wholesale and then overrides only what differs** — see the architecture note below.
-  - `config.js` — **shared** helpers used by several pages: `authHeaders()` (reads the JWT from `localStorage.tokioAuthToken`), `escapeHtml()`, and `construirHtmlModalPedido()`. Load it before the page's own JS. New cross-page helpers belong here.
+  - `config.js` — **shared** helpers used by several pages: `authHeaders()` (reads the JWT from `localStorage.tokioAuthToken`), `escapeHtml()`, `ocultarSiExiste()`, and `construirHtmlModalPedido()`. It also holds the cross-page feature flag `FUNCION_MOTORIZADOS`. Load it before the page's own JS. New cross-page helpers belong here.
   - `Codigo original funcional` — a legacy single-file (no extension, it's HTML) snapshot of an earlier working version of the ops dashboard, kept as a reference, not wired into the app.
 - **`tokio-backend/`** — FastAPI backend.
   - `main.py` — app entrypoint; `Base.metadata.create_all`, then `ejecutar_migraciones(engine)`, CORS from env, mounts all routers.
@@ -84,7 +84,11 @@ Placeholders: `[PEDIDO]`, `[NOMBRE]`, `[CLIENTE]`, `[TELEFONO]`, `[DIRECCION]`, 
 
 **Packing totals are computed server-side at order creation, not derived from the order text.** Every product and combo carries `bandejas` (default 1) and `cajas_pizza` (default 0), set per item in the admin panel — an item can carry both. `calcular_empaque()` sums them from the cart's `p_`/`c_` ids and stores `total_bandejas` / `total_cajas_pizza` / `total_refrescos` on the `Pedido`; refrescos are counted by category name containing `bebida` or `refresco`. This exists because `pedido_detallado` is a text blob and re-parsing it is lossy. **Editing an order therefore has to send `articulos` explicitly** — `guardarEdicionPedido` in `app.js` does; if the key is absent the backend leaves the stored totals alone rather than zeroing them. For that to work, `abrirModalEditarPedido` recovers a customized combo's id by matching the catalogue name against the part before `" ("` (the cart line reads `Combo Dúo (Rolls: 2x California)`); the match is used **only** for the id — price and line text stay exactly as parsed.
 
-**`precio_delivery` and `paga_con` are captured together**, in the same modal where the cashier quotes the delivery (`pedirPrecioDelivery` in `app.js`, which now resolves to `{ precio, pagaCon }`). The "¿con cuánto paga?" field only appears for cash orders. Both travel to `/actualizar-estado`, which accepts them like any other optional field.
+**`precio_delivery` and `paga_con` are captured together**, in the same modal where the cashier quotes the delivery (`pedirPrecioDelivery` in `app.js`, which resolves to `{ precio, pagaCon }`). The modal leads with a one-tap **standard price button** (`PRECIO_DELIVERY_ESTANDAR`, currently $2 — the constant drives both the button label and the value) and keeps a free "otro monto" field below it for the far addresses. The "¿con cuánto paga?" field only appears for cash orders. Both travel to `/actualizar-estado`, which accepts them like any other optional field.
+
+**The prep-time estimate is a phrase, not a number.** The restaurant promises a range, so `pedirTiempoEstimado` resolves the full text the customer will read — `"25 a 30 minutos"`, `"30 a 45 minutos"`, or one built from hours+minutes boxes by `aplicarTiempoPersonalizado` (`"1 hora y 30 minutos"`, `"2 horas"`). `notificar-aprobado` inserts it into `[TIEMPO_ESTIMADO]` verbatim; it only appends "minutos" if a bare number arrives (old payloads), and it strips a `minutos` written straight after the placeholder in the stored template so the message never reads "25 a 30 minutos minutos".
+
+**Rider management is switched off, not deleted.** `FUNCION_MOTORIZADOS` in `config.js` (currently `false`) hides three things: the 🛵 Motorizados tab in the admin panel, the per-order "Pagar a repartidor" button on the board, and the "Nómina de Repartidores" widget in stats. The restaurant does not keep riders on payroll, but the code, the HTML, the `motorizados` table and its endpoints are all intact — flipping the flag to `true` restores everything with no other edit, here or for another client reusing this base. It does **not** touch the WhatsApp rider-group notice, the delivery price, or the packing totals: those are in daily use.
 
 **BCV exchange rate is a single mutable row**, not a history: `TasaManual` holds one record, refreshed once per day from `ve.dolarapi.com` (`routers/bcv.py`) or overwritten manually from the admin/ops UI. Every order snapshots the rate at creation time into `Pedido.tasa_bcv`, so historical orders keep their original rate even if the central rate later changes.
 
@@ -110,11 +114,13 @@ Placeholders: `[PEDIDO]`, `[NOMBRE]`, `[CLIENTE]`, `[TELEFONO]`, `[DIRECCION]`, 
 **Combo groups** live as JSON in `Combo.items_json`, and each group has a `tipo`:
 - `producto` — a fixed included item.
 - `categoria` — "choose your X" from a category.
-- `piezas_alternativas` — the piece-counting builder, with a `modo` that changes everything:
-  - `excluyente` — pick exactly one style, each with its own target (Tempura 12pz **or** Frío 10pz).
-  - `compartido` — **retired**. Rows acted as tabs toward one shared target (76 mixed pieces). The restaurant does not sell that way: X pieces means X pieces of one specific roll. A data migration in `migrations.py` converts every such group to `excluyente`, copying row 1's target (the one that governed) onto every row, and stashes the pre-conversion JSON in the new `combos.items_json_respaldo` column so it can be undone. The admin dropdown no longer offers it (an unconverted combo still shows the value, labelled as retired). `menu.js` keeps its `compartido` rendering as a safety net for anything the migration skipped.
-  - `todas` — every tab has its own target and all must be completed; finished tabs get a green check.
-  Legacy combos may still carry `compartido: true` instead of `modo`; `menu.js` falls back accordingly.
+- `piezas_alternativas` — **the customer picks whole rolls, never loose pieces.** Each row (a "style") declares `selecciones` (how many rolls the customer picks) and `piezas_por_seleccion` (what each pick is worth); `piezas_objetivo` stays in the JSON as the product of the two and is what the UI shows as the style's size. 12pz of one roll is `selecciones: 1, piezas_por_seleccion: 12`; a 24pz combo built from three rolls is `3 × 8`. The customer taps a card to pick it — no steppers, no piece math. With `selecciones: 1` tapping another card *replaces* the choice; with more, taps accumulate to the cap and the same roll may be picked more than once (three tandas of the same roll is a legitimate order). `elegirSaborPieza` / `quitarSaborPieza` are the only mutators, `subtotalParaAlt` counts **picks, not pieces**, and the group is complete when picks == `selecciones`.
+  The `modo` still decides how multiple rows behave:
+  - `excluyente` — the customer takes exactly one style (Tempura 12pz **or** Frío 10pz). Switching tabs clears the picks.
+  - `todas` — every tab must be filled; finished tabs get a green check and switching tabs preserves picks.
+  - `compartido` — **retired twice over.** It let one target be filled by mixing rows; a migration converted those groups to `excluyente`, backing the original JSON up in `combos.items_json_respaldo`. `menu.js` no longer renders it at all — anything still carrying it is treated as `excluyente`.
+  A second migration fills `selecciones: 1` / `piezas_por_seleccion: <piezas_objetivo>` into every alternativa that lacks them, which is the literal reading of the rule for combos built before this existed. It needs no backup: deleting the two keys restores the old JSON exactly. It is guarded on `items_json NOT LIKE '%piezas_por_seleccion%'`, so it runs once.
+  The cart line spells out the pieces for the kitchen: `Tempura: Tiger roll (12pz)` for a single pick, `Variado: 2x Tiger roll (8pz c/u), 1x Sensei roll (8pz c/u)` for several.
 
 **Quantity-based promos**: `Combo.promo_cantidad_minima` / `promo_producto_id` / `promo_producto_cantidad`. The cart auto-inserts a $0, non-editable gift line that scales every N combos. It travels to the backend as an ordinary product line, so the server-side price recalculation needs no special case.
 
@@ -133,7 +139,7 @@ The four JS files are large (menu.js ~1900 lines, app.js ~1500, admin.js ~1250) 
 - Catalogue render: `cargarMenuDesdeDB`, `renderizarCategorias`, `selectCategory` (item cards), `abrirDetalleProducto`
 - Cart: `updateQty`, `setExactQty`, `removeCartItem`, `toggleNoteField`, `updateItemNote`, `calculateTotals`, `sincronizarPromocionesCarrito`
 - Combo customization: `abrirModalCombo` (builds the modal), `guardarSeleccionCombo` (writes the cart line + variant key), `cerrarModalCombo`, `pintarProgresoLoteCombo`
-- Piece builder (`piezas_alternativas`): `renderSaboresPiezas`, `seleccionarEstiloPiezas`, `ajustarCantidadPiezas`, `escribirCantidadPieza`, `calcularPiezasSeleccionadas`, `subtotalParaAlt`, `grupoPiezasCompleto`, `todosLosGruposPiezasCompletos`, `resolverOpcionesCategoria(s)`
+- Roll picker (`piezas_alternativas`): `renderSaboresPiezas`, `seleccionarEstiloPiezas`, `elegirSaborPieza`, `quitarSaborPieza`, `instruccionParaAlt`, `calcularPiezasSeleccionadas`, `subtotalParaAlt`, `grupoPiezasCompleto`, `todosLosGruposPiezasCompletos`, `resolverOpcionesCategoria(s)`
 - Pending-vs-customized combos: `ajustarPendientesCombo`, `personalizarPendientesCombo`, `totalDeseadoParaId`, `actualizarUiPendienteCombo`, `abrirModalCombosPendientes`
 - Variant removal picker: `abrirSelectorEliminarVariantes`, `quitarUnaUnidadVariante`, `eliminarVarianteCompleta`
 - Checkout: `irACheckout` (no longer blocks), `prepareCheckout`, `renderizarResumenCarrito`, `idsCombosPendientes`, `eliminarPendientesCombo`, `sendOrder` (blocks on pending combos), `cargarSelectorDirecciones`
@@ -146,7 +152,7 @@ The four JS files are large (menu.js ~1900 lines, app.js ~1500, admin.js ~1250) 
 - New order at the register: gone from here — the button calls `irAMenuTrabajadores`, which navigates to `menu_trabajadores.html`. `cargarCatalogoDesdeDB`/`CATALOGO_PRODUCTOS` stayed because the *edit order* modal still uses them.
 - Edit order: `abrirModalEditarPedido` (parses `pedido_detallado` back), `renderizarCarritoEdicion`, `guardarEdicionPedido`
 - State transitions + WhatsApp: `procesarPasoCocina`, `procesarPasoFinalizado`, `ejecutarActualizacion`, `pedirTiempoEstimado`, `pedirComprobantePago`, `cancelarPedido`
-- Delivery/riders: `pedirPrecioDelivery`, `procesarPrecioDelivery`, `abrirModalRepartidor`, `guardarRepartidor`
+- Delivery/riders: `pedirPrecioDelivery`, `procesarPrecioDelivery`, `abrirModalRepartidor`, `guardarRepartidor` (the last two are unreachable while `FUNCION_MOTORIZADOS` is `false`)
 - Session/roles: `verificarSesion`, `iniciarSesion`, `aplicarRestriccionesRol`
 
 **`admin.js` — admin panel**

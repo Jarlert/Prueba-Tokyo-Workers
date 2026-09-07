@@ -329,6 +329,11 @@ function procesarCalculosEstadisticos(pedidos) {
 }
 
 function dibujarWidgetsEstadisticas(cantPedidos, totalUSD, totalBS, pagos, clientes, productos, repartidores) {
+    // La nomina de repartidores se esconde cuando la gestion de motorizados
+    // esta apagada en config.js. El calculo de arriba sigue corriendo, asi que
+    // volver a encenderla no pierde nada.
+    if (typeof FUNCION_MOTORIZADOS !== "undefined" && !FUNCION_MOTORIZADOS) ocultarSiExiste('#cardRepartidores');
+
     const formatoUSD = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(totalUSD);
     const formatoBS = new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(totalBS);
 

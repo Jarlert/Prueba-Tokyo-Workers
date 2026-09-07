@@ -16,6 +16,29 @@
 // Sin barra final: todas las rutas que la usan empiezan por "/api/...".
 const API_BASE = "https://prueba-tokyo-workers-production-baac.up.railway.app";
 
+// =====================================================================
+// Interruptor: gestion de motorizados propios (registro + nomina)
+// =====================================================================
+// Este restaurante no lleva motorizados en planilla, asi que la funcion
+// queda apagada: se ocultan la pestana "Motorizados" del panel admin, el
+// boton de "Pagar a repartidor" del tablero y el widget "Nomina de
+// Repartidores" de estadisticas.
+//
+// El codigo sigue completo y sin tocar. Poner esto en true lo devuelve
+// todo tal como estaba, sin editar nada mas: sirve para reactivarlo aqui
+// o para otro cliente que reutilice esta base.
+//
+// OJO: esto NO apaga el aviso al grupo de WhatsApp ni el precio del
+// delivery. Esas dos cosas se siguen usando todos los dias.
+const FUNCION_MOTORIZADOS = false;
+
+// Oculta un elemento por selector, si existe. Usado para apagar la UI de
+// motorizados sin borrar el HTML.
+function ocultarSiExiste(selector) {
+    const el = document.querySelector(selector);
+    if (el) el.style.display = 'none';
+}
+
 // Headers de autenticación para llamadas de staff logueado (index.html, admin.html, estadisticas.html)
 function authHeaders() {
     const token = localStorage.getItem('tokioAuthToken');
