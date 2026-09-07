@@ -164,6 +164,19 @@ function itemDentroDeHorarioProgramado(item) {
 }
 
 // --- ANUNCIOS/POPUPS DE PROMOCIONES AL ABRIR EL MENÚ ---
+
+// INTERRUPTOR: mientras esté en false, el anuncio no lleva al producto. Ni al
+// tocar la foto ni con el botón "Ordenar esta promoción", que queda escondido.
+// Toda la lógica sigue intacta más abajo (irAItemDeAnuncio): para volver a
+// activarlo basta con poner true aquí, no hay que tocar nada más.
+const ANUNCIOS_LLEVAN_AL_PRODUCTO = false;
+
+// Un anuncio lleva al producto solo si la función está activada Y ese anuncio
+// tiene un producto asociado desde el panel de administración.
+function anuncioLlevaAlProducto(anuncio) {
+    return ANUNCIOS_LLEVAN_AL_PRODUCTO && !!(anuncio && anuncio.producto_ref);
+}
+
 let promesaPrecargaAnuncios = null;
 
 // Se llama lo antes posible (antes de terminar el login) para que las imágenes
@@ -214,7 +227,7 @@ function mostrarAnuncioEnIndice(indice) {
     imgEl.setAttribute('data-original', anuncio.imagen || '');
     imgEl.onerror = () => imagenConRespaldo(imgEl);
     imgEl.src = urlImagen(anuncio.imagen || '', 800); // mismo ancho que la precarga
-    imgEl.style.cursor = anuncio.producto_ref ? 'pointer' : 'default';
+    imgEl.style.cursor = anuncioLlevaAlProducto(anuncio) ? 'pointer' : 'default';
 
     document.getElementById('anuncio-modal-titulo').innerText = anuncio.titulo || '';
     document.getElementById('anuncio-modal-titulo').classList.toggle('hidden', !anuncio.titulo);
@@ -222,12 +235,13 @@ function mostrarAnuncioEnIndice(indice) {
     document.getElementById('anuncio-modal-texto').classList.toggle('hidden', !anuncio.texto);
 
     const btnPedir = document.getElementById('anuncio-modal-btn-pedir');
-    btnPedir.classList.toggle('hidden', !anuncio.producto_ref);
+    btnPedir.classList.toggle('hidden', !anuncioLlevaAlProducto(anuncio));
 
     const hayMas = indice < anunciosActivos.length - 1;
     const btnEntendido = document.getElementById('anuncio-modal-btn');
     btnEntendido.innerText = hayMas ? 'Siguiente ➔' : 'Entendido, ver menú';
-    if (anuncio.producto_ref) {
+    // Si no hay a dónde llevar, "Entendido" es la única acción y va destacado.
+    if (anuncioLlevaAlProducto(anuncio)) {
         btnEntendido.className = 'mt-3 w-full font-bold py-3 rounded-xl transition cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700';
     } else {
         btnEntendido.className = 'mt-3 w-full font-bold py-3 rounded-xl transition cursor-pointer bg-red-600 hover:bg-red-700 text-white';
@@ -250,6 +264,10 @@ function cerrarAnuncioActual() {
 }
 
 function irAItemDeAnuncio() {
+    // Desactivado a propósito: la foto del anuncio conserva su onclick en el
+    // HTML, pero aquí no pasa nada mientras el interruptor esté en false.
+    if (!ANUNCIOS_LLEVAN_AL_PRODUCTO) return;
+
     const anuncio = anunciosActivos[anuncioIndiceActual];
     if (!anuncio || !anuncio.producto_ref) return;
 
