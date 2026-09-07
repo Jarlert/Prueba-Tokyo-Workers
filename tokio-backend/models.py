@@ -77,6 +77,9 @@ class Combo(Base):
     descripcion = Column(String, nullable=True)
     imagen = Column(String, nullable=True)
     items_json = Column(String, nullable=True)
+    # Copia del items_json anterior a la retirada del modo "piezas compartidas".
+    # Solo se llena en esa conversion; sirve para poder deshacerla.
+    items_json_respaldo = Column(String, nullable=True)
     disponible = Column(Boolean, default=True)
     promo_cantidad_minima = Column(Integer, nullable=True)
     promo_producto_id = Column(Integer, nullable=True)

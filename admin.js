@@ -971,7 +971,7 @@ function agregarGrupoPiezasAlternativas(alternativasExistentes = null, modoExist
             Con 2+ filas, ¿cómo se comportan las pestañas?
             <select class="grupo-modo-piezas" onchange="sincronizarModoPiezas(this.closest('.fila-piezas-alternativas'))" style="width:100%; margin-top:4px; padding:8px; background:#0f172a; border:1px solid #334155; color:white; border-radius:6px; font-size:12px;">
                 <option value="excluyente" ${modoExistente === 'excluyente' ? 'selected' : ''}>Excluyentes: el cliente elige SOLO una pestaña (ej. Tempura 12pz o Frío 10pz)</option>
-                <option value="compartido" ${modoExistente === 'compartido' ? 'selected' : ''}>Piezas compartidas: navega libremente entre pestañas hacia un mismo total (ej. 76 piezas variadas, usa el número de la 1ra fila)</option>
+                ${modoExistente === 'compartido' ? `<option value="compartido" selected>Piezas compartidas (opción retirada — al guardar se convertirá a excluyente)</option>` : ''}
                 <option value="todas" ${modoExistente === 'todas' ? 'selected' : ''}>Todas obligatorias: el cliente debe completar cada pestaña por separado (ej. 1 roll clásico + 1 tempura + 1 individual + 1 guarnición)</option>
             </select>
         </label>

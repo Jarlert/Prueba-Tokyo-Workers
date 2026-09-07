@@ -1,3 +1,5 @@
+import json
+
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
@@ -76,3 +78,65 @@ def ejecutar_migraciones(engine: Engine):
                     """),
                     {"dia": dia}
                 )
+
+
+        # --- Retirar el modo "piezas compartidas" de los combos ---------------
+        # Ese modo dejaba al cliente mezclar libremente sabores de varias
+        # categorias hasta un total unico (ej. 76 piezas variadas). En el local
+        # no se vende asi: un combo de X piezas es X piezas de UN roll concreto.
+        # Se convierten a "excluyente", que es justo eso: se elige una fila y se
+        # completan sus piezas.
+        #
+        # El objetivo compartido lo marcaba siempre la primera fila, asi que se
+        # le copia a todas. Antes de tocar nada, el JSON original se guarda en
+        # items_json_respaldo, de modo que el cambio es reversible.
+        if "items_json_respaldo" not in columnas_combos:
+            print("[migracion] Agregando columna 'items_json_respaldo' a combos...")
+            conn.execute(text("ALTER TABLE combos ADD COLUMN items_json_respaldo TEXT"))
+
+        filas = conn.execute(text("""
+            SELECT id, items_json FROM combos
+            WHERE items_json IS NOT NULL
+              AND items_json LIKE '%compartido%'
+              AND items_json_respaldo IS NULL
+        """)).fetchall()
+
+        convertidos = 0
+        for fila in filas:
+            try:
+                grupos = json.loads(fila.items_json)
+            except (ValueError, TypeError):
+                continue
+            if not isinstance(grupos, list):
+                continue
+
+            cambio = False
+            for grupo in grupos:
+                if not isinstance(grupo, dict) or grupo.get("tipo") != "piezas_alternativas":
+                    continue
+                if grupo.get("modo") != "compartido" and grupo.get("compartido") is not True:
+                    continue
+
+                alternativas = grupo.get("alternativas") or []
+                objetivo = alternativas[0].get("piezas_objetivo") if alternativas else None
+                if not objetivo:
+                    # Sin un objetivo del que partir preferimos no inventar nada.
+                    continue
+
+                for alt in alternativas:
+                    alt["piezas_objetivo"] = objetivo
+                grupo["modo"] = "excluyente"
+                grupo.pop("compartido", None)
+                cambio = True
+
+            if not cambio:
+                continue
+
+            conn.execute(
+                text("UPDATE combos SET items_json_respaldo = :orig, items_json = :nuevo WHERE id = :id"),
+                {"orig": fila.items_json, "nuevo": json.dumps(grupos, ensure_ascii=False), "id": fila.id},
+            )
+            convertidos += 1
+
+        if convertidos:
+            print(f"[migracion] Combos con 'piezas compartidas' convertidos a 'excluyente': {convertidos}.")

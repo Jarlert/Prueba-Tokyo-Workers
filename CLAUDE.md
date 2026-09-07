@@ -100,7 +100,7 @@ There is no automated test suite (frontend or backend) and no linter configured.
 - `categoria` — "choose your X" from a category.
 - `piezas_alternativas` — the piece-counting builder, with a `modo` that changes everything:
   - `excluyente` — pick exactly one style, each with its own target (Tempura 12pz **or** Frío 10pz).
-  - `compartido` — rows act as navigation tabs toward a single shared target (Combo Mega, 76pz).
+  - `compartido` — **retired**. Rows acted as tabs toward one shared target (76 mixed pieces). The restaurant does not sell that way: X pieces means X pieces of one specific roll. A data migration in `migrations.py` converts every such group to `excluyente`, copying row 1's target (the one that governed) onto every row, and stashes the pre-conversion JSON in the new `combos.items_json_respaldo` column so it can be undone. The admin dropdown no longer offers it (an unconverted combo still shows the value, labelled as retired). `menu.js` keeps its `compartido` rendering as a safety net for anything the migration skipped.
   - `todas` — every tab has its own target and all must be completed; finished tabs get a green check.
   Legacy combos may still carry `compartido: true` instead of `modo`; `menu.js` falls back accordingly.
 
