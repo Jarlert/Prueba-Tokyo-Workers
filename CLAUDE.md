@@ -50,7 +50,7 @@ There is no automated test suite (frontend or backend) and no linter configured.
 - **Frontend**: Vercel, at `https://tokio-sushi-app.vercel.app`. Auto-deploys on push to the production branch. No build step.
 - **Backend**: Railway. Root Directory must be `tokio-backend/`. Auto-deploys on push to the connected branch — this webhook has failed silently before (there are two `Forzar redeploy en Railway` commits in the history that exist only to poke it), so after a backend change **verify the deploy actually landed** rather than assuming.
 - To check what code is really live without sending a test order, query the deployed schema: `curl -s <backend>/openapi.json` and look for the field/endpoint you just added.
-- All frontend API base URLs are **hardcoded absolute URLs** to the Railway host, repeated in every JS file (~38 occurrences). There's no env-based config, so changing backend environments means editing every JS file.
+- The backend host lives in **one place**: `const API_BASE` at the top of `config.js`, which every page loads before its own JS. Each file then builds its URLs as `API_BASE + "/api/..."`. Changing hosting means editing that single line (this replaced ~45 copies of the URL). The live host is `prueba-tokyo-workers-production-baac.up.railway.app`; the older `...-76cf...` one is dead and returns 404.
 
 ## Architecture notes
 

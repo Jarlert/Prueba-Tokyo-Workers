@@ -17,8 +17,9 @@
 // listadas en "REEMPLAZOS" dentro de menu.js, revisa también su gemela de aquí.
 // =============================================================================
 
-const URL_BUSCAR_CLIENTES_TRAB = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/clientes/buscar";
-const URL_CREAR_PEDIDO_TRAB = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/";
+// API_BASE viene de config.js, que se carga antes que este archivo.
+const URL_BUSCAR_CLIENTES_TRAB = API_BASE + "/api/clientes/buscar";
+const URL_CREAR_PEDIDO_TRAB = API_BASE + "/api/pedidos/";
 
 let usuarioActivoTrabajador = null;
 let contadorLineaManual = 0;

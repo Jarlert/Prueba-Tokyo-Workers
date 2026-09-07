@@ -2,11 +2,11 @@
 // Tokio Sushi - Núcleo de Operaciones y Control del Sistema (app.js)
 // =====================================================================
 
-const URL_OBTENER_MOTORIZADOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/motorizados/";
-const API_OBTENER_PEDIDOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/";
-const API_ACTUALIZAR_ESTADO = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/actualizar-estado";
-const URL_OBTENER_MENU = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/menu/";
-const URL_OBTENER_USUARIOS = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/usuarios/";
+const URL_OBTENER_MOTORIZADOS = API_BASE + "/api/motorizados/";
+const API_OBTENER_PEDIDOS = API_BASE + "/api/pedidos/";
+const API_ACTUALIZAR_ESTADO = API_BASE + "/api/pedidos/actualizar-estado";
+const URL_OBTENER_MENU = API_BASE + "/api/menu/";
+const URL_OBTENER_USUARIOS = API_BASE + "/api/usuarios/";
 
 let MOTORIZADOS_SISTEMA = []; 
 let USUARIOS_SISTEMA = [];
@@ -49,7 +49,8 @@ async function cargarCatalogoDesdeDB() {
                         name: objeto.nombre,
                         price: parseFloat(objeto.precio),
                         // NUEVO: Guardamos la categoría y las opciones ocultas
-                        categoria: objeto.categoria || '', 
+                        categoria: objeto.categoria || '',
+                        agotado: objeto.agotado === true,
                         opciones_combo: objeto.items_json || objeto.items || null
                     });
                 } else {
@@ -88,7 +89,7 @@ async function actualizarTasaBCV() {
     if (!inputTasa) return;
 
     try {
-        const response = await fetch('https://prueba-tokyo-workers-production-76cf.up.railway.app/api/bcv/');
+        const response = await fetch(API_BASE + '/api/bcv/');
         if (!response.ok) throw new Error('Error BD');
         
         const data = await response.json();
@@ -113,7 +114,7 @@ if (document.getElementById('tasaBCV')) {
         if (isNaN(nuevaTasa) || nuevaTasa <= 0) return;
 
         try {
-            const response = await fetch('https://prueba-tokyo-workers-production-76cf.up.railway.app/api/bcv/actualizar', {
+            const response = await fetch(API_BASE + '/api/bcv/actualizar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tasa: nuevaTasa })
@@ -181,7 +182,7 @@ function verificarSesion() {
     }
 }
 
-const API_VALIDAR_ACCESO = "https://prueba-tokyo-workers-production-76cf.up.railway.app/api/usuarios/validar-acceso";
+const API_VALIDAR_ACCESO = API_BASE + "/api/usuarios/validar-acceso";
 
 async function iniciarSesion(event) {
     if (event && typeof event.preventDefault === 'function') event.preventDefault();
@@ -435,7 +436,7 @@ function guardarEdicionPedido() {
         id_visual: String(idReal)
     };
     
-    fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/notificar-edicion", { 
+    fetch(API_BASE + "/api/pedidos/notificar-edicion", { 
         method: 'POST', headers: authHeaders(), body: JSON.stringify(payloadNotificacion) 
     }).catch(e => console.error("Error enviando WhatsApp:", e));
 }
@@ -576,7 +577,7 @@ async function procesarPasoCocina(idPedido) {
         id_visual: String(pedido.id_pedido || pedido.ID || idPedido)
     };
 
-    fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/notificar-aprobado", {
+    fetch(API_BASE + "/api/pedidos/notificar-aprobado", {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(payloadAprobado)
@@ -603,7 +604,7 @@ function procesarPasoFinalizado(idPedido) {
         direccion: pedido.direccion || pedido.Direccion || 'Dirección no especificada'
     };
 
-    fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/notificar-despacho", {
+    fetch(API_BASE + "/api/pedidos/notificar-despacho", {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(payloadDespacho)
@@ -1089,7 +1090,7 @@ async function procesarPrecioDelivery(idPedido) {
         id_visual: String(idPedido)
     };
 
-    fetch("https://prueba-tokyo-workers-production-76cf.up.railway.app/api/pedidos/notificar-cobro", { 
+    fetch(API_BASE + "/api/pedidos/notificar-cobro", { 
         method: 'POST', 
         headers: authHeaders(), 
         body: JSON.stringify(payloadCobro) 
