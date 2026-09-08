@@ -1658,8 +1658,16 @@ function instruccionParaAlt(alt, mostrarNombre) {
     if (alt.selecciones === 1) {
         return `${prefijo}Elige 1 opción para tus ${alt.piezas_objetivo} piezas`;
     }
-    return `${prefijo}Elige ${alt.selecciones} opciones (${alt.piezas_por_seleccion} piezas cada una)`;
+    return `${prefijo}Elige ${alt.selecciones} opciones (${alt.piezas_por_seleccion} piezas cada opción)`;
 }
+
+// Interruptor: pestañas de categoría dentro de una misma tanda de rolls.
+// Cuando una fila abarca varias categorías se puede mostrar una tira de chips
+// (Todos / Roll clásico / Roll tempura...) que filtra la lista. Está apagado
+// porque confunde al cliente promedio: hoy ve una sola lista larga con todos
+// los rolls, que es justo lo que se pidió. El código queda entero — poner esto
+// en true devuelve las pestañas, sin tocar nada más.
+const PESTANAS_CATEGORIA_COMBO = false;
 
 // Categorías que abarca una fila y que de verdad tienen sabores hoy.
 // Si son 2 o más, el cliente navega entre ellas con pestañas, pero el cupo de
@@ -1703,7 +1711,7 @@ function renderSaboresPiezas(pgIndex) {
     if (instruccion) instruccion.innerHTML = instruccionParaAlt(alt, estado.alternativas.length === 1);
 
     // --- Pestañas de categoría (solo si la fila abarca varias) ---
-    const categorias = categoriasConSabores(alt);
+    const categorias = PESTANAS_CATEGORIA_COMBO ? categoriasConSabores(alt) : [];
     const filtro = estado.filtroCategoria[estado.alternativaActiva] || '';
     const cajaCats = document.getElementById(`cats-piezas-${pgIndex}`);
     if (cajaCats) {
