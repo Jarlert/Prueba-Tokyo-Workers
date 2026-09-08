@@ -1517,13 +1517,14 @@ function abrirModalCombo(item) {
                     selecciones,
                     piezas_por_seleccion: porSeleccion,
                     piezas_objetivo: objetivoGuardado || (selecciones * porSeleccion),
+                    categorias: alt.categorias || (alt.categoria ? [alt.categoria] : []),
                     opciones: resolverOpcionesCategorias(alt.categorias || (alt.categoria ? [alt.categoria] : []))
                 };
             }).filter(alt => alt.piezas_objetivo > 0);
 
             if (alternativasResueltas.length === 0) return;
 
-            estadoPiezasCombo[pgIndex] = { alternativas: alternativasResueltas, alternativaActiva: 0, seleccion: {}, modo };
+            estadoPiezasCombo[pgIndex] = { alternativas: alternativasResueltas, alternativaActiva: 0, seleccion: {}, modo, filtroCategoria: {} };
 
             const hayVariosEstilos = alternativasResueltas.length > 1;
             const tituloEstilos = modo === 'todas' ? 'Completa cada elección' : 'Elige tu estilo';
@@ -1548,6 +1549,7 @@ function abrirModalCombo(item) {
                         <span id="instruccion-piezas-${pgIndex}" class="text-[11px] text-gray-600 font-semibold"></span>
                         <span id="contador-piezas-${pgIndex}" class="text-xs font-black px-2.5 py-1 rounded-full bg-red-100 text-red-600 flex-shrink-0 whitespace-nowrap">Falta elegir</span>
                     </div>
+                    <div id="cats-piezas-${pgIndex}" class="flex gap-1.5 flex-wrap"></div>
                     <div id="lista-sabores-piezas-${pgIndex}" class="space-y-2 mt-2"></div>
                 </div>
             `;
@@ -1622,7 +1624,9 @@ function resolverOpcionesCategorias(nombresCategorias) {
         resolverOpcionesCategoria(nombre).forEach(item => {
             if (!vistos.has(item.id)) {
                 vistos.add(item.id);
-                resultado.push(item);
+                // Copia con la categoria de la que salio, para poder ofrecer las
+                // pestañas de navegacion cuando la fila abarca varias.
+                resultado.push(Object.assign({}, item, { categoriaOrigen: nombre }));
             }
         });
     });
@@ -1657,6 +1661,25 @@ function instruccionParaAlt(alt, mostrarNombre) {
     return `${prefijo}Elige ${alt.selecciones} opciones (${alt.piezas_por_seleccion} piezas cada una)`;
 }
 
+// Categorías que abarca una fila y que de verdad tienen sabores hoy.
+// Si son 2 o más, el cliente navega entre ellas con pestañas, pero el cupo de
+// elecciones es UNO solo para toda la fila: así arma sus 3 rolls mezclando
+// clásicos, tempura y fríos si quiere.
+function categoriasConSabores(alt) {
+    const conSabores = [];
+    (alt.categorias || []).forEach(nombre => {
+        if (alt.opciones.some(o => o.categoriaOrigen === nombre)) conSabores.push(nombre);
+    });
+    return conSabores;
+}
+
+function filtrarCategoriaPiezas(pgIndex, nombreCategoria) {
+    const estado = estadoPiezasCombo[pgIndex];
+    if (!estado) return;
+    estado.filtroCategoria[estado.alternativaActiva] = nombreCategoria;
+    renderSaboresPiezas(pgIndex);
+}
+
 function renderSaboresPiezas(pgIndex) {
     const estado = estadoPiezasCombo[pgIndex];
     if (!estado) return;
@@ -1679,6 +1702,31 @@ function renderSaboresPiezas(pgIndex) {
     const instruccion = document.getElementById(`instruccion-piezas-${pgIndex}`);
     if (instruccion) instruccion.innerHTML = instruccionParaAlt(alt, estado.alternativas.length === 1);
 
+    // --- Pestañas de categoría (solo si la fila abarca varias) ---
+    const categorias = categoriasConSabores(alt);
+    const filtro = estado.filtroCategoria[estado.alternativaActiva] || '';
+    const cajaCats = document.getElementById(`cats-piezas-${pgIndex}`);
+    if (cajaCats) {
+        if (categorias.length < 2) {
+            cajaCats.innerHTML = '';
+        } else {
+            const botones = [''].concat(categorias).map(nombre => {
+                const activo = filtro === nombre;
+                // Cuántas elecciones lleva hechas dentro de esa categoría, para
+                // que no se le pierdan al filtrar.
+                const hechas = nombre === ''
+                    ? subtotalParaAlt(estado, alt)
+                    : alt.opciones.filter(o => o.categoriaOrigen === nombre).reduce((n, o) => n + (estado.seleccion[o.id] || 0), 0);
+                const etiqueta = nombre === '' ? 'Todos' : escapeHtml(nombre);
+                const clases = activo
+                    ? 'px-2.5 py-1 rounded-full text-[11px] font-bold border bg-gray-800 text-white border-gray-800'
+                    : 'px-2.5 py-1 rounded-full text-[11px] font-bold border bg-white text-gray-600 border-gray-300';
+                return `<button type="button" onclick="filtrarCategoriaPiezas(${pgIndex}, '${nombre.replace(/'/g, "\\'")}')" class="${clases}">${etiqueta}${hechas > 0 ? ` <span class="text-emerald-500">(${hechas})</span>` : ''}</button>`;
+            }).join('');
+            cajaCats.innerHTML = botones;
+        }
+    }
+
     const contenedor = document.getElementById(`lista-sabores-piezas-${pgIndex}`);
     if (!contenedor) return;
 
@@ -1686,11 +1734,15 @@ function renderSaboresPiezas(pgIndex) {
     // Con una sola elección siempre se puede tocar otra tarjeta (cambia la
     // elegida). Con varias, se apagan las que ya no caben.
     const quedaCupo = alt.selecciones === 1 || usadas < alt.selecciones;
+    // El filtro solo esconde tarjetas: lo elegido en otra categoría sigue contando.
+    const visibles = (categorias.length >= 2 && filtro !== '')
+        ? alt.opciones.filter(o => o.categoriaOrigen === filtro)
+        : alt.opciones;
 
-    if (alt.opciones.length === 0) {
-        contenedor.innerHTML = `<p class="text-xs text-red-500 font-bold px-1">⚠️ No hay sabores disponibles para "${escapeHtml(alt.nombre)}" en este momento.</p>`;
+    if (visibles.length === 0) {
+        contenedor.innerHTML = `<p class="text-xs text-red-500 font-bold px-1">⚠️ No hay sabores disponibles para "${escapeHtml(filtro || alt.nombre)}" en este momento.</p>`;
     } else {
-        contenedor.innerHTML = alt.opciones.map(item => {
+        contenedor.innerHTML = visibles.map(item => {
             const veces = estado.seleccion[item.id] || 0;
             const elegido = veces > 0;
             const apagado = !elegido && !quedaCupo;

@@ -981,7 +981,7 @@ function agregarGrupoPiezasAlternativas(alternativasExistentes = null, modoExist
         <div style="display:flex; justify-content: space-between; align-items:flex-start; gap: 10px; margin-bottom: 12px;">
             <div>
                 <p style="color:#fbbf24; font-size: 13px; font-weight: bold; margin: 0;">🍥 Elección por piezas</p>
-                <p style="color:#94a3b8; font-size: 11.5px; margin: 4px 0 0; line-height: 1.5;">El cliente elige rolls completos tocándolos, no piezas sueltas: en cada fila defines cuántos rolls elige y cuántas piezas vale cada uno. Con 2+ filas, cada fila es una pestaña (ej. Tempura 12pz, Frío 10pz); elige abajo cómo se comportan esas pestañas.</p>
+                <p style="color:#94a3b8; font-size: 11.5px; margin: 4px 0 0; line-height: 1.5;">El cliente elige rolls completos tocándolos, no piezas sueltas: en cada fila defines cuántos rolls elige y cuántas piezas vale cada uno. Para que pueda mezclar categorías (ej. 3 rolls entre clásicos, tempura y fríos) usa UNA sola fila y márcale todas esas categorías. Usa 2+ filas solo cuando sean ofertas distintas entre sí (ej. Tempura 12pz o Frío 10pz); ahí elige abajo cómo se comportan esas pestañas.</p>
             </div>
             <button type="button" onclick="this.closest('.fila-piezas-alternativas').remove()" style="flex-shrink:0; background:#e11d48; color:white; border:none; border-radius:6px; padding:6px 12px; cursor:pointer; font-weight:bold; font-size: 11px;">Quitar</button>
         </div>
@@ -1104,7 +1104,7 @@ function agregarFilaAlternativaPiezas(listaAlt, datos = {}) {
             <label style="font-size:11px; color:#94a3b8; margin:0; text-transform:none; font-weight:normal;">piezas</label>
             <span class="alt-total-piezas" style="font-size:12px; font-weight:bold; color:#fbbf24; margin-left:auto;"></span>
         </div>
-        <p style="font-size:10px; color:#64748b; margin:6px 0 0; line-height:1.5;">Ej: 12 piezas de un solo roll = 1 opción x 12 piezas. 24 piezas repartidas en 3 rolls = 3 opciones x 8 piezas. El cliente elige tocando el roll: no puede mezclar piezas sueltas.</p>
+        <p style="font-size:10px; color:#64748b; margin:6px 0 0; line-height:1.5;">Ej: 12 piezas de un solo roll = 1 opción x 12 piezas. 54 piezas repartidas en 3 rolls = 3 opciones x 18 piezas. El cliente elige tocando el roll, no piezas sueltas. Si marcas varias categorías abajo, el cliente ve una pestaña por cada una y puede repartir sus elecciones entre ellas (ej. 1 clásico + 1 tempura + 1 frío).</p>
         <p style="font-size:10px; text-transform:uppercase; letter-spacing:0.03em; color:#64748b; font-weight:bold; margin:10px 0 6px;">Categorías de sabores (toca las que apliquen)</p>
         <div class="chips-categorias" style="display:flex; flex-wrap:wrap; gap:6px;">${chipsCategorias}</div>
     `;
