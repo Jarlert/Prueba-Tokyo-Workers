@@ -51,7 +51,11 @@ async function cargarCatalogoDesdeDB() {
                         // NUEVO: Guardamos la categoría y las opciones ocultas
                         categoria: objeto.categoria || '',
                         agotado: objeto.agotado === true,
-                        opciones_combo: objeto.items_json || objeto.items || null
+                        opciones_combo: objeto.items_json || objeto.items || null,
+                        // Precio por paquete (ej. el par de lumpias), para que al
+                        // editar un pedido salga la misma cuenta que en el menú.
+                        precioPaquete: parseFloat(objeto.precio_paquete) || 0,
+                        cantidadPaquete: parseInt(objeto.cantidad_paquete, 10) || 0
                     });
                 } else {
                     for (const llave in objeto) {
@@ -317,6 +321,22 @@ function abrirModalEditarPedido(idReal, idVisual) {
     document.getElementById('modalEditarPedido').classList.remove('hidden');
 }
 
+// Precio de una línea del pedido aplicando el precio por paquete del producto
+// (ej. lumpias: $0.60 la suelta, $1.50 el par). Es la misma cuenta que hace el
+// menú del cliente y que rehace el backend al crear el pedido.
+function precioLineaEdicion(item) {
+    const cat = CATALOGO_PRODUCTOS.find(p => String(p.id) === String(item.id));
+    const precioPaquete = cat ? (parseFloat(cat.precioPaquete) || 0) : 0;
+    const cantPaquete = cat ? (parseInt(cat.cantidadPaquete, 10) || 0) : 0;
+
+    if (precioPaquete > 0 && cantPaquete > 1 && item.qty > 0) {
+        const paquetes = Math.floor(item.qty / cantPaquete);
+        const sueltas = item.qty % cantPaquete;
+        return paquetes * precioPaquete + sueltas * item.price;
+    }
+    return item.price * item.qty;
+}
+
 function renderizarCarritoEdicion() {
     const contenedor = document.getElementById('listaEdicionArticulos');
     contenedor.innerHTML = ''; totalEdicionUSD = 0;
@@ -329,7 +349,7 @@ function renderizarCarritoEdicion() {
     }
 
     carritoEdicion.forEach((item, index) => {
-        const subtotal = item.price * item.qty;
+        const subtotal = precioLineaEdicion(item);
         totalEdicionUSD += subtotal;
         const precioUnidadBs = (item.price * tasaActual).toFixed(2);
         const subtotalBs = (subtotal * tasaActual).toFixed(2);
@@ -408,7 +428,7 @@ function guardarEdicionPedido() {
     // AQUÍ SALVAMOS LA NOTA: Volvemos a concatenarla al armar el texto para la base de datos
     const nuevoDetalle = carritoEdicion.map(item => {
         let notaStr = item.note ? ` (Nota: ${item.note})` : "";
-        return `${item.qty}x ${item.name} ($${(item.price * item.qty).toFixed(2)})${notaStr}`;
+        return `${item.qty}x ${item.name} ($${precioLineaEdicion(item).toFixed(2)})${notaStr}`;
     }).join('\n');
 
     const tasaActual = parseFloat(document.getElementById('tasaBCV').value) || 1;

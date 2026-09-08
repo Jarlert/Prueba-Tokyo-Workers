@@ -446,7 +446,10 @@ async function cargarMenuDesdeDB() {
                 promoProductoCantidad: esCombo ? (parseInt(prod.promo_producto_cantidad) || 0) : 0,
                 disponible_desde: prod.disponible_desde || null,
                 disponible_hasta: prod.disponible_hasta || null,
-                dias_disponibles: prod.dias_disponibles || null
+                dias_disponibles: prod.dias_disponibles || null,
+                // Precio por paquete (ej. el par de lumpias). Solo productos.
+                precioPaquete: esCombo ? 0 : (parseFloat(prod.precio_paquete) || 0),
+                cantidadPaquete: esCombo ? 0 : (parseInt(prod.cantidad_paquete, 10) || 0)
             });
         };
 
@@ -549,6 +552,9 @@ function construirTarjetaItemHtml(item) {
                         <h4 class="text-sm font-bold text-gray-800 leading-snug">${item.name}</h4>
                         <p class="text-xs text-gray-400 my-0.5 line-clamp-2">${item.desc}</p>
                         <span class="text-red-600 font-bold text-sm block mt-0.5">$${item.price.toFixed(2)}</span>
+                        ${(parseFloat(item.precioPaquete) || 0) > 0 && (parseInt(item.cantidadPaquete, 10) || 0) > 1
+                            ? `<span class="inline-block mt-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">${item.cantidadPaquete} por $${parseFloat(item.precioPaquete).toFixed(2)}</span>`
+                            : ''}
                     </div>
                 </div>
                 <div class="flex items-center space-x-1 bg-gray-100 p-1 rounded-xl flex-shrink-0 border border-gray-200">
@@ -955,10 +961,49 @@ function sincronizarPromocionesCarrito() {
     });
 }
 
+// --- PRECIO POR PAQUETE -------------------------------------------------
+// Algunos platos se venden mas barato "de a varios": la lumpia suelta va a
+// $0,60 y el par en $1,50. El precio de la linea se arma con los paquetes
+// completos mas lo que sobre suelto (5 lumpias = 2 pares + 1 suelta).
+// El backend hace exactamente la misma cuenta al crear el pedido; esto es solo
+// para que el cliente vea el mismo numero antes de enviarlo.
+
+// Devuelve {precio, cantidad} del paquete, o null si el item no tiene.
+// Solo aplica a productos sueltos: los combos, los regalos de promocion y las
+// lineas manuales del cajero se cobran como siempre.
+function paqueteDeItem(cartId) {
+    if (!String(cartId || '').startsWith('p_')) return null;
+    const item = buscarItemEnMenuPorId(cartId);
+    if (!item) return null;
+    const precio = parseFloat(item.precioPaquete) || 0;
+    const cantidad = parseInt(item.cantidadPaquete, 10) || 0;
+    return (precio > 0 && cantidad > 1) ? { precio, cantidad } : null;
+}
+
+function precioLinea(cartId, precioUnitario, cantidad) {
+    const paquete = paqueteDeItem(cartId);
+    if (!paquete || cantidad <= 0) return precioUnitario * cantidad;
+    const paquetes = Math.floor(cantidad / paquete.cantidad);
+    const sueltas = cantidad % paquete.cantidad;
+    return paquetes * paquete.precio + sueltas * precioUnitario;
+}
+
+// Texto que explica la cuenta en el carrito ("1 paquete de 2 a $1.50 + 1 a $0.60").
+function explicacionPaquete(cartId, precioUnitario, cantidad) {
+    const paquete = paqueteDeItem(cartId);
+    if (!paquete || cantidad <= 0) return '';
+    const paquetes = Math.floor(cantidad / paquete.cantidad);
+    const sueltas = cantidad % paquete.cantidad;
+    if (paquetes === 0) return '';
+    const partes = [`${paquetes}x (${paquete.cantidad} por $${paquete.precio.toFixed(2)})`];
+    if (sueltas > 0) partes.push(`${sueltas} a $${precioUnitario.toFixed(2)}`);
+    return partes.join(' + ');
+}
+
 function calculateTotals() {
     sincronizarPromocionesCarrito();
     let total = 0; let count = 0;
-    Object.values(cart).forEach(item => { total += item.price * item.qty; count += item.qty; });
+    Object.values(cart).forEach(item => { total += precioLinea(item.id, item.price, item.qty); count += item.qty; });
 
     // Los combos pendientes por personalizar ya cuentan como "elegidos": el total debe
     // reflejarlos de una vez, aunque el cliente todavía no haya escogido sus piezas.
@@ -1072,7 +1117,7 @@ function renderizarResumenCarrito() {
     
     let total = 0;
     cartItems.forEach(id => {
-        const item = cart[id]; const subtotal = item.price * item.qty; total += subtotal;
+        const item = cart[id]; const subtotal = precioLinea(id, item.price, item.qty); total += subtotal;
         
         const noteHtml = item.note ? `
             <div class="flex items-center justify-between text-xs text-amber-900 bg-amber-100/70 px-2 py-1.5 rounded-xl mt-1 font-medium border border-amber-200 gap-2 shadow-xs">
@@ -1096,7 +1141,7 @@ function renderizarResumenCarrito() {
                 <div class="flex items-center justify-between gap-2">
                     <div class="flex-grow">
                         <p class="font-bold text-gray-800 text-sm leading-tight">${item.name}</p>
-                        <p class="text-xs text-amber-900 font-medium mt-0.5">$${item.price.toFixed(2)} c/u • Subtotal: <span class="font-bold">$${subtotal.toFixed(2)}</span></p>
+                        <p class="text-xs text-amber-900 font-medium mt-0.5">${explicacionPaquete(id, item.price, item.qty) || `$${item.price.toFixed(2)} c/u`} • Subtotal: <span class="font-bold">$${subtotal.toFixed(2)}</span></p>
                     </div>
                     ${controlesHtml}
                 </div>

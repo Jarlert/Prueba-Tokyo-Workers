@@ -210,6 +210,17 @@ def ejecutar_migraciones(engine: Engine):
                 conn.execute(text(f"UPDATE {tabla} SET bandejas = 1 WHERE bandejas IS NULL"))
                 conn.execute(text(f"UPDATE {tabla} SET cajas_pizza = 0 WHERE cajas_pizza IS NULL"))
 
+        # --- Precio por paquete (ej. las lumpias) -----------------------------
+        # El local vende algunos platos "de a varios" a otro precio: la lumpia
+        # suelta va a $0,60 pero el par sale en $1,50. Con estas dos columnas el
+        # precio de la linea se calcula por paquetes mas el resto suelto.
+        # Vacio o 0 = el plato se sigue cobrando por unidad, como siempre.
+        if "precio_paquete" not in columnas_productos:
+            print("[migracion] Agregando 'precio_paquete' y 'cantidad_paquete' a productos...")
+            conn.execute(text("ALTER TABLE productos ADD COLUMN precio_paquete FLOAT"))
+            conn.execute(text("ALTER TABLE productos ADD COLUMN cantidad_paquete INTEGER DEFAULT 0"))
+            conn.execute(text("UPDATE productos SET cantidad_paquete = 0 WHERE cantidad_paquete IS NULL"))
+
         if "precio_delivery" not in columnas_pedidos:
             print("[migracion] Agregando datos de despacho a pedidos...")
             conn.execute(text("ALTER TABLE pedidos ADD COLUMN precio_delivery DOUBLE PRECISION"))

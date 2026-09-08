@@ -142,6 +142,24 @@ def calcular_empaque(db: Session, articulos) -> dict:
     return totales
 
 
+# Precio de una linea segun cuantas unidades lleva. Si el plato tiene precio por
+# paquete se cobran los paquetes completos y el resto suelto: las lumpias van a
+# $0,60 la suelta y $1,50 el par, asi que 5 lumpias son 2 pares + 1 suelta.
+# Sin paquete configurado (0 o vacio) se cobra el precio unitario de siempre.
+def precio_de_linea(precio_unitario, cantidad, precio_paquete=None, cantidad_paquete=None) -> float:
+    try:
+        por_paquete = float(precio_paquete or 0)
+        tam_paquete = int(cantidad_paquete or 0)
+    except (TypeError, ValueError):
+        por_paquete, tam_paquete = 0.0, 0
+
+    if por_paquete > 0 and tam_paquete > 1 and cantidad > 0:
+        paquetes, sueltas = divmod(int(cantidad), tam_paquete)
+        return paquetes * por_paquete + sueltas * float(precio_unitario)
+
+    return float(precio_unitario) * cantidad
+
+
 @router.post("/")
 async def crear_pedido(
     pedido: schemas.PedidoCreate,
@@ -170,6 +188,8 @@ async def crear_pedido(
     for item in pedido.articulos:
         precio_seguro = 0.0
         descripcion_item = ""
+        precio_paquete = None
+        cantidad_paquete = 0
 
         # Separamos el prefijo del ID real.
         # Ej: De "p_5" sacamos ["p", "5"]. De "c_1_Roles_Bebidas" sacamos ["c", "1", "Roles", "Bebidas"]
@@ -183,6 +203,8 @@ async def crear_pedido(
             if producto_db:
                 precio_seguro = producto_db.precio
                 descripcion_item = producto_db.descripcion or ""
+                precio_paquete = producto_db.precio_paquete
+                cantidad_paquete = producto_db.cantidad_paquete
 
         elif tipo_item == "c":
             # Es un combo
@@ -195,13 +217,19 @@ async def crear_pedido(
         if precio_seguro == 0.0:
             precio_seguro = item.price
 
-        # Sumamos la cantidad multiplicada por el precio INHACKEABLE de tu base de datos
-        total_dolares += (precio_seguro * item.qty)
+        # Sumamos la linea con el precio INHACKEABLE de tu base de datos,
+        # aplicando el precio por paquete si el plato lo tiene.
+        total_linea = precio_de_linea(precio_seguro, item.qty, precio_paquete, cantidad_paquete)
+        total_dolares += total_linea
 
         # 2.5 Replicamos la lógica de n8n para armar el texto del resumen
+        # Con precio por paquete el precio unitario no explica la cuenta, asi que
+        # la linea muestra lo que de verdad se cobro por ella.
+        hay_paquete = total_linea != precio_seguro * item.qty
+        precio_mostrado = total_linea if hay_paquete else item.price
         nota = f" (Nota: {item.note})" if item.note else ""
         desc_texto = f"\n{descripcion_item}" if descripcion_item else ""
-        resumen_articulos.append(f"{item.qty}x {item.name} (${item.price:.2f}){nota}{desc_texto}")
+        resumen_articulos.append(f"{item.qty}x {item.name} (${precio_mostrado:.2f}){nota}{desc_texto}")
 
     # Un salto de línea por artículo (y otro más para su descripción, si tiene) para que
     # tanto el tablero como el modal de edición ("Editar Pedido" en app.js parsea línea por

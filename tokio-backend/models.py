@@ -78,6 +78,11 @@ class Producto(Base):
     # al grupo de motorizados, para que sepan cuantas manos hacen falta.
     bandejas = Column(Integer, default=1)
     cajas_pizza = Column(Integer, default=0)
+    # Precio por paquete: cuando el local vende barato "de a varios".
+    # Ej. lumpias sueltas a $0.60 con el par en $1.50 -> cantidad_paquete=2,
+    # precio_paquete=1.50. Vacio o 0 = se cobra siempre el precio unitario.
+    precio_paquete = Column(Float, nullable=True)
+    cantidad_paquete = Column(Integer, default=0)
 
 class Combo(Base):
     __tablename__ = "combos"

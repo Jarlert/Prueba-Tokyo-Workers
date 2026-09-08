@@ -845,7 +845,8 @@ if (document.getElementById('form-producto')) {
             disponible_desde: document.getElementById('prod-disponible-desde').value || null,
             disponible_hasta: document.getElementById('prod-disponible-hasta').value || null,
             dias_disponibles: leerDiasSeleccionados('prod') || null,
-            ...leerEmpaque('prod')
+            ...leerEmpaque('prod'),
+            ...leerPaquete('prod')
         };
         try {
             await fetch(ADMIN_URL_GUARDAR_PROD, { 
@@ -868,6 +869,9 @@ function editarProducto(id) {
     construirChipsDias('prod', parsearDiasDisponibles(p.dias_disponibles));
     document.getElementById('prod-bandejas').value = (p.bandejas === null || p.bandejas === undefined) ? 1 : p.bandejas;
     document.getElementById('prod-cajas-pizza').value = p.cajas_pizza || 0;
+    document.getElementById('prod-cantidad-paquete').value = p.cantidad_paquete || 0;
+    document.getElementById('prod-precio-paquete').value = p.precio_paquete || '';
+    previsualizarPaquete();
     document.getElementById('titulo-form-prod').innerText = "Editar Producto"; document.getElementById('btn-save-prod').innerText = "💾 Actualizar Producto"; document.getElementById('btn-cancel-prod').style.display = "block";
     document.getElementById('buscador-productos-admin').value = '';
     renderListaProductos();
@@ -880,6 +884,8 @@ function resetFormProd() {
     if (document.getElementById('prod-imagen-status')) document.getElementById('prod-imagen-status').innerText = "O sube una foto: se redimensiona y comprime automáticamente antes de subirla.";
     construirChipsDias('prod', []);
     document.getElementById('titulo-form-prod').innerText = "Crear Producto"; document.getElementById('btn-save-prod').innerText = "💾 Guardar Producto"; document.getElementById('btn-cancel-prod').style.display = "none";
+    const cantPaq = document.getElementById('prod-cantidad-paquete');
+    if (cantPaq) { cantPaq.value = 0; document.getElementById('prod-precio-paquete').value = ''; previsualizarPaquete(); }
 }
 
 function renderListaCombos(lista = adminCombos) {
@@ -1057,6 +1063,36 @@ function leerEmpaque(prefijo) {
         return (isNaN(valor) || valor < 0) ? porDefecto : valor;
     };
     return { bandejas: leer('bandejas', 1), cajas_pizza: leer('cajas-pizza', 0) };
+}
+
+// Precio por paquete: lo que se vende mas barato "de a varios" (el par de
+// lumpias en $1,50 aunque la suelta valga $0,60). Si falta cualquiera de los
+// dos datos se guarda apagado, y el producto se cobra por unidad como siempre.
+function leerPaquete(prefijo) {
+    const cantidad = parseInt(document.getElementById(`${prefijo}-cantidad-paquete`).value, 10) || 0;
+    const precio = parseFloat(document.getElementById(`${prefijo}-precio-paquete`).value) || 0;
+    if (cantidad < 2 || precio <= 0) return { cantidad_paquete: 0, precio_paquete: null };
+    return { cantidad_paquete: cantidad, precio_paquete: precio };
+}
+
+// Muestra en el formulario cuanto pagaria el cliente por las primeras
+// cantidades, que es la forma rapida de ver si los numeros quedaron bien.
+function previsualizarPaquete() {
+    const salida = document.getElementById('prod-preview-paquete');
+    if (!salida) return;
+
+    const unitario = parseFloat(document.getElementById('prod-precio').value) || 0;
+    const { cantidad_paquete: cantidad, precio_paquete: precio } = leerPaquete('prod');
+
+    if (!cantidad || !precio || unitario <= 0) { salida.innerText = ''; return; }
+
+    const cobro = (n) => {
+        const paquetes = Math.floor(n / cantidad);
+        const sueltas = n % cantidad;
+        return paquetes * precio + sueltas * unitario;
+    };
+    const ejemplos = [1, 2, 3, 4, 5].map(n => `${n} = $${cobro(n).toFixed(2)}`).join('   ·   ');
+    salida.innerText = `Se cobraría:   ${ejemplos}`;
 }
 
 function leerDiasSeleccionados(prefix) {

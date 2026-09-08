@@ -119,6 +119,9 @@ class ProductoGuardar(BaseModel):
     # Cuanto ocupa al empacar; se suma por pedido para el aviso a motorizados
     bandejas: Optional[int] = 1
     cajas_pizza: Optional[int] = 0
+    # Precio por paquete (ej. el par de lumpias en $1.50). 0 o None = sin paquete.
+    precio_paquete: Optional[float] = None
+    cantidad_paquete: Optional[int] = 0
 
 class ComboGuardar(BaseModel):
     id: Optional[int] = None

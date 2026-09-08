@@ -22,7 +22,7 @@ def obtener_menu(db: Session = Depends(get_db)):
     return {
         "menu": {
             "categorias": [{"id": c.id, "nombre": c.nombre, "imagen": c.imagen} for c in categorias],
-            "productos": [{"id": p.id, "nombre": p.nombre, "categoria": p.categoria, "precio": p.precio, "imagen": p.imagen, "descripcion": p.descripcion, "disponible": p.disponible, "agotado": p.agotado, "disponible_desde": p.disponible_desde, "disponible_hasta": p.disponible_hasta, "dias_disponibles": p.dias_disponibles, "bandejas": p.bandejas, "cajas_pizza": p.cajas_pizza} for p in productos],
+            "productos": [{"id": p.id, "nombre": p.nombre, "categoria": p.categoria, "precio": p.precio, "imagen": p.imagen, "descripcion": p.descripcion, "disponible": p.disponible, "agotado": p.agotado, "disponible_desde": p.disponible_desde, "disponible_hasta": p.disponible_hasta, "dias_disponibles": p.dias_disponibles, "bandejas": p.bandejas, "cajas_pizza": p.cajas_pizza, "precio_paquete": p.precio_paquete, "cantidad_paquete": p.cantidad_paquete} for p in productos],
             "combos": [{"id": cb.id, "nombre": cb.nombre, "categoria": cb.categoria, "precio": cb.precio, "imagen": cb.imagen, "descripcion": cb.descripcion, "disponible": cb.disponible, "items_json": cb.items_json, "promo_cantidad_minima": cb.promo_cantidad_minima, "promo_producto_id": cb.promo_producto_id, "promo_producto_cantidad": cb.promo_producto_cantidad, "disponible_desde": cb.disponible_desde, "disponible_hasta": cb.disponible_hasta, "dias_disponibles": cb.dias_disponibles, "bandejas": cb.bandejas, "cajas_pizza": cb.cajas_pizza} for cb in combos]
         }
     }
@@ -61,6 +61,8 @@ def guardar_producto(datos: schemas.ProductoGuardar, db: Session = Depends(get_d
                 prod.disponible_desde = datos.disponible_desde
                 prod.disponible_hasta = datos.disponible_hasta
                 prod.dias_disponibles = datos.dias_disponibles
+                prod.precio_paquete = datos.precio_paquete
+                prod.cantidad_paquete = datos.cantidad_paquete
                 prod.bandejas = datos.bandejas
                 prod.cajas_pizza = datos.cajas_pizza
         else:
@@ -75,6 +77,8 @@ def guardar_producto(datos: schemas.ProductoGuardar, db: Session = Depends(get_d
                 disponible_desde=datos.disponible_desde,
                 disponible_hasta=datos.disponible_hasta,
                 dias_disponibles=datos.dias_disponibles,
+                precio_paquete=datos.precio_paquete,
+                cantidad_paquete=datos.cantidad_paquete,
                 bandejas=datos.bandejas,
                 cajas_pizza=datos.cajas_pizza
             )
