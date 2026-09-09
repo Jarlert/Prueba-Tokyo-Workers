@@ -1,0 +1,2730 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Manual de Tokio Sushi</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 18mm 15mm; }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  body {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 11.2pt;
+    line-height: 1.62;
+    color: #1f2937;
+    margin: 0;
+  }
+
+  /* ---------- Estructura ---------- */
+  /* Cada PARTE empieza en pagina nueva; dentro de una parte el texto fluye,
+     para no dejar paginas a medio llenar. */
+  .pagina { }
+  .no-cortar { break-inside: avoid; page-break-inside: avoid; }
+
+  h1, h2, h3, h4 { line-height: 1.25; margin: 0; }
+
+  h2 {
+    page-break-before: always;
+    font-size: 21pt;
+    color: #b91c1c;
+    border-bottom: 3px solid #fecaca;
+    padding-bottom: 8px;
+    margin: 0 0 6px;
+  }
+  h2 .num {
+    display: inline-block;
+    background: #b91c1c;
+    color: #fff;
+    border-radius: 8px;
+    padding: 1px 11px;
+    margin-right: 10px;
+    font-size: 17pt;
+  }
+  h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+    font-size: 14pt;
+    color: #111827;
+    margin: 26px 0 8px;
+    padding-left: 11px;
+    border-left: 5px solid #dc2626;
+  }
+  h4 { font-size: 11.6pt; color: #374151; margin: 18px 0 5px; break-after: avoid; page-break-after: avoid; }
+
+  p { margin: 0 0 10px; }
+  strong { color: #111827; }
+  em { color: #6b7280; }
+
+  .intro-seccion {
+    background: #fef2f2;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin: 0 0 20px;
+    font-size: 11pt;
+    color: #7f1d1d;
+  }
+
+  /* ---------- Pasos numerados ---------- */
+  ol.pasos { list-style: none; counter-reset: paso; padding: 0; margin: 14px 0; }
+  ol.pasos > li {
+    counter-increment: paso;
+    position: relative;
+    padding: 3px 0 14px 46px;
+    break-inside: avoid;
+  }
+  ol.pasos > li::before {
+    content: counter(paso);
+    position: absolute; left: 0; top: 0;
+    width: 32px; height: 32px;
+    background: #dc2626; color: #fff;
+    border-radius: 50%;
+    font-weight: 700; font-size: 13pt;
+    display: flex; align-items: center; justify-content: center;
+  }
+  ol.pasos > li p { margin: 0 0 6px; }
+
+  ul.simple { margin: 8px 0 12px; padding-left: 22px; }
+  ul.simple li { margin-bottom: 7px; }
+
+  /* ---------- Cajas de aviso ---------- */
+  .caja { border-radius: 10px; padding: 12px 16px 12px 15px; margin: 14px 0; break-inside: avoid; font-size: 10.8pt; }
+  .caja p:last-child { margin-bottom: 0; }
+  .caja .titulo { font-weight: 700; display: block; margin-bottom: 4px; }
+
+  .ojo   { background: #fffbeb; border-left: 6px solid #f59e0b; }
+  .ojo .titulo { color: #92400e; }
+  .truco { background: #ecfdf5; border-left: 6px solid #10b981; }
+  .truco .titulo { color: #065f46; }
+  .peligro { background: #fef2f2; border-left: 6px solid #ef4444; }
+  .peligro .titulo { color: #991b1b; }
+  .nota { background: #eff6ff; border-left: 6px solid #3b82f6; }
+  .nota .titulo { color: #1e40af; }
+
+  /* ---------- Etiquetas de interfaz ---------- */
+  .btn {
+    display: inline-block;
+    background: #1f2937; color: #fff;
+    border-radius: 6px; padding: 1px 9px;
+    font-size: 9.8pt; font-weight: 700;
+    white-space: nowrap;
+  }
+  .btn.verde { background: #059669; }
+  .btn.rojo { background: #dc2626; }
+  .btn.morado { background: #7c3aed; }
+  .btn.azul { background: #2563eb; }
+  .btn.gris { background: #6b7280; }
+  .btn.amarillo { background: #eab308; color: #1f2937; }
+
+  .campo {
+    display: inline-block;
+    background: #f3f4f6; border: 1px solid #d1d5db;
+    border-radius: 5px; padding: 0 8px;
+    font-family: Consolas, monospace; font-size: 9.8pt;
+    color: #374151;
+  }
+
+  /* ---------- Tablas ---------- */
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 10.5pt; break-inside: avoid; }
+  th {
+    background: #1f2937; color: #fff;
+    text-align: left; padding: 8px 11px; font-size: 10pt;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  td { padding: 8px 11px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  tr:nth-child(even) td { background: #f9fafb; }
+
+  /* ---------- Capturas de pantalla ---------- */
+  /* Son fotos reales del sistema. Los circulitos rojos se colocan encima con
+     porcentajes, para que sigan en su sitio aunque cambie el tamaño. */
+  .captura { position: relative; display: block; margin: 0 auto; }
+  .captura img { display: block; width: 100%; height: auto; border: 1px solid #cbd5e1; border-radius: 8px; }
+  .captura .marca {
+    position: absolute;
+    width: 25px; height: 25px; border-radius: 50%;
+    background: #dc2626; color: #fff;
+    font-size: 10.5pt; font-weight: 700; line-height: 25px; text-align: center;
+    box-shadow: 0 0 0 3px #fff, 0 1px 3px rgba(0,0,0,.35);
+    transform: translate(-50%, -50%);
+  }
+  .estrecha { max-width: 58%; }
+  .media { max-width: 78%; }
+
+  /* ---------- Dibujos ---------- */
+  figure { margin: 18px 0; break-inside: avoid; text-align: center; }
+  figure svg { max-width: 100%; height: auto; border-radius: 10px; }
+  figcaption { font-size: 9.8pt; color: #6b7280; margin-top: 7px; font-style: italic; }
+
+  .leyenda { margin: 12px 0 4px; font-size: 10.6pt; }
+  .leyenda div { margin-bottom: 6px; padding-left: 32px; position: relative; }
+  .leyenda .n {
+    position: absolute; left: 0; top: 1px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #dc2626; color: #fff;
+    font-size: 9.5pt; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ---------- Portada ---------- */
+  .portada {
+    height: 247mm;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+  }
+  .portada .emoji { font-size: 78pt; line-height: 1; }
+  .portada h1 { font-size: 40pt; color: #b91c1c; margin: 18px 0 6px; letter-spacing: -.5px; }
+  .portada .sub { font-size: 17pt; color: #374151; font-weight: 600; }
+  .portada .linea { width: 90px; height: 5px; background: #dc2626; border-radius: 3px; margin: 26px 0; }
+  .portada .para {
+    background: #fef2f2; border-radius: 14px;
+    padding: 22px 30px; max-width: 430px;
+    font-size: 12pt; color: #7f1d1d;
+  }
+  .portada .pie { margin-top: 40px; font-size: 10pt; color: #9ca3af; }
+
+  /* ---------- Índice ---------- */
+  .indice { font-size: 11.5pt; }
+  .indice .grupo { margin-bottom: 16px; break-inside: avoid; }
+  .indice .cab { font-weight: 700; color: #b91c1c; font-size: 12.5pt; margin-bottom: 3px; }
+  .indice .sub { color: #4b5563; padding-left: 20px; margin-bottom: 2px; }
+</style>
+</head>
+<body>
+
+<!-- =================== PORTADA =================== -->
+<div class="pagina portada">
+  <div class="emoji">🍣</div>
+  <h1>Tokio Sushi</h1>
+  <div class="sub">Manual del sistema de pedidos</div>
+  <div class="linea"></div>
+  <div class="para">
+    Este manual explica, <strong>paso por paso y desde cero</strong>,
+    cómo usar el sistema para tomar pedidos, cobrarlos, mandarlos a
+    la cocina y despacharlos.
+    <br><br>
+    No hace falta saber nada de computadoras para leerlo.
+  </div>
+  <div class="pie">Versión de septiembre de 2026</div>
+</div>
+
+<!-- =================== ÍNDICE =================== -->
+<div class="pagina">
+  <h2><span class="num">?</span>Qué hay en este manual</h2>
+  <p>Si es tu primer día, lee todo desde el principio. Si ya trabajaste
+  antes con el sistema, busca aquí lo que necesites.</p>
+
+  <div class="indice">
+    <div class="grupo">
+      <div class="cab">Parte 1 · Antes de tocar nada</div>
+      <div class="sub">Qué es este sistema · Las palabras que vas a leer · Cómo abrirlo · Las pantallas que existen</div>
+    </div>
+    <div class="grupo">
+      <div class="cab">Parte 2 · Entrar y salir</div>
+      <div class="sub">Tu usuario y tu PIN · Qué hacer si no te deja entrar · Cerrar sesión</div>
+    </div>
+    <div class="grupo">
+      <div class="cab">Parte 3 · El tablero de pedidos</div>
+      <div class="sub">Las cuatro columnas · La tarjeta de un pedido · La barra de arriba</div>
+    </div>
+    <div class="grupo">
+      <div class="cab">Parte 4 · El camino de un pedido, de principio a fin</div>
+      <div class="sub">Un pedido para retirar · Un pedido con delivery · Los mensajes que salen solos</div>
+    </div>
+    <div class="grupo">
+      <div class="cab">Parte 5 · Tomar un pedido por teléfono</div>
+      <div class="sub">Buscar al cliente · Armar el pedido · Los combos · Cerrar el pedido</div>
+    </div>
+    <div class="grupo">
+      <div class="cab">Parte 6 · Cosas que pasan todos los días</div>
+      <div class="sub">Cambiar un pedido · Cancelarlo · El vuelto · Escribirle al cliente</div>
+    </div>
+    <div class="grupo">
+      <div class="cab">Parte 7 · El panel de administración</div>
+      <div class="sub">Pestaña por pestaña: Categorías · Productos (agotados, precios, precio por paquete, empaque, horarios) · Combos y la elección de rolls · Usuarios · Mensajes de WhatsApp · Horario · Anuncios</div>
+    </div>
+    <div class="grupo">
+      <div class="cab">Parte 8 · Cuando algo sale mal</div>
+      <div class="sub">Los problemas más comunes y qué hacer con cada uno</div>
+    </div>
+    <div class="grupo">
+      <div class="cab">Parte 9 · Las diez reglas de oro</div>
+      <div class="sub">Una hoja para imprimir y pegar al lado de la computadora</div>
+    </div>
+  </div>
+
+  <div class="caja nota">
+    <span class="titulo">Cómo leer este manual</span>
+    <p>Cuando veas algo así: <span class="btn verde">Aceptar</span>, es un
+    <strong>botón</strong> que existe en la pantalla, escrito igual que como lo vas a ver.</p>
+    <p>Cuando veas algo así: <span class="campo">04121234567</span>, es un
+    <strong>texto que tú tienes que escribir</strong>.</p>
+  </div>
+</div>
+
+<!-- =================== PARTE 1 =================== -->
+<div class="pagina">
+  <h2><span class="num">1</span>Antes de tocar nada</h2>
+  <div class="intro-seccion">
+    En esta parte no vas a usar el sistema todavía. Solo vas a entender
+    qué es, cómo se llama cada cosa y cómo abrirlo. Léela completa antes
+    de seguir: te va a ahorrar muchos dolores de cabeza.
+  </div>
+
+  <h3>1.1 · ¿Qué es este sistema?</h3>
+
+  <p>Antes, los pedidos se anotaban en papel. Alguien atendía el teléfono,
+  escribía en una libreta, le pasaba el papelito a la cocina y esperaba
+  que no se perdiera.</p>
+
+  <p>Ahora ese papel es una <strong>pantalla</strong>. El pedido entra al
+  sistema, aparece de una vez en la computadora de la cocina, y el sistema
+  se encarga solo de escribirle al cliente por WhatsApp en cada paso.</p>
+
+  <figure>
+    <svg viewBox="0 0 700 250" xmlns="http://www.w3.org/2000/svg" style="background:#f9fafb;border:1px solid #e5e7eb">
+      <!-- Cliente -->
+      <rect x="18" y="80" width="130" height="90" rx="12" fill="#fff" stroke="#d1d5db" stroke-width="2"/>
+      <text x="83" y="112" text-anchor="middle" font-size="26">📱</text>
+      <text x="83" y="140" text-anchor="middle" font-size="13" font-weight="700" fill="#374151">El cliente</text>
+      <text x="83" y="157" text-anchor="middle" font-size="10.5" fill="#6b7280">pide desde su celular</text>
+
+      <!-- flecha 1 -->
+      <line x1="152" y1="125" x2="205" y2="125" stroke="#dc2626" stroke-width="3"/>
+      <polygon points="205,125 195,119 195,131" fill="#dc2626"/>
+
+      <!-- Sistema -->
+      <rect x="212" y="55" width="180" height="140" rx="12" fill="#fff5f5" stroke="#dc2626" stroke-width="2.5"/>
+      <text x="302" y="92" text-anchor="middle" font-size="26">🖥️</text>
+      <text x="302" y="120" text-anchor="middle" font-size="13" font-weight="700" fill="#b91c1c">El tablero</text>
+      <text x="302" y="139" text-anchor="middle" font-size="10.5" fill="#7f1d1d">la pantalla donde</text>
+      <text x="302" y="154" text-anchor="middle" font-size="10.5" fill="#7f1d1d">tú vas a trabajar</text>
+      <text x="302" y="176" text-anchor="middle" font-size="10.5" fill="#7f1d1d">todo el día</text>
+
+      <!-- flecha 2 -->
+      <line x1="396" y1="125" x2="449" y2="125" stroke="#dc2626" stroke-width="3"/>
+      <polygon points="449,125 439,119 439,131" fill="#dc2626"/>
+
+      <!-- Cocina -->
+      <rect x="456" y="80" width="130" height="90" rx="12" fill="#fff" stroke="#d1d5db" stroke-width="2"/>
+      <text x="521" y="112" text-anchor="middle" font-size="26">👨‍🍳</text>
+      <text x="521" y="140" text-anchor="middle" font-size="13" font-weight="700" fill="#374151">La cocina</text>
+      <text x="521" y="157" text-anchor="middle" font-size="10.5" fill="#6b7280">prepara la comida</text>
+
+      <!-- WhatsApp de vuelta -->
+      <path d="M 302 200 L 302 224 L 83 224 L 83 176" stroke="#059669" stroke-width="2.5" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="83,176 77,186 89,186" fill="#059669"/>
+      <rect x="228" y="212" width="150" height="24" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="303" y="228" text-anchor="middle" font-size="10.5" font-weight="700" fill="#065f46">WhatsApp automático</text>
+
+      <text x="620" y="120" text-anchor="middle" font-size="26">🛵</text>
+      <text x="620" y="145" text-anchor="middle" font-size="10.5" fill="#6b7280">y el motorizado</text>
+      <text x="620" y="160" text-anchor="middle" font-size="10.5" fill="#6b7280">recibe el aviso</text>
+    </svg>
+    <figcaption>El recorrido de un pedido. Tú vas a estar en el centro, en el tablero.</figcaption>
+  </figure>
+
+  <div class="caja truco">
+    <span class="titulo">💡 Lo único que tienes que entender hoy</span>
+    <p>Tu trabajo es <strong>mover cada pedido de izquierda a derecha</strong> en la
+    pantalla, a medida que va avanzando. Nada más. Todo lo demás lo hace el
+    sistema solo.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h3>1.2 · Las palabras que vas a leer todo el tiempo</h3>
+
+  <p>Estas son las palabras que usa este manual. No hace falta que te las
+  aprendas de memoria: vuelve a esta página cada vez que veas una que no
+  recuerdes.</p>
+
+  <table>
+    <tr><th style="width:31%">Palabra</th><th>Qué quiere decir</th></tr>
+    <tr>
+      <td><strong>Navegador</strong></td>
+      <td>El programa con el que se ve internet. En esta computadora es
+      <strong>Google Chrome</strong>: el círculo de colores (rojo, amarillo, verde y azul).
+      Se abre con doble clic.</td>
+    </tr>
+    <tr>
+      <td><strong>Barra de direcciones</strong></td>
+      <td>La franja blanca y larga que está arriba del todo en el navegador.
+      Ahí se escribe a dónde quieres ir. No es un buscador: si escribes la
+      dirección exacta, te lleva directo.</td>
+    </tr>
+    <tr>
+      <td><strong>Pestaña</strong></td>
+      <td>Cada "hoja" abierta dentro del navegador, arriba del todo. Puedes
+      tener varias abiertas a la vez y saltar entre ellas con un clic.</td>
+    </tr>
+    <tr>
+      <td><strong>Hacer clic</strong></td>
+      <td>Apretar <strong>una sola vez</strong> el botón izquierdo del mouse,
+      encima de algo. Dentro del sistema, casi todo se hace con un solo clic.</td>
+    </tr>
+    <tr>
+      <td><strong>Botón</strong></td>
+      <td>Un recuadro de color con letras adentro. Al pasarle el mouse por
+      encima, la flechita se convierte en una manito: eso significa que se
+      le puede hacer clic.</td>
+    </tr>
+    <tr>
+      <td><strong>Campo</strong></td>
+      <td>Un recuadro vacío donde tú escribes algo (un nombre, un teléfono,
+      un precio). Primero le haces clic adentro, después escribes.</td>
+    </tr>
+    <tr>
+      <td><strong>Lista desplegable</strong></td>
+      <td>Un campo con una flechita hacia abajo. Al hacerle clic se abre una
+      lista de opciones y eliges una. No se escribe: se elige.</td>
+    </tr>
+    <tr>
+      <td><strong>Ventana emergente</strong></td>
+      <td>Un recuadro que aparece encima de la pantalla y la oscurece por
+      detrás. Hasta que no la cierres o la confirmes, no puedes tocar nada
+      más. En este manual la llamamos <strong>"ventanita"</strong>.</td>
+    </tr>
+    <tr>
+      <td><strong>Recargar</strong></td>
+      <td>Pedirle a la pantalla que se vuelva a cargar desde cero. Se hace
+      con la tecla <strong>F5</strong>, o con el botón de la flecha en círculo.
+      Es la solución mágica cuando algo se ve raro.</td>
+    </tr>
+    <tr>
+      <td><strong>Pedido</strong></td>
+      <td>Todo lo que pidió un cliente, junto. Un pedido puede tener muchos
+      platos adentro.</td>
+    </tr>
+    <tr>
+      <td><strong>Tablero</strong></td>
+      <td>La pantalla principal, donde se ven todos los pedidos del día
+      repartidos en cuatro columnas.</td>
+    </tr>
+  </table>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ Sobre el mouse</span>
+    <p>El botón <strong>izquierdo</strong> del mouse sirve para todo lo de este
+    manual. El botón <strong>derecho</strong> abre menús que no necesitas y que
+    pueden confundirte. Si se te abre uno sin querer, aprieta la tecla
+    <strong>Esc</strong> (arriba a la izquierda del teclado) y se cierra.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h3>1.3 · Cómo abrir el sistema</h3>
+
+  <ol class="pasos">
+    <li>
+      <p><strong>Abre Google Chrome.</strong> Es el ícono redondo de colores en
+      el escritorio. Hazle doble clic (dos clics rápidos, uno detrás del otro).</p>
+    </li>
+    <li>
+      <p><strong>Haz clic en la barra de direcciones</strong>, la franja blanca
+      larga de arriba. Todo lo que había escrito ahí se pone azul: eso está bien,
+      significa que lo que escribas ahora va a reemplazarlo.</p>
+    </li>
+    <li>
+      <p><strong>Escribe la dirección de la pantalla que necesitas</strong>
+      (mira la tabla de abajo) y aprieta la tecla <strong>Enter</strong>.</p>
+    </li>
+    <li>
+      <p><strong>Espera unos segundos.</strong> La pantalla puede tardar un
+      momento en aparecer completa. Es normal.</p>
+    </li>
+  </ol>
+
+  <h4>Las direcciones que necesitas</h4>
+
+  <table>
+    <tr><th style="width:42%">Para qué</th><th>Qué escribir</th></tr>
+    <tr>
+      <td><strong>El tablero de pedidos</strong><br><em>Es la que vas a usar casi siempre</em></td>
+      <td><span class="campo">tokio-sushi-app.vercel.app</span></td>
+    </tr>
+    <tr>
+      <td><strong>El panel de administración</strong><br><em>Solo para encargados</em></td>
+      <td><span class="campo">tokio-sushi-app.vercel.app/admin.html</span></td>
+    </tr>
+    <tr>
+      <td><strong>Las estadísticas</strong><br><em>Ventas, clientes, platos más vendidos</em></td>
+      <td><span class="campo">tokio-sushi-app.vercel.app/estadisticas.html</span></td>
+    </tr>
+    <tr>
+      <td><strong>El menú del cliente</strong><br><em>Para ver lo mismo que ve la gente</em></td>
+      <td><span class="campo">tokio-sushi-app.vercel.app/menu.html</span></td>
+    </tr>
+  </table>
+
+  <div class="caja truco">
+    <span class="titulo">💡 Para no escribirla nunca más</span>
+    <p>La primera vez que abras el tablero, aprieta al mismo tiempo las teclas
+    <strong>Ctrl</strong> y <strong>D</strong>. Aparece una ventanita: hazle clic
+    a <span class="btn azul">Listo</span>. Eso guarda la dirección como
+    <strong>marcador</strong>, y desde ahí en adelante la abres con un clic en la
+    barra de abajo del navegador, sin escribir nada.</p>
+  </div>
+
+  <div class="caja peligro">
+    <span class="titulo">🚫 No busques el sistema en Google</span>
+    <p>Si escribes "tokio sushi" en un buscador, te van a salir mil páginas que
+    no son esta. Escribe la dirección completa, tal cual está en la tabla, o usa
+    el marcador que guardaste.</p>
+  </div>
+
+  <h3>1.4 · Las pantallas que existen</h3>
+
+  <p>El sistema no es una sola pantalla, son varias. Cada una sirve para una
+  cosa distinta:</p>
+
+  <table>
+    <tr><th style="width:26%">Pantalla</th><th style="width:39%">Para qué sirve</th><th>¿Quién la usa?</th></tr>
+    <tr>
+      <td><strong>Tablero</strong></td>
+      <td>Ver los pedidos que van entrando y moverlos hasta que se despachan</td>
+      <td>Todo el personal, todo el día</td>
+    </tr>
+    <tr>
+      <td><strong>Registrar Pedido</strong><br><em>(la "caja")</em></td>
+      <td>Escribir un pedido que llegó por teléfono o que se hizo en el local</td>
+      <td>Quien atiende el teléfono</td>
+    </tr>
+    <tr>
+      <td><strong>Administración</strong></td>
+      <td>Cambiar precios, marcar algo agotado, crear platos y combos</td>
+      <td>Solo el encargado</td>
+    </tr>
+    <tr>
+      <td><strong>Estadísticas</strong></td>
+      <td>Ver cuánto se vendió, qué se vende más, buscar un cliente</td>
+      <td>Solo el encargado</td>
+    </tr>
+    <tr>
+      <td><strong>Menú del cliente</strong></td>
+      <td>Es la página que ve la gente desde su celular para pedir</td>
+      <td>Los clientes (tú solo la miras)</td>
+    </tr>
+  </table>
+
+  <div class="caja nota">
+    <span class="titulo">Fíjate en esto</span>
+    <p>El <strong>tablero</strong> y la <strong>caja</strong> están conectados: desde el
+    tablero hay un botón que te lleva a la caja, y cuando terminas de registrar el
+    pedido, vuelves solo al tablero. No hace falta que escribas ninguna dirección
+    para pasar de una a otra.</p>
+  </div>
+</div>
+<!-- =================== PARTE 2 =================== -->
+<div class="pagina">
+  <h2><span class="num">2</span>Entrar y salir</h2>
+  <div class="intro-seccion">
+    El sistema no le abre a cualquiera. Cada persona del local tiene su
+    propio usuario, y el sistema deja anotado quién hizo cada cosa.
+  </div>
+
+  <h3>2.1 · Entrar</h3>
+
+  <p>Cuando abras el tablero, lo primero que vas a ver es esta pantalla oscura,
+  con un sushi arriba y dos recuadros para llenar:</p>
+
+  <figure>
+    <span class="captura media">
+      <img src="img/01-entrar.jpg" alt="Pantalla de acceso al tablero">
+    </span>
+    <figcaption>La pantalla de entrada, tal como se ve al abrir el sistema.</figcaption>
+  </figure>
+
+  <div class="leyenda">
+    <div><span class="n">1</span><strong>Nombre de usuario</strong> — el recuadro de arriba.
+    Es el que te dio el encargado, normalmente tu nombre en minúsculas, sin
+    acentos y sin espacios.</div>
+    <div><span class="n">2</span><strong>PIN / Código de Acceso</strong> — el recuadro de
+    abajo. Se ve como puntitos (<strong>••••</strong>) para que nadie que pase por
+    detrás lo lea. Eso es normal: no significa que esté mal escrito.</div>
+    <div><span class="n">3</span><strong>El botón rojo</strong> de abajo entra al sistema.
+    También funciona apretar la tecla <strong>Enter</strong>.</div>
+  </div>
+
+  <h4>Paso a paso</h4>
+  <ol class="pasos">
+    <li><p>Haz clic <strong>dentro</strong> del primer recuadro. Va a aparecer una
+    rayita parpadeando: eso quiere decir que ya puedes escribir.</p></li>
+    <li><p>Escribe tu <strong>nombre de usuario</strong>.</p></li>
+    <li><p>Aprieta la tecla <strong>Tab</strong> (arriba de Bloq Mayús) para saltar al
+    recuadro de abajo, o hazle clic directamente.</p></li>
+    <li><p>Escribe tu <strong>PIN</strong>. Vas a ver puntitos en vez de números.</p></li>
+    <li><p>Aprieta <strong>Enter</strong>. Si todo está bien, aparece el tablero con
+    los pedidos del día.</p></li>
+  </ol>
+
+  <div class="caja peligro">
+    <span class="titulo">🚫 Tu PIN es tuyo</span>
+    <p>No se lo prestes a nadie, ni siquiera "un momentito". El sistema deja
+    anotado tu nombre en cada pedido que se toca. Si alguien usa tu PIN y se
+    equivoca, va a figurar que fuiste tú.</p>
+  </div>
+
+  <h3>2.2 · Si no te deja entrar</h3>
+
+  <table>
+    <tr><th style="width:44%">Lo que pasa</th><th>Qué hacer</th></tr>
+    <tr>
+      <td>Dice que el usuario o el PIN están mal</td>
+      <td>Fíjate en tres cosas: que no tengas activado <strong>Bloq Mayús</strong>
+      (una lucecita en el teclado), que no hayas dejado un espacio de más al final,
+      y que estés escribiendo tu usuario y no tu nombre completo.</td>
+    </tr>
+    <tr>
+      <td>No pasa absolutamente nada al apretar Enter</td>
+      <td>Puede que falte llenar uno de los dos recuadros. Revisa que los dos
+      tengan algo escrito.</td>
+    </tr>
+    <tr>
+      <td>Dice que hay demasiados intentos</td>
+      <td>El sistema bloquea por un rato a quien se equivoca muchas veces
+      seguidas, para protegerte. <strong>Espera unos minutos</strong> y vuelve a
+      intentar, sin insistir.</td>
+    </tr>
+    <tr>
+      <td>La pantalla se queda en blanco o cargando</td>
+      <td>Aprieta <strong>F5</strong> para recargar. Si sigue igual, revisa que la
+      computadora tenga internet.</td>
+    </tr>
+    <tr>
+      <td>Olvidaste tu PIN</td>
+      <td>Solo el encargado puede cambiarlo, desde el panel de administración.
+      No hay forma de recuperarlo tú solo.</td>
+    </tr>
+  </table>
+
+  <h3>2.3 · Cerrar sesión</h3>
+
+  <p>Cuando termines tu turno, <strong>cierra tu sesión</strong>. Así el próximo que
+  llegue entra con su propio usuario y cada cosa queda anotada a nombre de quien
+  la hizo.</p>
+
+  <ol class="pasos">
+    <li><p>Busca arriba a la derecha del todo el botón rojo con el símbolo de
+    encendido (un círculo con una rayita arriba).</p></li>
+    <li><p>Hazle clic. Vuelves a la pantalla de entrada.</p></li>
+  </ol>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ Cerrar sesión no es lo mismo que cerrar el navegador</span>
+    <p>Si solo cierras la ventana de Chrome, tu sesión sigue abierta: el próximo
+    que entre va a estar usando tu usuario sin saberlo. <strong>Usa siempre el
+    botón rojo.</strong></p>
+  </div>
+
+  <h4>Los tres tipos de usuario</h4>
+  <p>Al lado de tu nombre, arriba, aparece una etiqueta con tu tipo de usuario
+  (en la foto del tablero de la página siguiente dice <strong>SUPERADMIN</strong>).
+  Eso decide qué puedes hacer y qué no:</p>
+
+  <table>
+    <tr><th style="width:22%">Etiqueta</th><th>Qué puede hacer</th></tr>
+    <tr>
+      <td><strong>cajero</strong></td>
+      <td>Todo lo del día a día: tomar pedidos, cobrar, mandar a cocina, despachar.
+      <strong>No</strong> puede cambiar la tasa del dólar ni agregar líneas de precio libre.</td>
+    </tr>
+    <tr>
+      <td><strong>admin</strong></td>
+      <td>Todo lo anterior, más cambiar la tasa del día y entrar al panel de
+      administración.</td>
+    </tr>
+    <tr>
+      <td><strong>superadmin</strong></td>
+      <td>Todo, incluyendo crear y borrar usuarios.</td>
+    </tr>
+  </table>
+
+  <div class="caja nota">
+    <span class="titulo">Si un botón no te deja hacerle clic</span>
+    <p>No está dañado: es que tu tipo de usuario no tiene permiso para eso.
+    Pídeselo al encargado.</p>
+  </div>
+</div>
+
+<!-- =================== PARTE 3 =================== -->
+<div class="pagina">
+  <h2><span class="num">3</span>El tablero de pedidos</h2>
+  <div class="intro-seccion">
+    Esta es la pantalla donde vas a pasar el día. Vale la pena entenderla bien
+    una vez, y después ya es automático.
+  </div>
+
+  <h3>3.1 · Cómo está organizada</h3>
+
+  <p>Así se ve el tablero con pedidos dentro. Los números rojos no existen en la
+  pantalla: los pusimos nosotros para explicarte cada parte.</p>
+
+  <figure>
+    <span class="captura">
+      <img src="img/02-tablero.jpg" alt="El tablero de pedidos con sus cuatro columnas">
+      <span class="marca" style="left:46%;top:4%">1</span>
+      <span class="marca" style="left:17%;top:13.7%">2</span>
+      <span class="marca" style="left:40%;top:13.7%">3</span>
+      <span class="marca" style="left:62%;top:13.7%">4</span>
+      <span class="marca" style="left:86%;top:13.7%">5</span>
+    </span>
+    <figcaption>El tablero completo. Los pedidos entran por la izquierda y salen por la derecha.</figcaption>
+  </figure>
+
+  <div class="leyenda">
+    <div><span class="n">1</span><strong>La barra de arriba.</strong> Tu nombre y tu tipo de
+    usuario, la tasa del dólar, la fecha, y los botones de nuevo pedido, actualizar
+    y salir.</div>
+    <div><span class="n">2</span><strong>Calculando Delivery</strong> (morado). Pedidos a
+    domicilio a los que todavía no les has puesto el precio del envío.</div>
+    <div><span class="n">3</span><strong>Pago Pendiente</strong> (amarillo). Pedidos que ya
+    tienen precio completo pero el cliente todavía no ha pagado.</div>
+    <div><span class="n">4</span><strong>En Cocina</strong> (azul). Pedidos pagados que se
+    están preparando ahora mismo.</div>
+    <div><span class="n">5</span><strong>Finalizado</strong> (verde). Pedidos que ya
+    salieron. Abajo de esta columna está el <strong>total vendido en el día</strong>.</div>
+  </div>
+
+  <div class="caja truco">
+    <span class="titulo">💡 El numerito al lado de cada título</span>
+    <p>Ese círculo con un número te dice <strong>cuántos pedidos hay en esa
+    columna</strong> en este momento. Es la forma más rápida de ver si te estás
+    quedando atrás.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h3>3.2 · Las cuatro columnas, una por una</h3>
+
+  <p>Un pedido siempre va de <strong>izquierda a derecha</strong>. Nunca al revés.
+  Cada vez que le haces clic al botón de una tarjeta, el pedido salta a la
+  columna siguiente.</p>
+
+  <table>
+    <tr><th style="width:23%">Columna</th><th style="width:40%">Qué significa</th><th>Qué tienes que hacer</th></tr>
+    <tr>
+      <td><strong style="color:#7c3aed">Calculando Delivery</strong></td>
+      <td>Llegó un pedido a domicilio. Todavía no sabemos cuánto va a costar
+      llevarlo, así que el total está incompleto.</td>
+      <td>Mirar la dirección, decidir el precio del envío y hacer clic en
+      <span class="btn morado">Poner precio delivery</span></td>
+    </tr>
+    <tr>
+      <td><strong style="color:#a16207">Pago Pendiente</strong></td>
+      <td>El pedido ya tiene su precio final. Estamos esperando que el cliente
+      pague y mande el comprobante.</td>
+      <td>Cuando el pago llegue, hacer clic en
+      <span class="btn amarillo">Aceptar →</span></td>
+    </tr>
+    <tr>
+      <td><strong style="color:#0369a1">En Cocina</strong></td>
+      <td>El pago está confirmado y la cocina está preparando la comida.</td>
+      <td>Cuando la comida esté lista y salga, hacer clic en
+      <span class="btn azul">Despachar ✓</span></td>
+    </tr>
+    <tr>
+      <td><strong style="color:#047857">Finalizado</strong></td>
+      <td>El pedido ya salió del local. Aquí solo se acumula, para llevar la
+      cuenta del día.</td>
+      <td>Nada. Solo mirar.</td>
+    </tr>
+  </table>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ Fíjate bien en el color del botón</span>
+    <p>El <span class="btn amarillo">Aceptar →</span> es <strong>amarillo</strong> y el
+    <span class="btn azul">Despachar ✓</span> es <strong>azul</strong>. Son dos pasos
+    muy distintos: uno confirma que pagaron, el otro avisa que la comida ya salió.
+    Guíate por el color y por la columna en la que está la tarjeta.</p>
+  </div>
+
+  <div class="caja nota">
+    <span class="titulo">Los pedidos para retirar no pasan por la primera columna</span>
+    <p>Si el cliente va a buscar su comida al local, no hay delivery que
+    calcular. Ese pedido entra directo a <strong>Pago Pendiente</strong>. Es normal
+    que la primera columna esté vacía muchas veces.</p>
+  </div>
+
+  <h3>3.3 · La tarjeta de un pedido</h3>
+
+  <p>Cada pedido es una tarjeta. Todas tienen lo mismo:</p>
+
+  <figure>
+    <span class="captura media">
+      <img src="img/03-tarjeta.jpg" alt="Una tarjeta de pedido de cerca">
+    </span>
+    <figcaption>Una tarjeta vista de cerca, en la columna Pago Pendiente.</figcaption>
+  </figure>
+
+  <ul class="simple">
+    <li><strong>El número del pedido</strong> (arriba a la izquierda, en amarillo:
+    <strong>#1</strong>). Es el número que el cliente ve en su WhatsApp.</li>
+    <li><strong>Los cuatro iconitos</strong>, que se explican abajo.</li>
+    <li><strong>La hora</strong> a la que entró el pedido, arriba a la derecha.</li>
+    <li><strong>El nombre del cliente</strong>, en letras grandes.</li>
+    <li><strong>Todo lo que pidió</strong>, en letra gris, debajo del nombre.</li>
+    <li><strong>El total en dólares</strong> y, debajo en amarillo, el mismo total en
+    bolívares.</li>
+    <li><strong>El botón</strong> que mueve el pedido a la columna siguiente.</li>
+  </ul>
+
+  <h4>Los cuatro iconitos, de izquierda a derecha</h4>
+  <table>
+    <tr><th style="width:14%">Icono</th><th style="width:26%">Nombre</th><th>Para qué</th></tr>
+    <tr><td style="font-size:15pt;text-align:center">📄</td><td><strong>Ver Detalles</strong></td>
+      <td>Una <strong>hoja de papel</strong>. Abre una ventanita con todo el pedido:
+      cada plato, la dirección, el teléfono y el comprobante de pago.
+      <strong>Es el que más vas a usar.</strong></td></tr>
+    <tr><td style="font-size:15pt;text-align:center">✏️</td><td><strong>Editar Pedido</strong></td>
+      <td>Un <strong>lápiz</strong>. Sirve para agregar o quitar platos si el cliente
+      cambia de idea.</td></tr>
+    <tr><td style="font-size:15pt;text-align:center">🗑️</td><td><strong>Cancelar Pedido</strong></td>
+      <td>Una <strong>papelera</strong>. Anula el pedido. <strong>Ojo con este.</strong></td></tr>
+    <tr><td style="font-size:15pt;text-align:center">💬</td><td><strong>WhatsApp</strong></td>
+      <td>Un <strong>globito de chat</strong>. Abre el chat de WhatsApp con ese cliente,
+      para escribirle tú a mano.</td></tr>
+  </table>
+
+  <div class="caja truco">
+    <span class="titulo">💡 Si no sabes qué hace un iconito</span>
+    <p>Ponle el mouse encima <strong>sin hacer clic</strong> y espera un segundo:
+    aparece un cartelito con su nombre. Funciona con casi todos los botones del
+    sistema.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h4>Lo que ves al tocar la hoja de papel 📄</h4>
+
+  <figure>
+    <span class="captura media">
+      <img src="img/04-detalle.jpg" alt="Ventana de detalle del pedido">
+    </span>
+    <figcaption>La ventana <strong>Detalle del Pedido</strong>. Se cierra con la ✕ de
+    arriba o con el botón <strong>Cerrar Recibo</strong>.</figcaption>
+  </figure>
+
+  <p>Ahí está todo lo que necesitas saber de un pedido: el <strong>cliente</strong> y
+  su <strong>teléfono</strong>, si es <strong>Delivery o Pickup</strong>, la
+  <strong>dirección</strong>, la lista completa de <strong>productos</strong>, la
+  <strong>forma de pago</strong>, el <strong>total</strong> y el mismo total en
+  bolívares con la tasa que se usó.</p>
+
+  <div class="caja truco">
+    <span class="titulo">💡 Míralo antes de cada paso</span>
+    <p>Antes de poner el precio del delivery, para leer la dirección. Antes de
+    aceptar el pago, para confirmar el monto. Antes de despachar, para revisar que
+    la cocina no se saltó una nota. Es un clic y evita casi todos los errores.</p>
+  </div>
+
+  <h3>3.4 · La barra de arriba</h3>
+
+  <table>
+    <tr><th style="width:30%">Qué es</th><th>Para qué sirve</th></tr>
+    <tr>
+      <td><strong>Op: tu nombre</strong> + etiqueta</td>
+      <td>Te recuerda con qué usuario estás trabajando. Si dice un nombre que no
+      es el tuyo, cierra sesión y vuelve a entrar con el tuyo.</td>
+    </tr>
+    <tr>
+      <td><strong>Tasa BCV</strong></td>
+      <td>El valor del dólar de hoy. Con esto el sistema calcula los bolívares de
+      cada pedido. <em>Los cajeros lo ven pero no lo pueden cambiar.</em></td>
+    </tr>
+    <tr>
+      <td><strong>La fecha</strong></td>
+      <td>Te muestra los pedidos de ese día. Al hacerle clic se abre un calendario
+      para mirar días anteriores. <strong>Acuérdate de volverla al día de hoy</strong>,
+      o vas a pensar que no está entrando ningún pedido.</td>
+    </tr>
+    <tr>
+      <td><span class="btn verde">+ Nuevo Pedido</span></td>
+      <td>Te lleva a la caja, para escribir un pedido que llegó por teléfono.
+      Se explica en la Parte 5.</td>
+    </tr>
+    <tr>
+      <td><span class="btn azul">⟳</span> (botón morado con una flecha en círculo)</td>
+      <td>Vuelve a pedir la lista de pedidos. Normalmente <strong>no hace falta</strong>:
+      los pedidos aparecen solos. Úsalo si tienes dudas de que la pantalla esté al día.</td>
+    </tr>
+    <tr>
+      <td><span class="btn rojo">⏻</span> (botón rojo del final)</td>
+      <td>Cerrar sesión.</td>
+    </tr>
+  </table>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ La tasa del dólar, de una vez en la mañana</span>
+    <p>Cada pedido guarda la tasa que había <strong>en el momento en que se creó</strong>.
+    Si el encargado la corrige a mitad del día, los pedidos viejos <strong>no cambian</strong>
+    (eso está bien: se cobraron a la tasa de antes). Por eso conviene ponerla
+    correcta apenas se abre el local.</p>
+  </div>
+
+  <h3>3.5 · Los pedidos aparecen solos</h3>
+
+  <p>No tienes que estar recargando la pantalla ni apretando nada. Cuando un
+  cliente manda un pedido desde su celular, <strong>la tarjeta aparece sola en el
+  tablero</strong>, en cuestión de segundos.</p>
+
+  <p>Lo mismo pasa al revés: si tu compañero mueve un pedido desde otra
+  computadora, tú lo ves moverse en la tuya.</p>
+
+  <div class="caja peligro">
+    <span class="titulo">🚫 No trabajen dos personas el mismo pedido</span>
+    <p>Como todos ven lo mismo al mismo tiempo, si dos personas le hacen clic al
+    mismo pedido, se pueden mandar <strong>dos mensajes de WhatsApp repetidos</strong>
+    al cliente. Pónganse de acuerdo en quién mueve el tablero.</p>
+  </div>
+</div>
+<!-- =================== PARTE 4 =================== -->
+<div class="pagina">
+  <h2><span class="num">4</span>El camino de un pedido</h2>
+  <div class="intro-seccion">
+    Esta es la parte más importante del manual. Si aprendes solo esto, ya
+    puedes trabajar. Son tres clics, siempre en el mismo orden.
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 720 330" xmlns="http://www.w3.org/2000/svg" style="background:#f9fafb;border:1px solid #e5e7eb">
+      <rect x="14" y="24" width="150" height="76" rx="10" fill="#f3e8ff" stroke="#a855f7" stroke-width="2"/>
+      <text x="89" y="47" text-anchor="middle" font-size="10.5" font-weight="700" fill="#6b21a8">CALCULANDO</text>
+      <text x="89" y="61" text-anchor="middle" font-size="10.5" font-weight="700" fill="#6b21a8">DELIVERY</text>
+      <text x="89" y="82" text-anchor="middle" font-size="9" fill="#7e22ce">solo si es a domicilio</text>
+
+      <line x1="168" y1="62" x2="208" y2="62" stroke="#9ca3af" stroke-width="2.5"/>
+      <polygon points="208,62 199,57 199,67" fill="#9ca3af"/>
+
+      <rect x="212" y="24" width="150" height="76" rx="10" fill="#fef9c3" stroke="#eab308" stroke-width="2"/>
+      <text x="287" y="54" text-anchor="middle" font-size="10.5" font-weight="700" fill="#854d0e">PAGO PENDIENTE</text>
+      <text x="287" y="76" text-anchor="middle" font-size="9" fill="#a16207">esperando que pague</text>
+
+      <line x1="366" y1="62" x2="406" y2="62" stroke="#9ca3af" stroke-width="2.5"/>
+      <polygon points="406,62 397,57 397,67" fill="#9ca3af"/>
+
+      <rect x="410" y="24" width="150" height="76" rx="10" fill="#e0f2fe" stroke="#0ea5e9" stroke-width="2"/>
+      <text x="485" y="54" text-anchor="middle" font-size="10.5" font-weight="700" fill="#075985">EN COCINA</text>
+      <text x="485" y="76" text-anchor="middle" font-size="9" fill="#0369a1">se está preparando</text>
+
+      <line x1="564" y1="62" x2="600" y2="62" stroke="#9ca3af" stroke-width="2.5"/>
+      <polygon points="600,62 591,57 591,67" fill="#9ca3af"/>
+
+      <rect x="604" y="24" width="104" height="76" rx="10" fill="#d1fae5" stroke="#10b981" stroke-width="2"/>
+      <text x="656" y="54" text-anchor="middle" font-size="10.5" font-weight="700" fill="#065f46">FINALIZADO</text>
+      <text x="656" y="76" text-anchor="middle" font-size="9" fill="#047857">ya salió</text>
+
+      <g>
+        <line x1="89" y1="104" x2="89" y2="132" stroke="#dc2626" stroke-width="2" stroke-dasharray="4 3"/>
+        <rect x="14" y="134" width="150" height="52" rx="8" fill="#fff" stroke="#dc2626" stroke-width="1.5"/>
+        <text x="89" y="152" text-anchor="middle" font-size="9" font-weight="700" fill="#b91c1c">TÚ HACES CLIC EN</text>
+        <rect x="26" y="158" width="126" height="20" rx="5" fill="#7c3aed"/>
+        <text x="89" y="172" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">Poner precio delivery</text>
+      </g>
+      <g>
+        <line x1="287" y1="104" x2="287" y2="132" stroke="#dc2626" stroke-width="2" stroke-dasharray="4 3"/>
+        <rect x="212" y="134" width="150" height="52" rx="8" fill="#fff" stroke="#dc2626" stroke-width="1.5"/>
+        <text x="287" y="152" text-anchor="middle" font-size="9" font-weight="700" fill="#b91c1c">TÚ HACES CLIC EN</text>
+        <rect x="252" y="158" width="70" height="20" rx="5" fill="#eab308"/>
+        <text x="287" y="172" text-anchor="middle" font-size="9" font-weight="700" fill="#1f2937">Aceptar →</text>
+      </g>
+      <g>
+        <line x1="485" y1="104" x2="485" y2="132" stroke="#dc2626" stroke-width="2" stroke-dasharray="4 3"/>
+        <rect x="410" y="134" width="150" height="52" rx="8" fill="#fff" stroke="#dc2626" stroke-width="1.5"/>
+        <text x="485" y="152" text-anchor="middle" font-size="9" font-weight="700" fill="#b91c1c">TÚ HACES CLIC EN</text>
+        <rect x="448" y="158" width="74" height="20" rx="5" fill="#0284c7"/>
+        <text x="485" y="172" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">Despachar ✓</text>
+      </g>
+
+      <text x="360" y="216" text-anchor="middle" font-size="10" font-weight="700" fill="#065f46">LO QUE EL SISTEMA MANDA SOLO, SIN QUE TÚ HAGAS NADA</text>
+
+      <rect x="14" y="228" width="150" height="72" rx="8" fill="#ecfdf5" stroke="#10b981"/>
+      <text x="89" y="248" text-anchor="middle" font-size="15">💬</text>
+      <text x="89" y="266" text-anchor="middle" font-size="8.5" fill="#065f46">Al cliente: cuánto</text>
+      <text x="89" y="278" text-anchor="middle" font-size="8.5" fill="#065f46">tiene que pagar y</text>
+      <text x="89" y="290" text-anchor="middle" font-size="8.5" fill="#065f46">a dónde</text>
+
+      <rect x="212" y="228" width="150" height="72" rx="8" fill="#ecfdf5" stroke="#10b981"/>
+      <text x="287" y="248" text-anchor="middle" font-size="15">💬</text>
+      <text x="287" y="266" text-anchor="middle" font-size="8.5" fill="#065f46">Al cliente: su pago</text>
+      <text x="287" y="278" text-anchor="middle" font-size="8.5" fill="#065f46">fue aprobado y en</text>
+      <text x="287" y="290" text-anchor="middle" font-size="8.5" fill="#065f46">cuánto estará listo</text>
+
+      <rect x="410" y="228" width="298" height="72" rx="8" fill="#ecfdf5" stroke="#10b981"/>
+      <text x="559" y="248" text-anchor="middle" font-size="15">💬 🛵</text>
+      <text x="559" y="266" text-anchor="middle" font-size="8.5" fill="#065f46">Al cliente: su pedido va en camino (o ya puede retirarlo)</text>
+      <text x="559" y="280" text-anchor="middle" font-size="8.5" fill="#065f46">Y si es delivery, al grupo de motorizados con la dirección,</text>
+      <text x="559" y="292" text-anchor="middle" font-size="8.5" fill="#065f46">las bandejas, el pago y el vuelto</text>
+    </svg>
+    <figcaption>Tú haces tres clics. Los tres mensajes de WhatsApp salen solos.</figcaption>
+  </figure>
+
+  <div class="caja truco">
+    <span class="titulo">💡 La idea de fondo</span>
+    <p>Tú <strong>nunca escribes un WhatsApp a mano</strong> para avisar del pedido.
+    Cada vez que mueves una tarjeta, el mensaje sale solo, con el texto correcto y
+    el número de pedido correcto. Tu único trabajo es mover la tarjeta
+    <strong>en el momento justo</strong>.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h3>4.1 · Momento 1 · Ponerle precio al delivery</h3>
+  <p><em>Solo para pedidos a domicilio. Los de retiro se saltan este paso.</em></p>
+
+  <ol class="pasos">
+    <li>
+      <p>En la columna morada <strong>Calculando Delivery</strong> aparece la tarjeta.
+      Primero hazle clic al iconito de la hoja de papel <strong>📄</strong> para
+      <strong>leer la dirección</strong>.</p>
+    </li>
+    <li>
+      <p>Cierra esa ventanita y haz clic en el botón morado
+      <span class="btn morado">Poner precio delivery</span></p>
+    </li>
+    <li><p>Se abre esta ventanita:</p></li>
+  </ol>
+
+  <figure>
+    <span class="captura media">
+      <img src="img/05-precio-delivery.jpg" alt="Ventana para calcular el delivery">
+    </span>
+    <figcaption>La ventana <strong>Calcular Delivery</strong>, cuando el cliente paga en efectivo.</figcaption>
+  </figure>
+
+  <ol class="pasos" start="4">
+    <li>
+      <p>Si el cliente paga <strong>en efectivo</strong>, arriba te pregunta
+      <strong>"¿Con cuánto paga?"</strong>. Escribe ahí el billete que te dijo el
+      cliente: <span class="campo">30$</span>, <span class="campo">50$</span>,
+      <span class="campo">justo</span>. Eso le llega al motorizado para que salga
+      con el vuelto. <strong>Si paga por Pago Móvil, esta pregunta no aparece.</strong></p>
+    </li>
+    <li>
+      <p>Ahora el precio del envío. Tienes dos caminos:</p>
+      <ul class="simple">
+        <li>Si es una dirección normal, haz clic en el botón grande morado
+        <strong>Delivery estándar · $2</strong> y listo.</li>
+        <li>Si queda lejos y cobran más, escribe el monto en el recuadro de
+        <strong>"Otro monto"</strong> (por ejemplo <span class="campo">3.50</span>) y haz
+        clic en <span class="btn gris">Aplicar</span>.</li>
+      </ul>
+    </li>
+    <li>
+      <p>La tarjeta se mueve sola a <strong>Pago Pendiente</strong>, ya con el delivery
+      sumado al total, y al cliente le llega el WhatsApp con lo que tiene que pagar.</p>
+    </li>
+  </ol>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ El precio del delivery se pone una sola vez</span>
+    <p>Una vez que el pedido pasa a Pago Pendiente, ya no hay botón para volver a
+    cambiar el envío. Si te equivocaste, tienes que arreglarlo con
+    <strong>Editar Pedido</strong> (Parte 6).</p>
+  </div>
+
+  <div class="caja nota">
+    <span class="titulo">Escribe los decimales con punto</span>
+    <p>Tres dólares con cincuenta se escribe <span class="campo">3.50</span>,
+    con <strong>punto</strong>, no con coma.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h3>4.2 · Momento 2 · Confirmar que el cliente pagó</h3>
+
+  <p>El cliente te manda el comprobante por WhatsApp. Cuando lo tengas
+  <strong>y lo hayas verificado</strong>, es hora de aceptar el pedido.</p>
+
+  <div class="caja peligro">
+    <span class="titulo">🚫 Primero verifica, después aceptas</span>
+    <p>Que el cliente mande una foto <strong>no significa</strong> que el dinero
+    llegó. Revisa la cuenta antes de hacer clic en Aceptar. Después de este
+    paso, la cocina empieza a cocinar.</p>
+  </div>
+
+  <ol class="pasos">
+    <li>
+      <p>En la columna amarilla <strong>Pago Pendiente</strong>, busca la tarjeta y haz
+      clic en el botón amarillo <span class="btn amarillo">Aceptar →</span></p>
+    </li>
+    <li><p>Se abre la ventanita del comprobante:</p></li>
+  </ol>
+
+  <figure>
+    <span class="captura media">
+      <img src="img/06-comprobante.jpg" alt="Ventana para registrar el comprobante de pago">
+    </span>
+    <figcaption>Arriba te recuerda cómo va a pagar el cliente.</figcaption>
+  </figure>
+
+  <ol class="pasos" start="3">
+    <li>
+      <p>Escribe el <strong>Número de Referencia</strong>:</p>
+      <ul class="simple">
+        <li>Si paga por <strong>Pago Móvil</strong>, es <strong>obligatorio</strong>.
+        Sin eso no te deja seguir.</li>
+        <li>Si paga en <strong>efectivo</strong>, ese recuadro <strong>no aparece</strong>.
+        No hay referencia que anotar.</li>
+      </ul>
+    </li>
+    <li>
+      <p><strong>Sube la foto del comprobante</strong> (opcional, pero muy
+      recomendable). Haz clic en <span class="btn gris">Seleccionar archivo</span>,
+      busca la imagen que guardaste del WhatsApp y hazle doble clic. Vas a ver la
+      foto pequeñita debajo: eso confirma que se cargó.</p>
+    </li>
+    <li><p>Haz clic en <span class="btn verde">Confirmar Pago</span>.</p></li>
+    <li><p>Aparece <strong>otra ventanita</strong>, preguntando en cuánto tiempo
+    estará listo:</p></li>
+  </ol>
+
+  <figure>
+    <span class="captura estrecha">
+      <img src="img/07-tiempo.jpg" alt="Ventana del tiempo de preparación">
+    </span>
+    <figcaption>El tiempo que elijas aquí es el que le llega al cliente por WhatsApp.</figcaption>
+  </figure>
+
+  <ol class="pasos" start="7">
+    <li>
+      <p>Elige una de las tres opciones:</p>
+      <ul class="simple">
+        <li><strong>25 a 30 minutos</strong> — lo normal, cuando la cocina está
+        tranquila.</li>
+        <li><strong>30 a 45 minutos</strong> — cuando hay cola.</li>
+        <li><strong>Otro tiempo</strong> — escribe las <strong>horas</strong> y los
+        <strong>minutos</strong> en las dos casillas chiquitas y haz clic en
+        <span class="btn azul">Aplicar</span>. Sirve para pedidos grandes o
+        encargados para más tarde.</li>
+      </ul>
+    </li>
+    <li>
+      <p>La tarjeta se va a <strong>En Cocina</strong>, y al cliente le llega el
+      WhatsApp diciéndole que su pago fue aprobado y en cuánto tiempo estará listo.</p>
+    </li>
+  </ol>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ Pregúntale a la cocina antes de elegir el tiempo</span>
+    <p>Ese tiempo es una <strong>promesa</strong> que le llega al cliente por escrito.
+    Si dices 25 minutos y tardan una hora, el cliente va a llamar molesto.
+    Cuando dudes, elige el rango más largo.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h3>4.3 · Momento 3 · Despachar</h3>
+
+  <p>La comida está lista y empacada, y el motorizado está por salir (o el cliente
+  ya llegó a buscarla).</p>
+
+  <ol class="pasos">
+    <li>
+      <p>En la columna azul <strong>En Cocina</strong>, haz clic en el botón azul
+      <span class="btn azul">Despachar ✓</span></p>
+    </li>
+    <li>
+      <p>Listo. La tarjeta se va a <strong>Finalizado</strong> y el total del día sube.</p>
+    </li>
+  </ol>
+
+  <p>En ese mismo momento el sistema manda <strong>dos mensajes</strong> sin que tú
+  hagas nada:</p>
+
+  <ul class="simple">
+    <li><strong>Al cliente:</strong> que su pedido va en camino, o que ya puede
+    retirarlo en el local.</li>
+    <li><strong>Al grupo de motorizados</strong> (solo si es delivery): el número del
+    pedido, el teléfono, la dirección, cuántas bandejas y cajas lleva, cuántos
+    refrescos, si ya está pagado o hay que cobrar, y con cuánto paga el cliente.</li>
+  </ul>
+
+  <div class="caja peligro">
+    <span class="titulo">🚫 No despaches antes de tiempo</span>
+    <p>Apenas hagas clic en Despachar, al cliente le llega "tu pedido va en camino".
+    Si la comida todavía está en la cocina, el cliente va a estar mirando la puerta
+    veinte minutos. <strong>Haz clic cuando la comida sale de verdad.</strong></p>
+  </div>
+
+  <h3>4.4 · Los dos caminos, lado a lado</h3>
+
+  <table>
+    <tr><th style="width:50%">Pedido con DELIVERY</th><th style="width:50%">Pedido para RETIRAR (Pickup)</th></tr>
+    <tr>
+      <td>1. Entra en <strong>Calculando Delivery</strong></td>
+      <td>1. Entra directo en <strong>Pago Pendiente</strong></td>
+    </tr>
+    <tr>
+      <td>2. Miras la dirección y pones el precio del envío</td>
+      <td>2. <em>(este paso no existe)</em></td>
+    </tr>
+    <tr>
+      <td>3. Pasa a <strong>Pago Pendiente</strong>. Le llega al cliente cuánto pagar</td>
+      <td>3. Al cliente ya le llegó cuánto pagar</td>
+    </tr>
+    <tr>
+      <td>4. Verificas el pago → <span class="btn amarillo">Aceptar →</span> → eliges el tiempo</td>
+      <td>4. Verificas el pago → <span class="btn amarillo">Aceptar →</span> → eliges el tiempo</td>
+    </tr>
+    <tr>
+      <td>5. La comida sale → <span class="btn azul">Despachar ✓</span></td>
+      <td>5. El cliente llega → <span class="btn azul">Despachar ✓</span></td>
+    </tr>
+    <tr>
+      <td>6. Sale el aviso al <strong>grupo de motorizados</strong></td>
+      <td>6. <em>(no hay aviso al grupo)</em></td>
+    </tr>
+  </table>
+
+  <h3>4.5 · Los números de pedido</h3>
+
+  <p>Hay algo que confunde a todo el mundo el primer día, así que léelo con calma:</p>
+
+  <div class="caja nota">
+    <span class="titulo">Los delivery y los retiros se cuentan por separado</span>
+    <p>Cada mañana, <strong>los dos contadores empiezan otra vez en 1</strong>. Hay una
+    lista para los delivery y otra para los que se retiran.</p>
+    <p>Por eso <strong>puede haber dos pedidos #1 en el mismo día</strong>: el delivery
+    número 1 y el retiro número 1. Si miras la foto del tablero de la Parte 3, vas a
+    ver justamente eso. No es un error del sistema, es a propósito, y es como el
+    restaurante lleva la cuenta desde siempre.</p>
+    <p>Para diferenciarlos, mira siempre el <strong>nombre del cliente</strong>, no solo
+    el número.</p>
+  </div>
+
+  <h3>4.6 · ¿Y si el cliente nunca paga?</h3>
+
+  <p>A veces alguien hace un pedido y desaparece. Esa tarjeta se va a quedar
+  en <strong>Pago Pendiente</strong> para siempre si nadie hace nada.</p>
+
+  <ol class="pasos">
+    <li><p>Escríbele por WhatsApp con el iconito <strong>💬</strong> de la tarjeta.</p></li>
+    <li><p>Si no responde en un rato razonable, cancélalo con el iconito de la
+    papelera <strong>🗑️</strong> para que no ensucie el tablero.</p></li>
+  </ol>
+
+  <div class="caja truco">
+    <span class="titulo">💡 Antes de cerrar el local</span>
+    <p>Revisa que no quede ninguna tarjeta en las tres primeras columnas. Si queda
+    alguna, o se despacha o se cancela. Un tablero limpio al cerrar es un tablero
+    limpio al abrir.</p>
+  </div>
+</div>
+<!-- =================== PARTE 5 =================== -->
+<div class="pagina">
+  <h2><span class="num">5</span>Tomar un pedido por teléfono</h2>
+  <div class="intro-seccion">
+    Cuando un cliente llama, o llega al local a pedir, eres tú quien escribe
+    el pedido. Para eso está la pantalla que llamamos <strong>la caja</strong>.
+  </div>
+
+  <h3>5.1 · Abrir la caja</h3>
+
+  <p>Desde el tablero, haz clic en el botón verde de arriba:
+  <span class="btn verde">+ Nuevo Pedido</span></p>
+
+  <p>Se abre una pantalla clara, parecida al menú que ven los clientes pero
+  ordenada para trabajar rápido en computadora. Para volver al tablero en
+  cualquier momento, arriba a la derecha está el botón
+  <span class="btn gris">▦ Tablero</span>, y arriba a la izquierda la flecha
+  <strong>←</strong>.</p>
+
+  <figure>
+    <span class="captura media">
+      <img src="img/09-caja-categorias.jpg" alt="La caja recién abierta, mostrando las categorías">
+    </span>
+    <figcaption>Lo primero que ves al abrir la caja: las categorías del menú.
+    Toca una para ver sus platos.</figcaption>
+  </figure>
+
+  <figure>
+    <span class="captura">
+      <img src="img/10-caja-platos.jpg" alt="La caja mostrando los platos de una categoría">
+      <span class="marca" style="left:96.5%;top:10.3%">1</span>
+      <span class="marca" style="left:12%;top:17.8%">2</span>
+      <span class="marca" style="left:39%;top:27%">3</span>
+      <span class="marca" style="left:15%;top:46.3%">4</span>
+      <span class="marca" style="left:14.5%;top:33.3%">5</span>
+      <span class="marca" style="left:90%;top:3.4%">6</span>
+    </span>
+    <figcaption>La caja, con los platos de la categoría "Adicionales" a la vista.</figcaption>
+  </figure>
+
+  <div class="leyenda">
+    <div><span class="n">1</span><strong>El buscador.</strong> Lo más rápido: escribe parte
+    del nombre del plato y aparece de una vez.</div>
+    <div><span class="n">2</span><strong>El nombre de la categoría</strong> que estás
+    viendo. Los platos salen en dos columnas.</div>
+    <div><span class="n">3</span><strong>Los botones − y +.</strong> Suben y bajan la
+    cantidad. También puedes hacer clic en el número del medio y escribirlo.</div>
+    <div><span class="n">4</span><strong>La etiqueta verde de oferta</strong>, cuando el
+    plato tiene precio especial por cantidad (las lumpias: <strong>2 por $1.50</strong>).
+    Se explica en la Parte 7.</div>
+    <div><span class="n">5</span><strong>Añadir nota especial.</strong> Para las
+    aclaratorias de ese plato: <em>sin cebollín</em>, <em>extra picante</em>. Le
+    llega tal cual a la cocina.</div>
+    <div><span class="n">6</span><strong>Volver al tablero</strong> sin registrar nada.</div>
+  </div>
+</div>
+
+<div class="pagina">
+  <h3>5.2 · Armar el pedido</h3>
+
+  <ol class="pasos">
+    <li>
+      <p><strong>Busca el plato.</strong> Escribe en el buscador de arriba parte del
+      nombre. No hace falta escribirlo completo ni con acentos: si escribes
+      <span class="campo">cali</span> ya aparece el California roll.</p>
+      <p>Si el cliente no sabe qué quiere, sal del buscador y entra por
+      <strong>las categorías</strong> a mirar con él.</p>
+    </li>
+    <li>
+      <p><strong>Súbele la cantidad</strong> con el botón <strong>+</strong>. Cada vez que
+      tocas <strong>+</strong>, la barra verde de abajo sube sola.</p>
+    </li>
+    <li>
+      <p>Si el cliente pide algo especial para ese plato, haz clic en
+      <strong>Añadir nota especial</strong> y escríbelo.</p>
+    </li>
+    <li>
+      <p><strong>Repite con cada plato</strong> que pida el cliente.</p>
+    </li>
+    <li>
+      <p>Cuando ya esté todo, haz clic en la barra verde de abajo:
+      <span class="btn verde">Continuar al cierre 🛒</span></p>
+    </li>
+  </ol>
+
+  <div class="caja truco">
+    <span class="titulo">💡 Lee el pedido en voz alta antes de cerrar</span>
+    <p>Con el cliente todavía en el teléfono, léele lo que tienes anotado y el
+    total. Corregir ahora toma cinco segundos; corregir después, cuando la cocina
+    ya empezó, es un problema.</p>
+  </div>
+
+  <h3>5.3 · Los combos: elegir los rolls</h3>
+
+  <p>Algunos combos dejan que el cliente elija qué rolls quiere. Cuando agregas
+  uno de esos, no se suma directo: aparece un botón que dice
+  <strong>🎨 Personalizar</strong>. Al tocarlo se abre esta ventana:</p>
+
+  <figure>
+    <span class="captura estrecha">
+      <img src="img/11-combo.jpg" alt="Ventana para personalizar un combo">
+    </span>
+    <figcaption>Un combo con dos estilos. Arriba dice qué está incluido fijo, y
+    abajo lo que hay que elegir.</figcaption>
+  </figure>
+
+  <ol class="pasos">
+    <li>
+      <p>Si el combo tiene <strong>estilos</strong> (por ejemplo "Tempura (12pz)" o
+      "Frío (10pz)"), primero elige uno tocando su botón.
+      <strong>Es uno o el otro</strong>, no los dos: al cambiar de estilo se borra lo
+      que hayas elegido.</p>
+    </li>
+    <li>
+      <p>Debajo dice exactamente qué tienes que hacer, por ejemplo:
+      <em>"Elige 1 opción para tus 12 piezas"</em> o
+      <em>"Elige 3 opciones (18 piezas cada opción)"</em>.</p>
+    </li>
+    <li>
+      <p><strong>Toca el roll que quiere el cliente.</strong> Se pone verde con un ✓.
+      No hay que escribir números ni repartir piezas: un toque = un roll.</p>
+    </li>
+  </ol>
+
+  <figure>
+    <span class="captura estrecha">
+      <img src="img/12-combo-elegido.jpg" alt="El mismo combo con un roll ya elegido">
+    </span>
+    <figcaption>Así se ve cuando ya elegiste: el roll queda marcado en verde.</figcaption>
+  </figure>
+
+  <ul class="simple">
+    <li>Si el combo permite <strong>un solo roll</strong>, tocar otro
+    <strong>cambia</strong> el elegido.</li>
+    <li>Si permite <strong>varios</strong>, cada toque suma uno y aparece un
+    <strong>×2</strong> con un <strong>−</strong> al lado para quitarlo. El mismo
+    roll se puede repetir: si el cliente quiere los 3 iguales, lo tocas 3 veces.</li>
+    <li>Cuando llenas el cupo, los demás rolls se apagan.</li>
+  </ul>
+
+  <ol class="pasos" start="4">
+    <li>
+      <p>Cuando estén todos, el botón de abajo se enciende. Haz clic en
+      <span class="btn rojo">Confirmar Selección</span>.</p>
+    </li>
+  </ol>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ Si el botón de confirmar está apagado</span>
+    <p>Es porque todavía falta elegir. Mira la etiqueta de la derecha: dice
+    <strong>1 / 3</strong> o <strong>Falta elegir</strong>. Cuando esté completo se pone
+    verde y el botón se enciende.</p>
+  </div>
+
+  <div class="caja peligro">
+    <span class="titulo">🚫 No dejes combos sin personalizar</span>
+    <p>Si intentas cerrar el pedido con un combo a medias, sale un aviso que dice
+    <strong>"⚠️ Te faltan combos por personalizar"</strong> y no te deja seguir. Termina
+    de elegir los rolls y vuelve a intentar.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h3>5.4 · Cerrar el pedido</h3>
+
+  <p>Después de <span class="btn verde">Continuar al cierre 🛒</span> aparece esta
+  pantalla, dividida en dos: a la izquierda lo que pidió el cliente, a la derecha
+  sus datos.</p>
+
+  <figure>
+    <span class="captura">
+      <img src="img/13-caja-cierre.jpg" alt="Pantalla de cierre del pedido">
+      <span class="marca" style="left:16%;top:18.5%">1</span>
+      <span class="marca" style="left:12%;top:44.5%">2</span>
+      <span class="marca" style="left:60.5%;top:21.7%">3</span>
+      <span class="marca" style="left:60.5%;top:39%">4</span>
+      <span class="marca" style="left:60.5%;top:48.7%">5</span>
+      <span class="marca" style="left:60.5%;top:57.3%">6</span>
+      <span class="marca" style="left:22%;top:60%">7</span>
+    </span>
+    <figcaption>La pantalla <strong>Cerrar el pedido</strong>. Llénala de arriba hacia abajo.</figcaption>
+  </figure>
+
+  <div class="leyenda">
+    <div><span class="n">1</span><strong>Artículos del pedido.</strong> Todo lo que
+    lleva, con su cantidad, su precio por unidad y su subtotal. Aquí puedes
+    corregir cantidades con − y +, o quitar una línea con la <strong>✕</strong> roja.</div>
+    <div><span class="n">2</span><strong>Añadir más platos.</strong> Te devuelve al menú
+    si el cliente se acordó de algo.</div>
+    <div><span class="n">3</span><strong>Teléfono.</strong> Empieza siempre por aquí.</div>
+    <div><span class="n">4</span><strong>Entrega y Método de pago.</strong> Dos listas
+    desplegables.</div>
+    <div><span class="n">5</span><strong>Dirección / Mesa / Notas.</strong></div>
+    <div><span class="n">6</span><strong>Procesar Pedido.</strong> El botón verde que
+    manda todo.</div>
+    <div><span class="n">7</span><strong>Añadir línea a mano</strong> — solo para admin.</div>
+  </div>
+
+  <h4>Paso a paso</h4>
+  <ol class="pasos">
+    <li>
+      <p><strong>Teléfono.</strong> Escribe el número
+      (<span class="campo">04121234567</span>) y después <strong>haz clic afuera del
+      recuadro</strong>, o aprieta la tecla <strong>Tab</strong>.</p>
+      <p>El sistema busca solo al cliente. Si ya compró antes, <strong>te llena el
+      nombre y la dirección automáticamente</strong> y te lo avisa con un cartelito.
+      Si es nuevo, te lo dice también.</p>
+    </li>
+    <li>
+      <p><strong>Nombre del cliente.</strong> Si se llenó solo, déjalo. Si es nuevo,
+      escríbelo. El asterisco rojo <strong>*</strong> quiere decir que es
+      obligatorio.</p>
+    </li>
+    <li>
+      <p><strong>Entrega.</strong> Elige en la lista <strong>Pickup (Retiro)</strong>
+      si el cliente viene a buscarlo, o <strong>Delivery</strong> si hay que
+      llevárselo.</p>
+    </li>
+    <li>
+      <p><strong>Método de pago.</strong> Elige <strong>Pago Móvil</strong> o
+      <strong>Efectivo / Divisas</strong>. Esto decide qué le va a llegar al cliente por
+      WhatsApp, así que tiene que ser el correcto.</p>
+    </li>
+    <li>
+      <p><strong>Dirección / Mesa / Notas.</strong> La dirección completa si es
+      delivery, o el número de mesa si está en el local. Aquí también van las
+      aclaratorias generales: <span class="campo">tocar el timbre dos veces</span>.</p>
+    </li>
+    <li>
+      <p>Revisa el <strong>Total</strong> una vez más y haz clic en
+      <span class="btn verde">Procesar Pedido ✈</span></p>
+    </li>
+    <li>
+      <p>Aparece <strong>✅ ¡Pedido registrado!</strong>. Ya está en el tablero y el
+      cliente recibió su WhatsApp. Ahora elige:</p>
+      <ul class="simple">
+        <li><span class="btn verde">➕ Registrar otro pedido</span> si hay otra
+        persona esperando.</li>
+        <li><span class="btn gris">Volver al tablero</span> si terminaste.</li>
+      </ul>
+    </li>
+  </ol>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ El teléfono es la identidad del cliente</span>
+    <p>El sistema reconoce a la gente <strong>por su número de teléfono</strong>, no por
+    su nombre. Si lo escribes mal, se crea un cliente nuevo y se pierde todo su
+    historial de compras. <strong>Repítele el número al cliente antes de continuar.</strong></p>
+    <p>Escríbelo como se usa aquí, empezando por 0: <span class="campo">04121234567</span>.
+    Solo si es de otro país se escribe con el signo + y el código, así:
+    <span class="campo">+5715551234</span>.</p>
+  </div>
+
+  <h3>5.5 · Cobrar algo que no está en el menú <em>(solo admin)</em></h3>
+
+  <p>A veces hay que cobrar algo suelto que no existe como plato. En la pantalla
+  de cierre, abajo a la izquierda, los usuarios <strong>admin</strong> tienen el
+  recuadro <strong>"Añadir línea a mano"</strong>.</p>
+
+  <ol class="pasos">
+    <li><p>Escribe qué se está cobrando en <span class="campo">Nombre de lo que se cobra</span>.</p></li>
+    <li><p>Pon la cantidad y el <span class="campo">Precio $</span>.</p></li>
+    <li><p>Haz clic en <span class="btn morado">Agregar</span>. Aparece en la lista
+    como un plato más.</p></li>
+  </ol>
+
+  <div class="caja nota">
+    <span class="titulo">Si eres cajero y no ves ese recuadro</span>
+    <p>No está dañado: solo los admin lo ven, porque el precio se escribe a mano.
+    Pídele al encargado que lo agregue él.</p>
+  </div>
+</div>
+
+<!-- =================== PARTE 6 =================== -->
+<div class="pagina">
+  <h2><span class="num">6</span>Cosas que pasan todos los días</h2>
+  <div class="intro-seccion">
+    Los casos que no son el camino normal, pero que se te van a presentar
+    seguido. Todos se resuelven desde el tablero.
+  </div>
+
+  <h3>6.1 · El cliente quiere cambiar su pedido</h3>
+
+  <p>Llamó otra vez y quiere agregar un roll, o quitar algo. Se arregla con el
+  iconito del lápiz <strong>✏️</strong> de la tarjeta.</p>
+
+  <figure>
+    <span class="captura media">
+      <img src="img/08-editar.jpg" alt="Ventana para editar un pedido">
+    </span>
+    <figcaption>La ventana <strong>Editar Pedido</strong>. El total se recalcula solo
+    mientras cambias cosas.</figcaption>
+  </figure>
+
+  <ol class="pasos">
+    <li><p>Haz clic en <strong>✏️</strong> en la tarjeta del pedido.</p></li>
+    <li>
+      <p><strong>Para agregar</strong>, usa el buscador que dice
+      <span class="campo">Añadir Producto</span>: escribe el nombre y haz clic en el
+      plato que aparece en la lista.</p>
+    </li>
+    <li><p><strong>Para quitar o cambiar cantidades</strong>, usa los botones de cada
+    línea en <strong>Artículos en la Orden</strong>.</p></li>
+    <li><p>Mira el <strong>Total a Cobrar</strong>: cambia solo, en dólares y en
+    bolívares.</p></li>
+    <li><p>Guarda los cambios.</p></li>
+  </ol>
+
+  <div class="caja peligro">
+    <span class="titulo">🚫 Al cliente NO le llega un mensaje avisando del cambio</span>
+    <p>Editar un pedido no manda ningún WhatsApp automático. Si le cambiaste el
+    total, <strong>tienes que escribirle tú</strong> con el iconito 💬 y decírselo.
+    Si no, va a pagar el monto viejo.</p>
+  </div>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ Avísale a la cocina</span>
+    <p>Si el pedido ya estaba <strong>En Cocina</strong>, la cocina no se entera del
+    cambio por la pantalla. Ve y díselo en persona.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h3>6.2 · Cancelar un pedido</h3>
+
+  <ol class="pasos">
+    <li><p>Haz clic en el iconito de la papelera <strong>🗑️</strong> de la tarjeta.</p></li>
+    <li><p>Confirma cuando te lo pregunte.</p></li>
+  </ol>
+
+  <div class="caja peligro">
+    <span class="titulo">🚫 Cancelar no se deshace</span>
+    <p>No hay botón para arrepentirse. Si cancelas el pedido equivocado, hay que
+    escribirlo otra vez completo desde la caja.</p>
+    <p>Antes de hacer clic, <strong>lee el nombre del cliente en la tarjeta</strong> y
+    asegúrate de que es la correcta. Es muy fácil equivocarse de tarjeta cuando hay
+    varias parecidas, sobre todo porque <strong>la papelera está justo al lado del
+    lápiz</strong>.</p>
+  </div>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ Si el cliente ya pagó</span>
+    <p>Cancelar en el sistema <strong>no le devuelve la plata</strong>. Eso se resuelve
+    aparte, con el encargado. Avísale siempre.</p>
+  </div>
+
+  <h3>6.3 · El cliente paga en efectivo y necesita vuelto</h3>
+
+  <p>Esto se pregunta <strong>en el mismo momento en que pones el precio del
+  delivery</strong>. Es el campo <strong>"¿Con cuánto paga?"</strong> que viste en la
+  Parte 4.</p>
+
+  <ul class="simple">
+    <li>Pregúntale al cliente con qué billete va a pagar.</li>
+    <li>Escríbelo tal cual: <span class="campo">30$</span>,
+    <span class="campo">50$</span>, o <span class="campo">justo</span> si tiene el
+    monto exacto.</li>
+    <li>Ese dato le llega al grupo de motorizados junto con la dirección, para que
+    el repartidor salga con el vuelto en el bolsillo.</li>
+  </ul>
+
+  <div class="caja truco">
+    <span class="titulo">💡 Vale la pena preguntarlo siempre</span>
+    <p>Es la causa número uno de que un motorizado tenga que devolverse al local.
+    Diez segundos de pregunta ahorran veinte minutos de viaje.</p>
+  </div>
+
+  <h3>6.4 · Escribirle al cliente por WhatsApp</h3>
+
+  <p>Para cualquier cosa que no sea uno de los tres mensajes automáticos (avisar de
+  un cambio, preguntar una dirección, decirle que se acabó un plato):</p>
+
+  <ol class="pasos">
+    <li><p>Haz clic en el iconito <strong>💬</strong> de la tarjeta.</p></li>
+    <li><p>Se abre WhatsApp en otra pestaña, ya con el chat de ese cliente.</p></li>
+    <li><p>Escribe normal, como cualquier mensaje.</p></li>
+    <li><p>Cuando termines, <strong>vuelve a la pestaña del tablero</strong> haciendo
+    clic arriba, donde dice Tokio Sushi.</p></li>
+  </ol>
+
+  <h3>6.5 · Mirar los pedidos de otro día</h3>
+
+  <ol class="pasos">
+    <li><p>Haz clic en la <strong>fecha</strong>, arriba en la barra. Se abre un
+    calendario.</p></li>
+    <li><p>Elige el día que quieres ver. El tablero se llena con los pedidos de
+    ese día.</p></li>
+    <li>
+      <p><strong>Vuelve la fecha al día de hoy cuando termines.</strong></p>
+    </li>
+  </ol>
+
+  <div class="caja peligro">
+    <span class="titulo">🚫 El error más común de todos</span>
+    <p>Dejar la fecha en un día viejo y creer que no está entrando ningún pedido.
+    Si el tablero se ve vacío y raro, <strong>lo primero que tienes que mirar es la
+    fecha</strong>.</p>
+  </div>
+</div>
+<!-- =================== PARTE 7 =================== -->
+<div class="pagina">
+  <h2><span class="num">7</span>El panel de administración</h2>
+  <div class="intro-seccion">
+    Esta parte es <strong>solo para el encargado</strong>. El panel es donde vive el
+    menú completo: los precios, las fotos, los combos, los horarios y hasta el texto
+    de los WhatsApp que salen solos. Si eres cajero, puedes saltarte esta parte.
+    <br><br>
+    Es la parte más larga del manual a propósito. No hace falta leerla de corrido:
+    busca la sección que necesites.
+  </div>
+
+  <h3>7.1 · Entrar al panel</h3>
+
+  <p>Se abre escribiendo en la barra de direcciones:
+  <span class="campo">tokio-sushi-app.vercel.app/admin.html</span></p>
+
+  <p>El panel tiene <strong>su propia puerta</strong>, aparte de la del tablero. Aunque
+  ya hayas entrado a trabajar hoy, aquí te vuelve a pedir tus datos:</p>
+
+  <figure>
+    <span class="captura estrecha">
+      <img src="img/14a-admin-puerta.jpg" alt="Pantalla de acceso restringido del panel">
+    </span>
+    <figcaption>La puerta del panel. Es una segunda cerradura, a propósito.</figcaption>
+  </figure>
+
+  <ol class="pasos">
+    <li><p>Escribe tu <strong>usuario</strong> y tu <strong>PIN</strong>, los mismos del
+    tablero.</p></li>
+    <li><p>Haz clic en <span class="btn rojo">Desbloquear Panel 🔓</span></p></li>
+  </ol>
+
+  <div class="caja nota">
+    <span class="titulo">Si dice que no tienes privilegios</span>
+    <p>Es que tu usuario es <strong>cajero</strong>. Solo los <strong>admin</strong> y
+    <strong>superadmin</strong> pueden entrar aquí. No es una falla: es lo que se
+    quiere. Un cajero no debe poder cambiar precios.</p>
+  </div>
+
+  <h3>7.2 · Cómo está armado el panel</h3>
+
+  <p>Ya adentro, arriba hay una fila de <strong>pestañas</strong>. Cada pestaña es una
+  sección distinta del panel, y solo se ve una a la vez:</p>
+
+  <figure>
+    <span class="captura">
+      <img src="img/17-admin-pestanas.jpg" alt="La fila de pestañas del panel">
+    </span>
+    <figcaption>Las siete pestañas del panel, de izquierda a derecha.</figcaption>
+  </figure>
+
+  <table>
+    <tr><th style="width:32%">Pestaña</th><th>Qué se hace ahí</th></tr>
+    <tr><td><strong>🏷️ Categorías</strong></td><td>Los grupos del menú (Bebidas, Individuales, Roll clásico...) y su foto.</td></tr>
+    <tr><td><strong>📦 Productos</strong></td><td>Cada plato suelto: nombre, precio, foto, si está agotado. <strong>Es la que más se usa.</strong></td></tr>
+    <tr><td><strong>🍱 Combos</strong></td><td>Los combos, y qué puede elegir el cliente dentro de cada uno.</td></tr>
+    <tr><td><strong>👥 Usuarios</strong></td><td>Quién puede entrar al sistema y con qué PIN.</td></tr>
+    <tr><td><strong>💬 Mensajes WP</strong></td><td>El texto de los WhatsApp automáticos.</td></tr>
+    <tr><td><strong>🕒 Horario de Atención</strong></td><td>A qué hora abre y cierra el local cada día.</td></tr>
+    <tr><td><strong>📢 Anuncios</strong></td><td>El cartel que le sale al cliente al abrir el menú.</td></tr>
+  </table>
+
+  <p>Arriba a la izquierda, en la franja roja, hay además un botón
+  <span class="btn rojo">📊 Estadísticas</span> que se sale del panel y lleva a la
+  pantalla de números (ventas del día, platos más vendidos). Eso es otra pantalla, no
+  una pestaña.</p>
+</div>
+
+<div class="pagina">
+  <h3>7.3 · El patrón que se repite en todas las pestañas</h3>
+
+  <p>Esto es lo más importante de toda la Parte 7. <strong>Casi todas las pestañas
+  están armadas igual</strong>, así que si entiendes una, entiendes todas:</p>
+
+  <ul class="simple">
+    <li><strong>A la izquierda, un formulario.</strong> Es donde se escribe.</li>
+    <li><strong>A la derecha, la lista de lo que ya existe.</strong> Es donde se busca.</li>
+  </ul>
+
+  <figure>
+    <span class="captura">
+      <img src="img/18-admin-categorias.jpg" alt="La pestaña de Categorías: formulario a la izquierda, lista a la derecha">
+    </span>
+    <figcaption>La pestaña de Categorías. Todas las demás siguen esta misma forma.</figcaption>
+  </figure>
+
+  <p>Y hay una regla que confunde a todo el mundo la primera semana:</p>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ El formulario de la izquierda sirve para DOS cosas</span>
+    <p>El mismo formulario <strong>crea</strong> cosas nuevas y <strong>edita</strong>
+    las que ya existen. No son dos pantallas distintas: es la misma, cambiada.</p>
+    <p>Cuando haces clic en el lápiz <strong>✏️</strong> de algo en la lista de la
+    derecha, sus datos <strong>se meten dentro de ese formulario</strong> y el
+    formulario pasa a "modo editar".</p>
+  </div>
+
+  <p>Para saber en cuál de los dos modos estás, mira <strong>tres cosas</strong>:</p>
+
+  <table>
+    <tr><th style="width:26%">Fíjate en</th><th>Modo CREAR</th><th>Modo EDITAR</th></tr>
+    <tr><td>El título de arriba</td><td>Crear Producto</td><td><strong>Editar Producto</strong></td></tr>
+    <tr><td>El botón rojo de abajo</td><td>💾 Guardar Producto</td><td><strong>💾 Actualizar Producto</strong></td></tr>
+    <tr><td>Debajo del botón rojo</td><td>(no hay nada)</td><td>Aparece <strong>❌ Cancelar Edición</strong></td></tr>
+  </table>
+
+  <div class="caja peligro">
+    <span class="titulo">🚫 El error más común del panel</span>
+    <p>Abres un plato con el lápiz para mirarlo, te arrepientes, y sin darte cuenta
+    empiezas a escribir un plato nuevo encima. Al guardar <strong>no creas nada
+    nuevo: le cambias el nombre y el precio al plato viejo</strong>.</p>
+    <p><strong>La costumbre que te salva:</strong> antes de crear algo nuevo, mira si
+    está el botón <span class="btn gris">❌ Cancelar Edición</span>. Si está, haz clic
+    en él primero. El formulario se limpia y ahí sí puedes crear tranquilo.</p>
+  </div>
+
+  <div class="caja peligro">
+    <span class="titulo">🚫 Lo que se toca aquí, lo ven los clientes al instante</span>
+    <p>No hay una versión de prueba ni un "guardar borrador". Si cambias un precio, el
+    siguiente cliente que abra el menú ya lo ve con el precio nuevo. Piensa antes de
+    guardar.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h3>7.4 · Pestaña 🏷️ Categorías</h3>
+
+  <p>Una <strong>categoría</strong> es un grupo del menú: <em>Bebidas</em>,
+  <em>Individuales</em>, <em>Roll clásico</em>, <em>Toppings</em>. Es lo primero que
+  ve el cliente al abrir el menú, y cada plato tiene que pertenecer a una.</p>
+
+  <p><strong>Crear una categoría</strong> es de lo más sencillo que hay en el panel,
+  porque solo tiene dos campos:</p>
+
+  <ol class="pasos">
+    <li><p><strong>Nombre de la Categoría.</strong> Corto y claro:
+    <span class="campo">Postres</span>. Es el texto exacto que verá el cliente.</p></li>
+    <li><p><strong>Imagen.</strong> Tienes dos maneras (sirve igual en Productos,
+    Combos y Anuncios):</p>
+      <ul class="simple">
+        <li>Pegar una dirección de internet que termine en <span class="campo">.jpg</span>
+        o <span class="campo">.png</span> en la caja de texto, o</li>
+        <li>hacer clic en <strong>Seleccionar archivo</strong> y buscar la foto en el
+        computador o el celular. <strong>Esta es la manera fácil.</strong></li>
+      </ul>
+      <p>Si subes una foto, el sistema la achica y la comprime solo antes de mandarla.
+      No tienes que preocuparte por el tamaño. Espera a que el textito de abajo diga
+      que terminó antes de guardar.</p></li>
+    <li><p><span class="btn rojo">💾 Guardar Categoría</span></p></li>
+  </ol>
+
+  <p>Para <strong>cambiarle el nombre o la foto</strong> a una categoría: búscala en la
+  lista de la derecha, haz clic en el lápiz <strong>✏️</strong>, cambia lo que sea, y
+  el botón rojo (que ahora dice <em>Actualizar</em>) la guarda.</p>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ Antes de borrar una categoría</span>
+    <p>La papelera <strong>🗑️</strong> te pregunta
+    <em>"¿Seguro que deseas eliminar esta categoría? Esta acción no se puede
+    deshacer."</em> y es verdad: no hay deshacer.</p>
+    <p>Si borras una categoría, <strong>los platos que estaban dentro se quedan
+    apuntando a un grupo que ya no existe</strong> y dejan de verse bien en el menú.
+    Mueve los platos a otra categoría primero, o simplemente no la borres: una
+    categoría vacía no le hace daño a nadie.</p>
+  </div>
+
+  <div class="caja nota">
+    <span class="titulo">Las categorías también se usan dentro de los combos</span>
+    <p>Cuando armas un combo de "elige 3 rolls", lo que marcas ahí son
+    <strong>categorías</strong> (ver 7.6.4). Por eso vale la pena tenerlas bien
+    separadas: <em>Roll clásico</em>, <em>Roll tempura</em>, <em>Roll especial
+    fríos</em>... Si metes todos los rolls en una sola categoría, después no vas a
+    poder armar combos que distingan entre ellos.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h3>7.5 · Pestaña 📦 Productos</h3>
+
+  <p>Un <strong>producto</strong> es cualquier cosa que se vende suelta: un roll, un
+  refresco, una lumpia, un topping. Esta es la pestaña que vas a usar casi todos los
+  días.</p>
+
+  <h4 style="font-size:12.5pt;color:#b91c1c;margin:18px 0 8px">7.5.1 · El formulario completo, de un vistazo</h4>
+
+  <p>El formulario es largo, pero <strong>solo los cuatro primeros campos son
+  obligatorios</strong>. Todo lo demás son recuadros grises opcionales que puedes
+  ignorar por completo si no los necesitas.</p>
+
+  <figure>
+    <span class="captura estrecha">
+      <img src="img/19-admin-producto-datos.jpg" alt="El formulario completo de un producto">
+      <span class="marca" style="left:95%;top:2.2%">1</span>
+      <span class="marca" style="left:95%;top:6.8%">2</span>
+      <span class="marca" style="left:95%;top:11.3%">3</span>
+      <span class="marca" style="left:95%;top:16%">4</span>
+      <span class="marca" style="left:95%;top:25%">5</span>
+      <span class="marca" style="left:95%;top:32.5%">6</span>
+      <span class="marca" style="left:95%;top:42%">7</span>
+      <span class="marca" style="left:95%;top:58.5%">8</span>
+      <span class="marca" style="left:95%;top:73.5%">9</span>
+    </span>
+    <figcaption>Un producto real del menú abierto para editar.</figcaption>
+  </figure>
+
+  <div class="leyenda">
+    <div><span class="n">1</span><strong>Nombre del Producto.</strong> El texto exacto que lee el cliente. <em>Obligatorio.</em></div>
+    <div><span class="n">2</span><strong>Categoría.</strong> Se elige de una lista. <em>Obligatorio.</em></div>
+    <div><span class="n">3</span><strong>Precio ($).</strong> En dólares, con punto: <span class="campo">8.50</span>. <em>Obligatorio.</em></div>
+    <div><span class="n">4</span><strong>Imagen.</strong> Igual que en Categorías: pegar una dirección o subir una foto.</div>
+    <div><span class="n">5</span><strong>Descripción Corta.</strong> Lo que lleva el plato. Sale en el menú, debajo del nombre.</div>
+    <div><span class="n">6</span><strong>Las dos casillas de disponibilidad.</strong> Ojo con estas: sección 7.5.3.</div>
+    <div><span class="n">7</span><strong>🏷️ Precio por paquete.</strong> Opcional. Sección 7.5.5.</div>
+    <div><span class="n">8</span><strong>📦 Empaque.</strong> Opcional. Sección 7.5.6.</div>
+    <div><span class="n">9</span><strong>⏰ Disponibilidad programada.</strong> Opcional. Sección 7.5.7.</div>
+  </div>
+
+  <h4 style="font-size:12.5pt;color:#b91c1c;margin:18px 0 8px">7.5.2 · Crear un plato nuevo</h4>
+
+  <ol class="pasos">
+    <li><p>Entra a <strong>📦 Productos</strong>. Si aparece
+    <span class="btn gris">❌ Cancelar Edición</span>, haz clic en él primero.</p></li>
+    <li><p>Llena <strong>Nombre</strong>, <strong>Categoría</strong> y
+    <strong>Precio</strong>.</p></li>
+    <li><p>Sube la foto y escribe la descripción si la tienes. Si no, se puede dejar
+    para después.</p></li>
+    <li><p>No toques ninguno de los tres recuadros grises. Vienen bien por defecto.</p></li>
+    <li><p><span class="btn rojo">💾 Guardar Producto</span>. El plato aparece de
+    inmediato en la lista de la derecha y en el menú del cliente.</p></li>
+  </ol>
+</div>
+
+<div class="pagina">
+  <h4 style="font-size:12.5pt;color:#b91c1c;margin:0 0 8px">7.5.3 · Las dos casillas de disponibilidad</h4>
+
+  <p>Este es el punto donde más gente se equivoca, así que léelo despacio. Son dos
+  casillas parecidas que hacen cosas <strong>distintas</strong>:</p>
+
+  <figure>
+    <span class="captura media">
+      <img src="img/16-admin-agotado.jpg" alt="Las dos casillas de disponibilidad">
+    </span>
+    <figcaption>Se parecen, pero no son lo mismo.</figcaption>
+  </figure>
+
+  <table>
+    <tr><th style="width:34%">Casilla</th><th>Qué hace</th></tr>
+    <tr>
+      <td><strong>Producto Disponible en Menú</strong><br><em>(la de arriba)</em></td>
+      <td>Si la <strong>desmarcas</strong>, el plato desaparece de la lista del menú,
+      <strong>pero se sigue pudiendo elegir dentro de un combo</strong>.<br>
+      Se usa para los rolls que solo existen como parte de un combo y no se venden
+      sueltos.</td>
+    </tr>
+    <tr>
+      <td><strong>Agotado / sin stock<br>por el momento</strong><br><em>(la roja)</em></td>
+      <td>Si la <strong>marcas</strong>, el plato desaparece de todos lados:
+      del menú <strong>y de los combos</strong>.<br>
+      <strong>Esta es la que quieres cuando se acabó algo.</strong></td>
+    </tr>
+  </table>
+
+  <p><strong>Se acabó el salmón a mitad del día.</strong> Esto es lo que haces:</p>
+
+  <ol class="pasos">
+    <li><p>Pestaña <strong>📦 Productos</strong>.</p></li>
+    <li><p>Escribe el nombre en el buscador de la lista de la derecha.</p></li>
+    <li><p>Lápiz <strong>✏️</strong> del plato.</p></li>
+    <li><p>Baja hasta las dos casillas y marca la <strong>roja</strong>.</p></li>
+    <li><p><span class="btn rojo">💾 Actualizar Producto</span>.</p></li>
+  </ol>
+
+  <p>Cuando vuelva a haber, se desmarca y reaparece. <strong>Nunca borres un plato
+  porque se acabó</strong>: se marca agotado, que es reversible.</p>
+
+  <h4 style="font-size:12.5pt;color:#b91c1c;margin:18px 0 8px">7.5.4 · Cambiar un precio</h4>
+
+  <ol class="pasos">
+    <li><p>Pestaña <strong>📦 Productos</strong> → busca el plato → lápiz <strong>✏️</strong>.</p></li>
+    <li><p>Cambia el número en <strong>Precio ($)</strong>. Con punto para los
+    decimales: <span class="campo">8.50</span>, nunca con coma.</p></li>
+    <li><p><span class="btn rojo">💾 Actualizar Producto</span>.</p></li>
+  </ol>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ Los pedidos viejos no cambian de precio</span>
+    <p>Y está bien que sea así: cada pedido guardó el precio que tenía el día que se
+    hizo. Solo los pedidos <strong>nuevos</strong> usan el precio nuevo. Si un cliente
+    reclama por un cobro de la semana pasada, ese pedido conserva su número original.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h4 style="font-size:12.5pt;color:#b91c1c;margin:0 0 8px">7.5.5 · 🏷️ Precio por paquete <em>(lo de las lumpias)</em></h4>
+
+  <p>Sirve para lo que se vende más barato de a varios. El caso real: la lumpia suelta
+  cuesta <strong>$0.90</strong>, pero <strong>2 salen en $1.50</strong>.</p>
+
+  <figure>
+    <span class="captura">
+      <img src="img/15-admin-paquete.jpg" alt="El recuadro de precio por paquete">
+    </span>
+    <figcaption>Así queda configurado el caso de las lumpias.</figcaption>
+  </figure>
+
+  <ol class="pasos">
+    <li><p>En <strong>Precio ($)</strong>, más arriba en el formulario, pon el valor de
+    <strong>una sola unidad</strong>: <span class="campo">0.90</span>.</p></li>
+    <li><p>En <strong>Unidades por paquete</strong> escribe <span class="campo">2</span>.</p></li>
+    <li><p>En <strong>Precio del paquete ($)</strong> escribe <span class="campo">1.50</span>.</p></li>
+    <li>
+      <p><strong>Lee la línea amarilla de abajo antes de guardar.</strong> Aparece sola
+      apenas escribes los dos números, y te dice exactamente lo que va a pagar el
+      cliente:</p>
+      <p style="background:#fffbeb;border-radius:8px;padding:9px 13px;font-weight:700;color:#92400e">
+      1 = $0.90 · 2 = $1.50 · 3 = $2.40 · 4 = $3.00 · 5 = $3.90</p>
+      <p>Si esos números no son los que cobra el local, algo está mal escrito.
+      <strong>Esa línea es tu prueba.</strong></p>
+    </li>
+    <li><p><span class="btn rojo">💾 Actualizar Producto</span>.</p></li>
+  </ol>
+
+  <p>La cuenta que hace el sistema es: <strong>cobra todos los paquetes completos que
+  quepan, y lo que sobre lo cobra suelto</strong>. Cinco lumpias son dos pares
+  ($1.50 + $1.50) más una suelta ($0.90) = $3.90. El cliente no tiene que hacer nada:
+  pide cinco y el sistema calcula. En el menú le sale además una etiqueta verde con la
+  oferta.</p>
+
+  <div class="caja nota">
+    <span class="titulo">Cómo se apaga</span>
+    <p>Deja <strong>Unidades por paquete</strong> en <span class="campo">0</span> y el
+    plato se cobra por unidad de toda la vida. Así están todos los platos por defecto,
+    menos los que tú configures.</p>
+    <p>El número más chico que acepta es <strong>2</strong>. Un "paquete de 1" no
+    tiene sentido y el sistema lo ignora.</p>
+  </div>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ Revisa que el paquete salga más barato</span>
+    <p>Nada te impide poner un paquete de 2 en $2.00 cuando la suelta vale $0.90. Al
+    cliente le saldría más caro pedir el par que pedir dos sueltas, y el sistema
+    igual le cobraría el par. Por eso está la línea amarilla: <strong>léela</strong>.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h4 style="font-size:12.5pt;color:#b91c1c;margin:0 0 8px">7.5.6 · 📦 Empaque: bandejas y cajas</h4>
+
+  <figure>
+    <span class="captura media">
+      <img src="img/20-admin-empaque.jpg" alt="El recuadro de empaque">
+    </span>
+    <figcaption>Cuánto ocupa este plato a la hora de empacarlo.</figcaption>
+  </figure>
+
+  <p>Esto <strong>no cambia el precio ni nada de lo que ve el cliente</strong>. Sirve
+  para una sola cosa: el mensaje que se le manda al grupo de motorizados cuando se
+  despacha un pedido incluye cuántas <strong>bandejas</strong> y cuántas
+  <strong>cajas de pizza</strong> lleva, para que el repartidor sepa con qué va a
+  cargar antes de llegar.</p>
+
+  <ul class="simple">
+    <li><strong>🍱 Bandejas</strong> viene en <span class="campo">1</span> por defecto,
+    porque casi todo ocupa al menos una.</li>
+    <li><strong>📦 Cajas de pizza</strong> viene en <span class="campo">0</span>.</li>
+    <li>Un plato puede llevar <strong>las dos cosas a la vez</strong>. Deja un
+    <span class="campo">0</span> en la que no aplique.</li>
+    <li>Una bebida normalmente va en <span class="campo">0</span> bandejas: no se
+    empaca aparte.</li>
+  </ul>
+
+  <p>El sistema suma esto de todo el pedido junto y lo escribe en el mensaje del grupo.
+  Si te llega el aviso diciendo "BANDEJAS: 0" cuando claramente hay comida, es que
+  algún plato tiene aquí un cero que no debería.</p>
+
+  <h4 style="font-size:12.5pt;color:#b91c1c;margin:18px 0 8px">7.5.7 · ⏰ Disponibilidad programada</h4>
+
+  <figure>
+    <span class="captura media">
+      <img src="img/21-admin-programada.jpg" alt="El recuadro de disponibilidad programada">
+    </span>
+    <figcaption>Para promociones que solo existen a ciertas horas o ciertos días.</figcaption>
+  </figure>
+
+  <p>Sirve para promociones de tiempo limitado. Son dos cosas independientes:</p>
+
+  <ul class="simple">
+    <li><strong>Desde / Hasta</strong> — la franja de horas. Ejemplo: de
+    <span class="campo">14:00</span> a <span class="campo">18:00</span> para un plato
+    que solo existe en la tarde.</li>
+    <li><strong>Días de la semana</strong> — los botoncitos
+    <em>Lun Mar Mié Jue Vie Sáb Dom</em>. Se tocan para encenderlos (se ponen
+    amarillos) y se tocan otra vez para apagarlos.</li>
+  </ul>
+
+  <div class="caja nota">
+    <span class="titulo">Ninguno marcado = todos los días</span>
+    <p>Si no marcas ningún día, el plato está disponible <strong>todos</strong> los
+    días, no ninguno. Es lo contrario de lo que parece, y es lo que quieres el 99% del
+    tiempo.</p>
+    <p>Lo mismo con las horas: si las dejas vacías, el plato no tiene restricción de
+    hora.</p>
+  </div>
+
+  <p>Fuera de la franja configurada, el plato simplemente no aparece en el menú. No
+  hay que acordarse de apagarlo ni de encenderlo.</p>
+</div>
+
+<div class="pagina">
+  <h4 style="font-size:12.5pt;color:#b91c1c;margin:0 0 8px">7.5.8 · Buscar, editar y borrar en la lista</h4>
+
+  <figure>
+    <span class="captura estrecha">
+      <img src="img/22-admin-lista-productos.jpg" alt="La lista de productos existentes">
+    </span>
+    <figcaption>La lista de la derecha. Hay cientos de platos: usa el buscador.</figcaption>
+  </figure>
+
+  <p>La caja <strong>🔍 Buscar producto por nombre...</strong> filtra la lista mientras
+  escribes. No hace falta apretar nada.</p>
+
+  <p>Cada fila de la lista te dice tres cosas de un vistazo:</p>
+
+  <ul class="simple">
+    <li>El <strong>nombre</strong> y, en verde, el <strong>precio</strong>.</li>
+    <li>Debajo, en gris: <strong>Cat:</strong> la categoría y <strong>Disp:</strong>
+    si está disponible en el menú (Sí / No).</li>
+    <li>Si está agotado, sale además <strong style="color:#dc2626">🚫 Agotado</strong>
+    en rojo.</li>
+  </ul>
+
+  <p>Los platos que <strong>no</strong> están disponibles en el menú se ven
+  <strong>más apagados</strong> que los demás — como el <em>Otawa Roll</em> de la
+  imagen, que es un roll que solo existe dentro de combos.</p>
+
+  <p>Y los dos botones:</p>
+
+  <ul class="simple">
+    <li><strong>✏️ (lápiz)</strong> — carga el plato en el formulario de la izquierda
+    para editarlo. La página se desplaza sola hasta el formulario.</li>
+    <li><strong>🗑️ (papelera)</strong> — lo borra. Pregunta primero.</li>
+  </ul>
+
+  <div class="caja peligro">
+    <span class="titulo">🚫 Borrar no es lo mismo que agotar</span>
+    <p>La papelera <strong>elimina el plato para siempre</strong>. Si además ese plato
+    era parte de algún combo, el combo se queda cojo.</p>
+    <p>Preguntas que debes hacerte antes de tocar la papelera:</p>
+    <ul class="simple">
+      <li>¿Se acabó hoy? → <strong>casilla roja de agotado</strong>, no papelera.</li>
+      <li>¿Se dejó de vender pero puede volver? → <strong>desmarcar "Disponible en
+      Menú"</strong>, no papelera.</li>
+      <li>¿De verdad no existe más y nunca estuvo en un combo? → ahí sí, papelera.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="pagina">
+  <h3>7.6 · Pestaña 🍱 Combos</h3>
+
+  <p>Un <strong>combo</strong> es un paquete con precio propio. Puede tener cosas
+  fijas (10 lumpias y una Coca-Cola siempre) y cosas <strong>a elección del
+  cliente</strong> (3 rolls que él escoge). Esta es la pestaña más complicada del
+  panel, y por eso va explicada en pedacitos.</p>
+
+  <h4 style="font-size:12.5pt;color:#b91c1c;margin:18px 0 8px">7.6.1 · Los datos de arriba</h4>
+
+  <figure>
+    <span class="captura estrecha">
+      <img src="img/23-admin-combo-datos.jpg" alt="La parte de arriba del formulario de un combo">
+    </span>
+    <figcaption>Un combo real abierto para editar.</figcaption>
+  </figure>
+
+  <table>
+    <tr><th style="width:34%">Campo</th><th>Qué poner</th></tr>
+    <tr><td><strong>Nombre del Combo</strong></td><td>El nombre que lee el cliente. <em>Obligatorio.</em></td></tr>
+    <tr><td><strong>Precio Especial ($)</strong></td><td>Lo que cuesta el combo entero, sin importar qué rolls elija el cliente. <em>Obligatorio.</em></td></tr>
+    <tr><td><strong>Categoría del combo</strong></td><td>En qué grupo del menú aparece. <strong>Si lo dejas vacío, va a "Combos".</strong></td></tr>
+    <tr><td><strong>Imagen</strong></td><td>Igual que en Productos.</td></tr>
+    <tr><td><strong>Descripción del Combo</strong></td><td>Qué trae. Vale la pena escribirla bien: es lo que convence al cliente.</td></tr>
+    <tr><td><strong>Combo Disponible en Menú</strong></td><td>La casilla del final. Desmárcala para esconder el combo sin borrarlo.</td></tr>
+  </table>
+
+  <div class="caja nota">
+    <span class="titulo">El campo de categoría funciona buscando</span>
+    <p>No es una lista desplegable: escribes unas letras y aparecen sugerencias abajo.
+    <strong>Tienes que hacer clic en la sugerencia</strong>. Si solo escribes el texto
+    y no haces clic, el sistema no sabe cuál elegiste. Lo mismo pasa en el buscador de
+    productos incluidos y en el del producto de regalo.</p>
+  </div>
+
+  <p>El combo tiene además sus propios recuadros de <strong>📦 Empaque</strong> y
+  <strong>⏰ Disponibilidad programada</strong>, que funcionan exactamente igual que
+  en los productos (7.5.6 y 7.5.7).</p>
+</div>
+
+<div class="pagina">
+  <h4 style="font-size:12.5pt;color:#b91c1c;margin:0 0 8px">7.6.2 · 🛒 Productos incluidos: lo que va fijo</h4>
+
+  <figure>
+    <span class="captura">
+      <img src="img/25b-admin-incluidos.jpg" alt="El recuadro de productos incluidos de un combo">
+    </span>
+    <figcaption>Arriba, lo que va fijo. Abajo, el recuadro naranja de lo que elige el cliente.</figcaption>
+  </figure>
+
+  <p>Dentro del recuadro <strong>🛒 Productos incluidos</strong> hay dos botones, y
+  hacen cosas muy distintas:</p>
+
+  <table>
+    <tr><th style="width:40%">Botón</th><th>Para qué</th></tr>
+    <tr>
+      <td><span class="btn gris">+ Añadir otro producto</span></td>
+      <td>Agrega algo <strong>fijo</strong>, que va sí o sí. El cliente no elige nada.
+      Ejemplo: <em>10 lumpias</em> y <em>1 Coca-Cola 1.5 L</em>.</td>
+    </tr>
+    <tr>
+      <td><span class="btn" style="background:#b45309">+ Elección por piezas</span></td>
+      <td>Agrega un bloque donde <strong>el cliente escoge</strong>. Es el recuadro
+      naranja, y tiene su propia sección (7.6.3).</td>
+    </tr>
+  </table>
+
+  <p>Para agregar algo fijo:</p>
+
+  <ol class="pasos">
+    <li><p>Clic en <span class="btn gris">+ Añadir otro producto</span>. Aparece una
+    fila nueva.</p></li>
+    <li><p>Escribe unas letras del plato en la caja de la izquierda y
+    <strong>haz clic en la sugerencia</strong> que aparece. Debe quedar escrito
+    <em>🍣 Producto: Lumpia</em>.</p></li>
+    <li><p>En la casilla del medio pon la <strong>cantidad</strong>.</p></li>
+    <li><p>La <span class="btn rojo">X</span> roja de la derecha quita esa fila.</p></li>
+  </ol>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ Si escribes y no haces clic, no se guarda</span>
+    <p>El sistema te avisa cuando escribiste algo en la caja pero no elegiste ninguna
+    sugerencia. Si te sale ese aviso, vuelve a la fila, borra lo escrito, escribe otra
+    vez y <strong>haz clic en la sugerencia</strong>.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h4 style="font-size:12.5pt;color:#b91c1c;margin:0 0 8px">7.6.3 · 🍥 Elección por piezas: el corazón de los combos</h4>
+
+  <p>Aquí es donde se define <strong>qué puede escoger el cliente</strong>. Léelo con
+  calma, porque es la parte que más se presta a confusión.</p>
+
+  <p><strong>La regla de oro:</strong> el cliente elige <strong>rolls completos
+  tocándolos</strong>. No elige piezas sueltas, no hay sumas ni restas para él. Tú
+  defines cuántos rolls puede tocar y cuántas piezas vale cada uno.</p>
+
+  <figure>
+    <span class="captura estrecha">
+      <img src="img/24-admin-combo-piezas.jpg" alt="El recuadro naranja de elección por piezas">
+    </span>
+    <figcaption>Un combo de 54 piezas: el cliente elige 3 rolls, y cada uno trae 18 piezas.</figcaption>
+  </figure>
+
+  <p>Cada <strong>fila</strong> del recuadro naranja tiene:</p>
+
+  <ul class="simple">
+    <li><strong>Un nombre</strong> arriba (ej. <em>Roles clásicos</em>,
+    <em>Tempura</em>). Es lo que el cliente ve como título de esa opción.</li>
+    <li><strong>El cliente elige ___ opción(es)</strong> — cuántos rolls puede tocar.</li>
+    <li><strong>y cada una vale ___ piezas</strong> — de cuántas piezas es cada roll.</li>
+    <li>A la derecha, en amarillo, el sistema calcula solo:
+    <strong>= 54 piezas en total</strong>. <strong>Esa es tu prueba de que la cuenta
+    dio bien.</strong></li>
+    <li>Abajo, los botoncitos de <strong>categorías de sabores</strong>: se tocan para
+    encenderlos (amarillo) y definen <strong>de dónde</strong> puede elegir el cliente.</li>
+    <li>La papelera roja de arriba a la derecha quita esa fila.</li>
+  </ul>
+
+  <p>Ejemplos de cómo se escribe lo que quieres:</p>
+
+  <table>
+    <tr><th style="width:44%">Lo que quieres ofrecer</th><th>Cómo se escribe</th></tr>
+    <tr><td>12 piezas, todas del mismo roll</td><td><strong>1</strong> opción × <strong>12</strong> piezas</td></tr>
+    <tr><td>24 piezas repartidas en 3 rolls</td><td><strong>3</strong> opciones × <strong>8</strong> piezas</td></tr>
+    <tr><td>54 piezas repartidas en 3 rolls</td><td><strong>3</strong> opciones × <strong>18</strong> piezas</td></tr>
+    <tr><td>2 rolls de 10 piezas cada uno</td><td><strong>2</strong> opciones × <strong>10</strong> piezas</td></tr>
+  </table>
+
+  <div class="caja truco">
+    <span class="titulo">💡 El cliente puede repetir el mismo roll</span>
+    <p>Si el combo deja elegir 3 y el cliente quiere 3 tandas del mismo California
+    roll, puede. Es un pedido legítimo, no un error.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h4 style="font-size:12.5pt;color:#b91c1c;margin:0 0 8px">7.6.4 · Una fila con varias categorías, o varias filas</h4>
+
+  <p>Esta es <strong>la distinción más importante de toda la pestaña</strong>, y la
+  que hay que entender antes de tocar un combo.</p>
+
+  <div class="caja nota">
+    <span class="titulo">UNA fila con varias categorías marcadas</span>
+    <p>Quiere decir: <em>"elige 3 rolls, mezclando lo que quieras de estos grupos"</em>.</p>
+    <p>El cliente ve <strong>una sola lista larga</strong> con todos los rolls de todas
+    esas categorías juntos, y reparte sus 3 elecciones como le dé la gana: 1 clásico +
+    1 tempura + 1 frío, o los 3 clásicos, o lo que sea.</p>
+    <p><strong>Así está armado el Combo familiar</strong> de la foto: una sola fila,
+    3 × 18 piezas, con cuatro categorías encendidas.</p>
+  </div>
+
+  <div class="caja nota">
+    <span class="titulo">VARIAS filas</span>
+    <p>Quiere decir: <em>"son ofertas distintas entre sí"</em>. Ejemplo clásico:
+    <strong>o</strong> 12 piezas de tempura, <strong>o</strong> 10 piezas de frío. No
+    las dos.</p>
+    <p>El cliente ve una pestaña por cada fila, y cada fila tiene su propio presupuesto
+    de elecciones.</p>
+  </div>
+
+  <div class="caja peligro">
+    <span class="titulo">🚫 El error que hay que evitar</span>
+    <p>Si quieres "3 rolls a elección entre clásicos, tempura y fríos" y lo armas con
+    <strong>tres filas</strong> (una por categoría), el cliente queda encerrado: solo
+    va a poder elegir dentro de una sola categoría. <strong>Eso es una fila con tres
+    categorías, no tres filas.</strong></p>
+  </div>
+
+  <p>Cuando pones <strong>2 o más filas</strong>, se activa el desplegable de arriba
+  del recuadro: <em>"Con 2+ filas, ¿cómo se comportan las pestañas?"</em>. Tiene dos
+  opciones:</p>
+
+  <table>
+    <tr><th style="width:30%">Opción</th><th>Qué significa</th></tr>
+    <tr>
+      <td><strong>Excluyentes</strong></td>
+      <td>El cliente elige <strong>SOLO una</strong> de las filas. Es
+      <em>Tempura 12pz <strong>o</strong> Frío 10pz</em>. Si se cambia de pestaña,
+      pierde lo que había elegido en la otra.<br><strong>Es la opción normal.</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Todas obligatorias</strong></td>
+      <td>El cliente tiene que <strong>llenar todas</strong> las filas. Es
+      <em>1 clásico <strong>+</strong> 1 tempura <strong>+</strong> 1 guarnición</em>.
+      Las pestañas ya completadas quedan con un ✔ verde.</td>
+    </tr>
+  </table>
+
+  <div class="caja nota">
+    <span class="titulo">Con una sola fila, el desplegable da igual</span>
+    <p>Si tu combo tiene una sola fila (que es lo más común), no importa qué diga ese
+    desplegable. Solo entra en juego cuando hay dos o más.</p>
+  </div>
+
+  <p><strong>Un detalle de cómo lo ve el cliente:</strong> aunque marques varias
+  categorías, ahora mismo el cliente <strong>no</strong> ve botones para separarlas.
+  Ve una sola lista larga con todo junto. Se decidió así porque los botones se leían
+  como una restricción y confundían.</p>
+</div>
+
+<div class="pagina">
+  <h4 style="font-size:12.5pt;color:#b91c1c;margin:0 0 8px">7.6.5 · 🎁 Promoción por cantidad</h4>
+
+  <figure>
+    <span class="captura media">
+      <img src="img/25-admin-promo.jpg" alt="El recuadro de promoción por cantidad">
+    </span>
+    <figcaption>"Por cada 2 combos, te regalamos 1 refresco."</figcaption>
+  </figure>
+
+  <p>Si el cliente compra varios de este combo, se le regala un producto
+  automáticamente. Son tres campos:</p>
+
+  <ol class="pasos">
+    <li><p><strong>Cada cuántos combos</strong> — el número que dispara el regalo.
+    <span class="campo">2</span> significa: cada vez que lleve 2 de este combo.</p></li>
+    <li><p><strong>Producto de regalo</strong> — se busca escribiendo, y
+    <strong>hay que hacer clic en la sugerencia</strong>.</p></li>
+    <li><p><strong>Cantidad de regalo</strong> — cuántas unidades se regalan cada vez.</p></li>
+  </ol>
+
+  <p>El regalo aparece solo en el carrito del cliente, con precio $0, y él no lo puede
+  quitar ni cambiar. Si pide 4 combos, se le ponen 2 regalos. Si baja a 1 combo, el
+  regalo desaparece solo.</p>
+
+  <div class="caja nota">
+    <span class="titulo">Cómo se apaga</span>
+    <p>Deja <strong>Cada cuántos combos</strong> en blanco y no se aplica ninguna
+    promoción.</p>
+  </div>
+
+  <h4 style="font-size:12.5pt;color:#b91c1c;margin:18px 0 8px">7.6.6 · Pruébalo antes de dejarlo suelto</h4>
+
+  <p>Un combo mal armado es la clase de error que descubres el sábado a las 8 de la
+  noche. Vale la pena gastar dos minutos:</p>
+
+  <ol class="pasos">
+    <li><p>Guarda el combo.</p></li>
+    <li><p>Abre el menú del cliente en otra pestaña del navegador.</p></li>
+    <li><p>Busca el combo y ábrelo como si fueras a comprarlo.</p></li>
+    <li><p>Comprueba <strong>tres cosas</strong>: que el precio sea el correcto, que te
+    deje elegir <strong>la cantidad de rolls que querías</strong>, y que la lista de
+    rolls que te ofrece sea la correcta.</p></li>
+    <li><p>Si algo no cuadra, vuelve al panel. No lo dejes "para después".</p></li>
+  </ol>
+</div>
+
+<div class="pagina">
+  <h3>7.7 · Pestaña 👥 Usuarios</h3>
+
+  <p>Aquí se decide <strong>quién puede entrar al sistema</strong>.</p>
+
+  <figure>
+    <span class="captura">
+      <img src="img/26-admin-usuarios.jpg" alt="La pestaña de Usuarios">
+    </span>
+    <figcaption>La pestaña de Usuarios, con la lista de la derecha.</figcaption>
+  </figure>
+
+  <p><strong>Crear un usuario nuevo:</strong></p>
+
+  <ol class="pasos">
+    <li><p><strong>Nombre del Empleado</strong> — el nombre de verdad de la persona.
+    Es lo que sale arriba a la derecha en el tablero cuando esa persona entra.</p></li>
+    <li><p><strong>Usuario de Acceso (Login)</strong> — lo que va a escribir para
+    entrar. Corto y sin espacios: <span class="campo">ana</span>.</p></li>
+    <li><p><strong>PIN o Contraseña</strong> — su clave. <strong>Al crear un usuario
+    nuevo es obligatorio</strong>; si lo dejas vacío, el sistema te avisa y no
+    guarda.</p></li>
+    <li><p><strong>Rol en el sistema</strong> — ver la tabla de abajo.</p></li>
+    <li><p><span class="btn rojo">💾 Guardar Usuario</span></p></li>
+  </ol>
+
+  <table>
+    <tr><th style="width:26%">Rol</th><th>Qué puede hacer</th></tr>
+    <tr>
+      <td><strong>Cajero / Operador</strong></td>
+      <td>Entrar al tablero, mover pedidos, cobrar, tomar pedidos por teléfono.
+      <strong>No</strong> puede entrar al panel de administración ni cambiar precios.
+      Es el rol para el día a día.</td>
+    </tr>
+    <tr>
+      <td><strong>Administrador</strong></td>
+      <td>Todo lo del cajero, más el panel de administración: precios, platos, combos,
+      horarios, usuarios.</td>
+    </tr>
+  </table>
+
+  <div class="caja nota">
+    <span class="titulo">Cambiarle el PIN a alguien</span>
+    <p>Lápiz <strong>✏️</strong> del usuario, escribe el PIN nuevo,
+    <span class="btn rojo">💾 Guardar Usuario</span>.</p>
+    <p>Y un detalle muy útil: <strong>si editas un usuario y dejas el PIN en blanco,
+    se queda con el que tenía.</strong> O sea que puedes corregirle el nombre a alguien
+    sin tener que saber ni cambiar su clave.</p>
+  </div>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ Los usuarios "PROTEGIDO 🛡️" no se pueden tocar desde aquí</span>
+    <p>Las cuentas de administrador aparecen en la lista con una etiqueta roja que dice
+    <strong>PROTEGIDO 🛡️</strong> y <strong>sin</strong> los botones de lápiz ni
+    papelera.</p>
+    <p>Es una protección a propósito, para que nadie —ni por error ni a mala fe— pueda
+    borrar la cuenta del dueño y dejar el sistema sin quién entre. Pero tiene una
+    consecuencia práctica: <strong>el PIN de la cuenta del dueño no se puede cambiar
+    desde el panel.</strong> Para eso hay que pedirle ayuda a quien mantiene el
+    sistema.</p>
+  </div>
+
+  <div class="caja peligro">
+    <span class="titulo">🚫 Hoy hay una sola cuenta para todo el mundo</span>
+    <p>En este momento el sistema tiene <strong>un único usuario</strong>: el del
+    dueño, con rol de superadministrador. Eso quiere decir que todo el que trabaja
+    entra con la misma clave.</p>
+    <p><strong>Vale la pena crear un usuario "cajero" por cada persona.</strong> No es
+    desconfianza: es que así, si una clave se filtra, se cambia una sola y no se
+    paraliza el local; y en las estadísticas se puede ver quién atendió qué.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h3>7.8 · Pestaña 💬 Mensajes WP</h3>
+
+  <p>Aquí se edita <strong>el texto de los WhatsApp que el sistema manda solo</strong>.
+  No se manda ningún mensaje desde esta pantalla: solo se escribe lo que dirán cuando
+  llegue el momento.</p>
+
+  <figure>
+    <span class="captura estrecha">
+      <img src="img/27-admin-mensajes.jpg" alt="La pestaña de plantillas de WhatsApp">
+    </span>
+    <figcaption>Las plantillas, con las "variables mágicas" arriba.</figcaption>
+  </figure>
+
+  <h4 style="font-size:12.5pt;color:#b91c1c;margin:18px 0 8px">7.8.1 · Las variables mágicas</h4>
+
+  <p>Son esas palabras entre corchetes que ves arriba de la pantalla, tipo
+  <span class="campo">[CLIENTE]</span>. Funcionan como <strong>un hueco que el sistema
+  rellena solo</strong> en el momento de mandar el mensaje.</p>
+
+  <p>Si escribes <em>"Hola [CLIENTE], tu pedido #[PEDIDO] está listo"</em>, a María le
+  llega <em>"Hola María, tu pedido #7 está listo"</em>.</p>
+
+  <table>
+    <tr><th style="width:36%">Variable</th><th>Se convierte en</th></tr>
+    <tr><td><span class="campo">[CLIENTE]</span></td><td>El nombre del cliente.</td></tr>
+    <tr><td><span class="campo">[PEDIDO]</span></td><td>El número del pedido del día.</td></tr>
+    <tr><td><span class="campo">[PEDIDO_DETALLADO]</span></td><td>La lista completa de lo que pidió, plato por plato.</td></tr>
+    <tr><td><span class="campo">[TOTAL_USD]</span></td><td>El total en dólares.</td></tr>
+    <tr><td><span class="campo">[TOTAL_BS]</span></td><td>El total en bolívares, con la tasa del día.</td></tr>
+    <tr><td><span class="campo">[TIEMPO_ESTIMADO]</span></td><td>El tiempo que elegiste al aprobar el pago (ej. <em>25 a 30 minutos</em>).</td></tr>
+    <tr><td><span class="campo">[DIRECCION]</span></td><td>La dirección de entrega.</td></tr>
+  </table>
+
+  <div class="caja peligro">
+    <span class="titulo">🚫 Se escriben EXACTAMENTE así</span>
+    <p>Con corchetes, en MAYÚSCULAS, sin espacios adentro y sin acentos. Si escribes
+    <span class="campo">[Cliente]</span> o <span class="campo">[ CLIENTE ]</span>, el
+    sistema no la reconoce y al cliente le llega el mensaje con los corchetes puestos,
+    tal cual. Queda feo y confunde.</p>
+    <p><strong>Truco:</strong> cópialas y pégalas de la lista de arriba de la pantalla
+    en vez de escribirlas a mano.</p>
+  </div>
+
+  <h4 style="font-size:12.5pt;color:#b91c1c;margin:18px 0 8px">7.8.2 · Qué es cada mensaje</h4>
+
+  <table>
+    <tr><th style="width:38%">Plantilla</th><th>Cuándo sale</th></tr>
+    <tr><td><strong>1. Recepción</strong></td><td>Apenas entra el pedido, mientras se calcula el delivery.</td></tr>
+    <tr><td><strong>2A. Cobro (Pago Móvil)</strong></td><td>Al pedirle el pago, si eligió pago móvil.</td></tr>
+    <tr><td><strong>2B. Cobro (Zelle)</strong></td><td>Ya no se ofrece Zelle a los clientes nuevos, pero la plantilla sigue ahí por los pedidos viejos. <strong>No hace falta tocarla.</strong></td></tr>
+    <tr><td><strong>2C. Cobro (Efectivo)</strong></td><td>Al pedirle el pago, si va a pagar en efectivo.</td></tr>
+    <tr><td><strong>3. Pago Aprobado</strong></td><td>Cuando aceptas el pago y el pedido pasa a cocina. <strong>Es el que lleva el tiempo estimado.</strong></td></tr>
+    <tr><td><strong>4A. Finalizado (Delivery)</strong></td><td>Cuando despachas un pedido con delivery.</td></tr>
+    <tr><td><strong>4B. Finalizado (Pick-Up)</strong></td><td>Cuando el pedido para retirar está listo.</td></tr>
+    <tr><td><strong>5. Aviso al Grupo de Motorizados</strong></td><td>Al grupo de repartidores, no al cliente. <strong>Ver el aviso de abajo.</strong></td></tr>
+    <tr><td><strong>Extra: Pedido Modificado</strong></td><td>Cuando le cambias algo a un pedido ya hecho.</td></tr>
+  </table>
+
+  <p>Se editan todas las que quieras y al final se aprieta un solo botón:
+  <span class="btn rojo">💾 Guardar Todas las Plantillas</span>. Guarda las nueve de
+  golpe.</p>
+
+  <div class="caja peligro">
+    <span class="titulo">🚫 No toques el mensaje 5 (el del grupo de motorizados)</span>
+    <p>Ese mensaje copia, emoji por emoji, el formato que el grupo de repartidores lleva
+    años leyendo: <em>PEDIDO N°</em>, <em>NOMBRE</em>, <em>DIRECCIÓN</em>,
+    <em>REFRESCO</em>, <em>BANDEJAS</em>, <em>CAJAS DE PIZZA</em>, <em>PAGO</em>,
+    <em>PRECIO DEL DELIVERY</em>.</p>
+    <p>Está hecho para leerse rápido en un celular a las 9 de la noche. Si le mueves el
+    orden o le quitas una línea, los repartidores empiezan a equivocarse. Déjalo como
+    está.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h3>7.9 · Pestaña 🕒 Horario de Atención</h3>
+
+  <figure>
+    <span class="captura estrecha">
+      <img src="img/28-admin-horario.jpg" alt="La pestaña de horario de atención">
+    </span>
+    <figcaption>Un renglón por día de la semana.</figcaption>
+  </figure>
+
+  <p>Un renglón por cada día, y cada renglón tiene tres cosas:</p>
+
+  <ul class="simple">
+    <li>La casilla <strong>Abierto</strong>. Si la desmarcas, ese día el local figura
+    cerrado y las horas se apagan.</li>
+    <li>La <strong>hora de apertura</strong>.</li>
+    <li>La <strong>hora de cierre</strong>.</li>
+  </ul>
+
+  <p>Al final, <span class="btn rojo">💾 Guardar Horario</span> guarda los siete días
+  de una vez.</p>
+
+  <p><strong>Qué pasa fuera del horario:</strong> el cliente <strong>sí</strong> puede
+  entrar al menú y mirar todo. Lo que no puede es <strong>terminar</strong> el pedido:
+  al intentar enviarlo, el sistema le dice que el local está cerrado.</p>
+
+  <div class="caja truco">
+    <span class="titulo">💡 El personal no está limitado por el horario</span>
+    <p>Aunque el local figure cerrado, tú <strong>sí</strong> puedes registrar un
+    pedido desde la caja. Sirve para los encargos que se toman por teléfono antes de
+    abrir.</p>
+  </div>
+
+  <div class="caja nota">
+    <span class="titulo">Para cerrar un día suelto (un feriado, por ejemplo)</span>
+    <p>Desmarca <strong>Abierto</strong> en ese día, guarda, y acuérdate de volver a
+    marcarlo la semana siguiente. El horario es fijo semana a semana: no hay
+    calendario de fechas especiales.</p>
+  </div>
+
+  <h3>7.10 · Pestaña 📢 Anuncios</h3>
+
+  <figure>
+    <span class="captura">
+      <img src="img/29-admin-anuncios.jpg" alt="La pestaña de anuncios">
+    </span>
+    <figcaption>El cartel que le sale al cliente apenas abre el menú.</figcaption>
+  </figure>
+
+  <p>Un <strong>anuncio</strong> es un cartel a pantalla completa que le sale al
+  cliente <strong>apenas abre el menú</strong>. Tiene que cerrarlo para poder pedir.
+  Se usa para la promoción del día.</p>
+
+  <table>
+    <tr><th style="width:34%">Campo</th><th>Qué poner</th></tr>
+    <tr><td><strong>Imagen del anuncio</strong></td><td>La foto del cartel. <em>Obligatorio</em> — un anuncio es, sobre todo, una imagen.</td></tr>
+    <tr><td><strong>Título</strong></td><td>Opcional. Sale encima de la foto.</td></tr>
+    <tr><td><strong>Texto</strong></td><td>Opcional. Los detalles de la promoción.</td></tr>
+    <tr><td><strong>Producto o combo vinculado</strong></td><td>Opcional. Ver el aviso de abajo.</td></tr>
+    <tr><td><strong>Orden de aparición</strong></td><td>Si hay varios anuncios activos, salen uno tras otro <strong>del número más bajo al más alto</strong>.</td></tr>
+    <tr><td><strong>Anuncio Activo</strong></td><td>La casilla que decide si se muestra o no. <strong>Es tu interruptor.</strong></td></tr>
+  </table>
+
+  <div class="caja nota">
+    <span class="titulo">El campo "producto vinculado" hoy no hace nada</span>
+    <p>El texto de la pantalla dice que el anuncio tendrá un botón
+    "🛒 Ordenar esta promoción". <strong>Ese botón está apagado en este momento</strong>,
+    así que aunque llenes el campo, al cliente no le aparece. La opción se dejó lista
+    por si se quiere volver a encender más adelante.</p>
+  </div>
+
+  <div class="caja truco">
+    <span class="titulo">💡 No borres los anuncios: apágalos</span>
+    <p>Cuando termine la promoción, desmarca <strong>Anuncio Activo</strong> y guarda.
+    El anuncio se queda guardado y lo puedes volver a encender el mes que viene sin
+    tener que subir la foto otra vez.</p>
+  </div>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ Revisa qué anuncios tienes activos</span>
+    <p>La lista de la derecha dice, debajo de cada anuncio, <strong>Activo: Sí</strong>
+    o <strong>Activo: No</strong>. Vale la pena mirarla de vez en cuando: es fácil
+    dejar encendido un anuncio de prueba o una promoción que ya se venció, y el cliente
+    se lo come todos los días al entrar.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h3>7.11 · La lista de chequeo antes de guardar</h3>
+
+  <p>Pégate esto en la cabeza. Son cinco preguntas y evitan casi todos los líos:</p>
+
+  <table>
+    <tr><th style="width:8%">#</th><th>Pregunta</th></tr>
+    <tr><td><strong>1</strong></td><td>¿El título del formulario dice <strong>Crear</strong> o <strong>Editar</strong>? ¿Es el que yo quería?</td></tr>
+    <tr><td><strong>2</strong></td><td>Si voy a crear algo nuevo: ¿aparece el botón <strong>❌ Cancelar Edición</strong>? Si aparece, hago clic <strong>antes</strong> de escribir.</td></tr>
+    <tr><td><strong>3</strong></td><td>¿Los precios están escritos con <strong>punto</strong> y no con coma?</td></tr>
+    <tr><td><strong>4</strong></td><td>Si toqué precio por paquete o elección por piezas: ¿leí <strong>la línea amarilla</strong> con el resultado y da lo que esperaba?</td></tr>
+    <tr><td><strong>5</strong></td><td>Si toqué un combo: ¿lo abrí desde el menú del cliente para comprobar que se ve bien?</td></tr>
+  </table>
+
+  <div class="caja peligro">
+    <span class="titulo">🚫 Las tres cosas que NO se hacen en el panel</span>
+    <ul class="simple">
+      <li><strong>Borrar un plato porque se acabó.</strong> Se marca agotado.</li>
+      <li><strong>Borrar una categoría que tiene platos adentro.</strong></li>
+      <li><strong>Reescribir el mensaje 5</strong>, el del grupo de motorizados.</li>
+    </ul>
+  </div>
+
+  <div class="caja truco">
+    <span class="titulo">💡 Si tienes dudas, mira antes de tocar</span>
+    <p>Casi todo en el panel se puede <strong>abrir para mirar</strong> sin guardar.
+    Haz clic en el lápiz, mira cómo está configurado algo que ya funciona bien, y
+    después haz clic en <span class="btn gris">❌ Cancelar Edición</span> sin guardar
+    nada.</p>
+    <p>Copiar un combo que ya funciona es mucho más seguro que inventar uno desde cero.</p>
+  </div>
+</div>
+
+<!-- =================== PARTE 8 =================== -->
+<div class="pagina">
+  <h2><span class="num">8</span>Cuando algo sale mal</h2>
+  <div class="intro-seccion">
+    Casi todos los problemas se arreglan con las tres primeras filas de esta
+    tabla. Búscalo aquí antes de llamar a nadie.
+  </div>
+
+  <table>
+    <tr><th style="width:40%">Lo que ves</th><th>Qué hacer</th></tr>
+    <tr>
+      <td><strong>La pantalla se ve rara, cortada o con cosas encimadas</strong></td>
+      <td>Aprieta <strong>F5</strong> para recargar. Resuelve la mayoría de las cosas
+      raras. No pierdes ningún pedido.</td>
+    </tr>
+    <tr>
+      <td><strong>No aparecen los pedidos, el tablero está vacío</strong></td>
+      <td>Mira la <strong>fecha</strong> arriba: seguramente quedó en un día pasado.
+      Ponla en la de hoy.</td>
+    </tr>
+    <tr>
+      <td><strong>Un botón no hace nada al hacerle clic</strong></td>
+      <td>Fíjate si hay una <strong>ventanita abierta</strong> por delante. Mientras haya
+      una, el resto de la pantalla no responde. Ciérrala o confírmala.</td>
+    </tr>
+    <tr>
+      <td><strong>El cliente dice que no le llegó el WhatsApp</strong></td>
+      <td>Abre el pedido con la hoja <strong>📄</strong> y revisa el número de teléfono.
+      Casi siempre está mal escrito. Corrígelo y escríbele tú a mano con
+      <strong>💬</strong>.</td>
+    </tr>
+    <tr>
+      <td><strong>Moví un pedido sin querer a la columna siguiente</strong></td>
+      <td>No hay forma de devolverlo. Ese paso ya mandó su WhatsApp.
+      <strong>Escríbele al cliente</strong> explicándole, y avísale al encargado.</td>
+    </tr>
+    <tr>
+      <td><strong>Se mandaron dos WhatsApp iguales al mismo cliente</strong></td>
+      <td>Dos personas movieron la misma tarjeta a la vez. No se puede borrar el
+      mensaje; discúlpate con el cliente y pónganse de acuerdo en quién mueve el
+      tablero.</td>
+    </tr>
+    <tr>
+      <td><strong>El total en bolívares se ve mal</strong></td>
+      <td>Revisa la <strong>Tasa BCV</strong> arriba. Si está mal, solo un admin puede
+      corregirla.</td>
+    </tr>
+    <tr>
+      <td><strong>Un plato no aparece en el menú del cliente</strong></td>
+      <td>Está marcado como <strong>agotado</strong> o como no disponible. Se revisa en
+      la pestaña Productos del panel de administración.</td>
+    </tr>
+    <tr>
+      <td><strong>El cliente dice que no puede hacer el pedido</strong></td>
+      <td>Probablemente el local figura <strong>cerrado</strong> según el horario
+      configurado. Tómale el pedido tú desde la caja, que sí puede.</td>
+    </tr>
+    <tr>
+      <td><strong>No me deja confirmar un combo</strong></td>
+      <td>Faltan rolls por elegir. Mira la etiqueta de la derecha
+      (<strong>1 / 3</strong> o <strong>Falta elegir</strong>) y completa.</td>
+    </tr>
+    <tr>
+      <td><strong>Todo el sistema no carga</strong></td>
+      <td>Prueba abrir cualquier otra página en el navegador. Si tampoco abre, es el
+      internet del local, no el sistema.</td>
+    </tr>
+    <tr>
+      <td><strong>Me equivoqué en algo grande</strong></td>
+      <td><strong>Avisa de una vez.</strong> Un error dicho a tiempo se arregla; uno
+      escondido se convierte en un cliente molesto y un reclamo.</td>
+    </tr>
+  </table>
+
+  <div class="caja truco">
+    <span class="titulo">💡 Cuando pidas ayuda, di estas tres cosas</span>
+    <p><strong>1.</strong> En qué pantalla estabas. <strong>2.</strong> Qué botón apretaste.
+    <strong>3.</strong> Qué apareció (si salió un cartel, léelo tal cual). Con eso se
+    resuelve en un minuto.</p>
+  </div>
+</div>
+
+<!-- =================== PARTE 9 =================== -->
+<div class="pagina">
+  <h2><span class="num">9</span>Las diez reglas de oro</h2>
+  <div class="intro-seccion">
+    Imprime esta hoja y pégala al lado de la computadora. Si cumples estas diez
+    cosas, no te va a pasar nada grave.
+  </div>
+
+  <table>
+    <tr><th style="width:8%">#</th><th>La regla</th></tr>
+    <tr><td style="font-size:16pt;font-weight:700;color:#dc2626;text-align:center">1</td>
+      <td><strong>Entra siempre con tu propio usuario</strong>, y cierra sesión con el
+      botón rojo al terminar el turno.</td></tr>
+    <tr><td style="font-size:16pt;font-weight:700;color:#dc2626;text-align:center">2</td>
+      <td><strong>Repítele el teléfono al cliente</strong> antes de registrar el pedido.
+      El teléfono es su identidad.</td></tr>
+    <tr><td style="font-size:16pt;font-weight:700;color:#dc2626;text-align:center">3</td>
+      <td><strong>Léele el pedido en voz alta</strong> antes de procesarlo.</td></tr>
+    <tr><td style="font-size:16pt;font-weight:700;color:#dc2626;text-align:center">4</td>
+      <td><strong>Verifica el pago de verdad</strong> antes de darle al
+      <span class="btn amarillo">Aceptar →</span> amarillo. Una foto no es un pago.</td></tr>
+    <tr><td style="font-size:16pt;font-weight:700;color:#dc2626;text-align:center">5</td>
+      <td><strong>Pregúntale a la cocina</strong> antes de prometer un tiempo. Ante la
+      duda, el rango más largo.</td></tr>
+    <tr><td style="font-size:16pt;font-weight:700;color:#dc2626;text-align:center">6</td>
+      <td><strong>Dale al <span class="btn azul">Despachar ✓</span> azul cuando la
+      comida sale de verdad</strong>, no antes.</td></tr>
+    <tr><td style="font-size:16pt;font-weight:700;color:#dc2626;text-align:center">7</td>
+      <td><strong>Pregunta con cuánto paga</strong> en todos los delivery en efectivo.</td></tr>
+    <tr><td style="font-size:16pt;font-weight:700;color:#dc2626;text-align:center">8</td>
+      <td><strong>Si editas un pedido, escríbele tú al cliente.</strong> El sistema no
+      lo avisa solo.</td></tr>
+    <tr><td style="font-size:16pt;font-weight:700;color:#dc2626;text-align:center">9</td>
+      <td><strong>Antes de tocar la papelera 🗑️, lee el nombre en la tarjeta.</strong>
+      Cancelar no se deshace.</td></tr>
+    <tr><td style="font-size:16pt;font-weight:700;color:#dc2626;text-align:center">10</td>
+      <td><strong>Si algo salió mal, dilo de una vez.</strong> Siempre es más fácil de
+      arreglar en caliente.</td></tr>
+  </table>
+
+  <div style="margin-top:34px;background:#fef2f2;border-radius:12px;padding:22px 26px;text-align:center">
+    <div style="font-size:26pt">🍣</div>
+    <p style="font-size:13pt;color:#7f1d1d;margin:10px 0 4px"><strong>Y la regla que resume todas</strong></p>
+    <p style="font-size:12pt;color:#991b1b;margin:0">
+      El sistema no se rompe porque le hagas clic a algo.<br>
+      Lo único que no se puede deshacer es <strong>cancelar</strong> un pedido y
+      <strong>mandar</strong> un WhatsApp.<br>
+      Todo lo demás, pruébalo tranquilo.
+    </p>
+  </div>
+
+  <p style="margin-top:34px;font-size:10pt;color:#9ca3af;text-align:center">
+    Manual del sistema de Tokio Sushi · Septiembre de 2026<br>
+    Las fotos de este manual son de la pantalla real, con pedidos inventados.<br>
+    Si algo ya no coincide con lo que ves, avísale al encargado.
+  </p>
+</div>
+
+</body>
+</html>
