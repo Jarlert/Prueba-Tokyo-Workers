@@ -501,6 +501,10 @@ if (document.getElementById('inputImagenPago')) {
     });
 }
 
+// El "¿con cuánto paga?" se pregunta aquí y no al cotizar el delivery: el
+// cliente recibe el mensaje de cobro justo después de que se calcula el
+// envío, así que recién al aceptar el pago el cajero sabe con qué billete
+// viene. Solo aplica al efectivo, que es el único caso con vuelto.
 function pedirComprobantePago(metodoPago) {
     return new Promise((resolve) => {
         const modal = document.getElementById('modalComprobante'); 
@@ -509,13 +513,18 @@ function pedirComprobantePago(metodoPago) {
         const inputImg = document.getElementById('inputImagenPago');
         const preview = document.getElementById('previewComprobante'); 
         const txtMetodo = document.getElementById('txtMetodoPagoModal');
+        const inputPagaCon = document.getElementById('inputPagaCon');
+        const bloquePagaCon = document.getElementById('bloquePagaCon');
 
         inputRef.value = ''; inputImg.value = ''; preview.src = ''; preview.classList.add('hidden');
+        if (inputPagaCon) inputPagaCon.value = '';
         const metodoLimpio = metodoPago || "Desconocido"; 
         txtMetodo.innerText = `Método de pago del cliente: ${metodoLimpio}`;
         
-        if (metodoLimpio.toLowerCase().includes('efectivo')) contenedorRef.classList.add('hidden'); 
+        const esEfectivo = metodoLimpio.toLowerCase().includes('efectivo');
+        if (esEfectivo) contenedorRef.classList.add('hidden'); 
         else contenedorRef.classList.remove('hidden');
+        if (bloquePagaCon) bloquePagaCon.style.display = esEfectivo ? 'block' : 'none';
         
         modal.classList.remove('hidden');
 
@@ -562,8 +571,13 @@ function pedirComprobantePago(metodoPago) {
             }
 
             modal.classList.add('hidden'); 
-            // Resolvemos la promesa entregando la referencia y la URL de ImgBB
-            resolve({ referencia: inputRef.value, imagen: urlFinalImagen }); 
+            // Resolvemos la promesa entregando la referencia, la URL de ImgBB y
+            // el billete con el que paga (vacío si no es efectivo).
+            resolve({
+                referencia: inputRef.value,
+                imagen: urlFinalImagen,
+                pagaCon: (esEfectivo && inputPagaCon) ? inputPagaCon.value.trim() : ''
+            }); 
         };
         
         document.getElementById('btnCancelarComprobante').onclick = () => { 
@@ -697,6 +711,14 @@ function ejecutarActualizacion(id, estado, telefono, cliente, tipoEntrega, datos
         direccion: direccionGuardada,
         tasa_bcv: tasaActual // ENVIAMOS LA TASA A LA BASE DE DATOS
     };
+
+    // El billete con el que paga solo viaja cuando el modal de Validar Pago lo
+    // preguntó. Mandarlo siempre lo borraría al despachar, que es justo cuando
+    // el aviso al grupo de motorizados lo necesita.
+    if (datosPago && typeof datosPago.pagaCon === 'string' && datosPago.pagaCon !== '') {
+        payload.paga_con = datosPago.pagaCon;
+    }
+
     fetch(API_ACTUALIZAR_ESTADO, { method: 'POST', headers: authHeaders(), body: JSON.stringify(payload) }).catch(e => console.error(e));
 }
 
@@ -809,6 +831,18 @@ function renderizarTablero() {
 
         const cliente = pedido.cliente || 'Desconocido';
         const telefonoRaw = pedido.telefono || '';
+        const clienteSeguro = escapeHtml(cliente);
+        const telefonoSeguro = escapeHtml(String(telefonoRaw));
+
+        // Delivery o pickup. Se decide igual que la numeración diaria y que
+        // es_entrega_pickup() del backend: solo cuenta lo que diga el campo de
+        // entrega, para que la etiqueta y el número #N nunca se contradigan.
+        const tipoEntregaStr = String(pedido.tipo_entrega || '').toLowerCase();
+        const detalleStr = String(pedido.pedido_detallado || '').toLowerCase();
+        const esPickup = tipoEntregaStr.includes('pickup') || tipoEntregaStr.includes('retiro');
+        const etiquetaEntrega = esPickup
+            ? '<span class="text-[11px] font-semibold text-amber-300">(Pickup)</span>'
+            : '<span class="text-[11px] font-semibold text-sky-300">(Delivery)</span>';
         const metodoPago = String(pedido.metodo_pago || '').replace(/'/g, "\\'");
         const esPagoMovil = metodoPago.toLowerCase().includes('pago') || metodoPago.toLowerCase().includes('movil');
         const monto = parseFloat(String(pedido.total_orden || pedido.monto || 0).replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
@@ -870,7 +904,7 @@ function renderizarTablero() {
                         </div>
                         <span class="text-[10px] text-slate-400 font-medium"><i class="fa-regular fa-clock"></i> ${hora}</span>
                     </div>
-                    <div><h4 class="font-bold text-white text-sm truncate">${cliente}</h4><p class="text-xs text-slate-400 mt-1 line-clamp-2">${art}</p></div>
+                    <div><h4 class="font-bold text-white text-sm truncate">${clienteSeguro} ${etiquetaEntrega}</h4><p class="text-xs text-slate-400 mt-1 line-clamp-2">${art}</p></div>
                     <div class="flex justify-between items-center pt-2 border-t border-slate-600/50">
                         ${htmlMonto}
                         <button onclick="procesarPrecioDelivery('${idReal}')" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold px-3 py-1.5 rounded-md transition flex items-center gap-1 cursor-pointer">Poner precio delivery <i class="fa-solid fa-motorcycle"></i></button>
@@ -892,7 +926,7 @@ function renderizarTablero() {
                         </div>
                         <span class="text-[10px] text-slate-400 font-medium"><i class="fa-regular fa-clock"></i> ${hora}</span>
                     </div>
-                    <div><h4 class="font-bold text-white text-sm truncate">${cliente}</h4><p class="text-xs text-slate-400 mt-1 line-clamp-2">${art}</p></div>
+                    <div><h4 class="font-bold text-white text-sm truncate">${clienteSeguro} ${etiquetaEntrega}</h4><p class="text-xs text-slate-400 mt-1 line-clamp-2">${art}</p></div>
                     <div class="flex justify-between items-center pt-2 border-t border-slate-600/50">
                         ${htmlMonto}
                         <button onclick="procesarPasoCocina('${idReal}')" class="bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-xs font-bold px-3 py-1.5 rounded-md transition flex items-center gap-1 cursor-pointer">Aceptar <i class="fa-solid fa-arrow-right"></i></button>
@@ -910,7 +944,7 @@ function renderizarTablero() {
                         </div>
                         <span class="text-[10px] text-slate-400 font-medium"><i class="fa-regular fa-clock"></i> ${hora}</span>
                     </div>
-                    <div><h4 class="font-bold text-white text-sm truncate">${cliente}</h4><p class="text-xs text-slate-400 mt-1 line-clamp-2">${art}</p></div>
+                    <div><h4 class="font-bold text-white text-sm truncate">${clienteSeguro} ${etiquetaEntrega}</h4><p class="text-xs text-slate-400 mt-1 line-clamp-2">${art}</p></div>
                     <div class="flex justify-between items-center pt-2 border-t border-slate-600/50">
                         ${htmlMonto}
                         <button onclick="procesarPasoFinalizado('${idReal}')" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold px-3 py-1.5 rounded-md transition flex items-center gap-1 cursor-pointer">Despachar <i class="fa-solid fa-check"></i></button>
@@ -921,9 +955,9 @@ function renderizarTablero() {
             totalVentasDia += monto; 
             totalVentasDiaBs += (monto * tasaHistorica); 
             
-            // Detección a prueba de balas: revisa la columna de entrega y también el detalle de los platos
-            const tipoEntregaStr = String(pedido.tipo_entrega || '').toLowerCase();
-            const detalleStr = String(pedido.pedido_detallado || '').toLowerCase();
+            // Para el botón de pagarle al motorizado se sigue usando la
+            // detección amplia (campo de entrega o la línea del cobro), que es
+            // más permisiva que la etiqueta de la tarjeta a propósito.
             const esDelivery = tipoEntregaStr.includes('delivery') || detalleStr.includes('servicio de delivery');
             
             const repartidorAsignado = pedido.repartidor || pedido.Repartidor || '';
@@ -963,6 +997,10 @@ function renderizarTablero() {
                             ${btnMoto}
                         </div>
                         <span class="text-[10px] text-slate-400 font-medium whitespace-nowrap"><i class="fa-regular fa-clock"></i> ${hora}</span>
+                    </div>
+                    <div class="mt-2 w-full">
+                        <h4 class="font-bold text-white text-sm truncate">${clienteSeguro} ${etiquetaEntrega}</h4>
+                        ${telefonoSeguro ? `<p class="text-[11px] text-slate-400 mt-0.5">${telefonoSeguro}</p>` : ''}
                     </div>
                     <div class="flex justify-between items-end mt-2 w-full">
                         <span class="text-[11px] text-slate-400 underline decoration-slate-600 underline-offset-2 hover:text-white transition">Ver Recibo</span>
@@ -1075,26 +1113,21 @@ function obtenerEmojiPlato() {
 // el boton del modal y lo que se cobra al tocarlo.
 const PRECIO_DELIVERY_ESTANDAR = 2;
 
-// Devuelve { precio, pagaCon }, o null si el cajero cancela.
+// Devuelve { precio }, o null si el cajero cancela.
 // Hay dos caminos: el boton del precio estandar ($2), que es el de todos los
 // dias, y el campo "otro monto" para las direcciones lejanas.
-// El "¿con cuánto paga?" solo se pregunta cuando el cliente paga en efectivo,
-// que es el único caso en el que el motorizado tiene que llevar vuelto.
-function pedirPrecioDelivery(cliente, metodoPago = '') {
+// El "¿con cuánto paga?" ya no se pregunta aquí: vive en el modal de
+// Validar Pago (pedirComprobantePago), porque el cliente recién responde con
+// qué billete viene después de recibir el cobro, que sale de este paso.
+function pedirPrecioDelivery(cliente) {
     return new Promise((resolve) => {
         const modal = document.getElementById('modalPrecioDelivery');
         const inputPrecio = document.getElementById('inputPrecioDelivery');
-        const inputPagaCon = document.getElementById('inputPagaCon');
-        const bloquePagaCon = document.getElementById('bloquePagaCon');
         const txtCliente = document.getElementById('txtClienteDelivery');
         const btnEstandar = document.getElementById('btnDeliveryEstandar');
 
-        const esEfectivo = String(metodoPago).toLowerCase().includes('efectivo');
-
         txtCliente.innerText = `Cliente: ${cliente}`;
         inputPrecio.value = '';
-        if (inputPagaCon) inputPagaCon.value = '';
-        if (bloquePagaCon) bloquePagaCon.style.display = esEfectivo ? 'block' : 'none';
         if (btnEstandar) btnEstandar.innerText = `Delivery estándar · $${PRECIO_DELIVERY_ESTANDAR}`;
 
         modal.classList.remove('hidden');
@@ -1104,10 +1137,7 @@ function pedirPrecioDelivery(cliente, metodoPago = '') {
         const confirmar = (valor) => {
             modal.classList.add('hidden');
             modal.classList.remove('flex');
-            resolve({
-                precio: valor,
-                pagaCon: (esEfectivo && inputPagaCon) ? inputPagaCon.value.trim() : ''
-            });
+            resolve({ precio: valor });
         };
 
         if (btnEstandar) btnEstandar.onclick = () => confirmar(String(PRECIO_DELIVERY_ESTANDAR));
@@ -1135,8 +1165,7 @@ async function procesarPrecioDelivery(idPedido) {
     const pedido = pedidosEnMemoria.find(p => String(p.id_pedido || p['ID_Pedido'] || p.ID || 'S/ID') === String(idPedido));
     if (!pedido) return;
 
-    const metodoPagoPedido = pedido.metodo_pago || pedido['Método de pago'] || pedido.Metodo_pago || '';
-    const respuestaDelivery = await pedirPrecioDelivery(pedido.cliente, metodoPagoPedido);
+    const respuestaDelivery = await pedirPrecioDelivery(pedido.cliente);
     if (respuestaDelivery === null) return;
 
     const costoDelivery = parseFloat(String(respuestaDelivery.precio).replace(',', '.'));
@@ -1176,9 +1205,9 @@ async function procesarPrecioDelivery(idPedido) {
         es_cotizacion_delivery: true,
         tasa_bcv: tasaActual,
 
-        // Para el aviso al grupo de motorizados
-        precio_delivery: costoDelivery,
-        paga_con: respuestaDelivery.pagaCon || null
+        // Para el aviso al grupo de motorizados. El "paga_con" no viaja aquí:
+        // se captura al aceptar el pago, que sigue siendo antes del despacho.
+        precio_delivery: costoDelivery
     };
     
     // 1. Actualizamos el estado en la base de datos
