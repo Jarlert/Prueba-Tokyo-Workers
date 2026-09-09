@@ -239,7 +239,7 @@
     </div>
     <div class="grupo">
       <div class="cab">Parte 6 · Cosas que pasan todos los días</div>
-      <div class="sub">Cambiar un pedido · Cancelarlo · El vuelto · Escribirle al cliente</div>
+      <div class="sub">Cambiar un pedido desde la caja · Cancelarlo · El vuelto · Escribirle al cliente</div>
     </div>
     <div class="grupo">
       <div class="cab">Parte 7 · El panel de administración</div>
@@ -783,7 +783,8 @@
       <strong>Es el que más vas a usar.</strong></td></tr>
     <tr><td style="font-size:15pt;text-align:center">✏️</td><td><strong>Editar Pedido</strong></td>
       <td>Un <strong>lápiz</strong>. Sirve para agregar o quitar platos si el cliente
-      cambia de idea.</td></tr>
+      cambia de idea. <strong>Te cambia de pantalla</strong>: te lleva a la caja con
+      el pedido ya cargado (Parte 6).</td></tr>
     <tr><td style="font-size:15pt;text-align:center">🗑️</td><td><strong>Cancelar Pedido</strong></td>
       <td>Una <strong>papelera</strong>. Anula el pedido. <strong>Ojo con este.</strong></td></tr>
     <tr><td style="font-size:15pt;text-align:center">💬</td><td><strong>WhatsApp</strong></td>
@@ -1072,8 +1073,8 @@
   <div class="caja ojo">
     <span class="titulo">⚠️ El precio del delivery se pone una sola vez</span>
     <p>Una vez que el pedido pasa a Pago Pendiente, ya no hay botón para volver a
-    cambiar el envío. Si te equivocaste, tienes que arreglarlo con
-    <strong>Editar Pedido</strong> (Parte 6).</p>
+    cambiar el envío. Si te equivocaste, tienes que arreglarlo con el lápiz
+    <strong>✏️</strong> de la tarjeta, que te lleva a la caja (Parte 6).</p>
   </div>
 
   <div class="caja nota">
@@ -1574,33 +1575,94 @@
   <p>Llamó otra vez y quiere agregar un roll, o quitar algo. Se arregla con el
   iconito del lápiz <strong>✏️</strong> de la tarjeta.</p>
 
+  <div class="caja nota">
+    <span class="titulo">Editar te lleva a la caja, no abre una ventanita</span>
+    <p>Al tocar el lápiz, el sistema <strong>te cambia de pantalla</strong>: te lleva
+    a la misma caja donde se toman los pedidos por teléfono (Parte 5), pero con el
+    pedido del cliente <strong>ya cargado adentro</strong>.</p>
+    <p>Se hace así porque la caja es la única pantalla que sabe armar combos. Antes
+    había aquí un mini-menú aparte, y si le agregabas un combo con rolls a elección
+    entraba <strong>sin decir qué rolls llevaba</strong>: la cocina no tenía cómo
+    saberlo.</p>
+  </div>
+
+  <p>Vas a reconocer que estás editando (y no tomando un pedido nuevo) por
+  <strong>cuatro señales</strong>:</p>
+
   <figure>
-    <span class="captura media">
-      <img src="img/08-editar.jpg" alt="Ventana para editar un pedido">
+    <span class="captura">
+      <img src="img/08-editar.jpg" alt="La pantalla de la caja en modo edición">
+      <span class="marca" style="left:21.5%;top:3.3%">1</span>
+      <span class="marca" style="left:96%;top:14.4%">2</span>
+      <span class="marca" style="left:94%;top:34.2%">3</span>
+      <span class="marca" style="left:95%;top:76.4%">4</span>
     </span>
-    <figcaption>La ventana <strong>Editar Pedido</strong>. El total se recalcula solo
-    mientras cambias cosas.</figcaption>
+    <figcaption>La caja en modo edición. Entras directo por el resumen del pedido.</figcaption>
   </figure>
 
+  <div class="leyenda">
+    <div><span class="n">1</span>Arriba dice <strong>✏️ Editando pedido #2</strong>, con el número del pedido.</div>
+    <div><span class="n">2</span>Una <strong>franja amarilla</strong> te recuerda de quién es el pedido.</div>
+    <div><span class="n">3</span>El teléfono y la entrega salen <strong>en gris, bloqueados</strong>: se ven, pero no se cambian.</div>
+    <div><span class="n">4</span>El botón verde de siempre es ahora <strong>naranja</strong> y dice <span class="btn amarillo">Guardar cambios 💾</span>.</div>
+  </div>
+
   <ol class="pasos">
-    <li><p>Haz clic en <strong>✏️</strong> en la tarjeta del pedido.</p></li>
+    <li><p>Haz clic en <strong>✏️</strong> en la tarjeta del pedido. Esperas un
+    par de segundos mientras carga el menú.</p></li>
     <li>
-      <p><strong>Para agregar</strong>, usa el buscador que dice
-      <span class="campo">Añadir Producto</span>: escribe el nombre y haz clic en el
-      plato que aparece en la lista.</p>
+      <p>Caes <strong>directo en el resumen</strong>, con todo lo que el cliente había
+      pedido ya puesto. Desde ahí:</p>
+      <ul class="simple">
+        <li><strong>Para cambiar cantidades</strong>, usa los botones
+        <strong>–</strong> y <strong>+</strong> de cada línea.</li>
+        <li><strong>Para quitar algo</strong>, la <strong>✕</strong> roja de esa línea.</li>
+        <li><strong>Para agregar</strong>, haz clic en
+        <span class="btn gris">+ Añadir más platos</span>: vuelves al menú completo,
+        con sus categorías, su buscador y sus combos. Cuando termines, vuelve con
+        <span class="btn verde">Continuar al cierre</span>.</li>
+      </ul>
     </li>
-    <li><p><strong>Para quitar o cambiar cantidades</strong>, usa los botones de cada
-    línea en <strong>Artículos en la Orden</strong>.</p></li>
-    <li><p>Mira el <strong>Total a Cobrar</strong>: cambia solo, en dólares y en
-    bolívares.</p></li>
-    <li><p>Guarda los cambios.</p></li>
+    <li><p>El <strong>Total</strong> se recalcula solo mientras tocas cosas.</p></li>
+    <li><p>También puedes corregir el <strong>nombre</strong>, la
+    <strong>dirección</strong> y el <strong>método de pago</strong>.</p></li>
+    <li><p>Haz clic en <span class="btn amarillo">Guardar cambios 💾</span>. El
+    sistema guarda, le escribe al cliente y te devuelve solo al tablero.</p></li>
   </ol>
 
+  <div class="caja truco">
+    <span class="titulo">💡 Al cliente SÍ le llega un WhatsApp con el cambio</span>
+    <p>No tienes que escribirle tú. Apenas guardas, al cliente le llega un mensaje
+    que empieza con <em>"¡Hola [nombre]! Hemos actualizado tu orden"</em>, con
+    <strong>la lista corregida</strong> y el <strong>Nuevo Total</strong>. Si paga por
+    Pago Móvil, también le va el equivalente en bolívares.</p>
+    <p>La misma pantalla te lo recuerda arriba: <em>"Los cambios se avisan al cliente
+    por WhatsApp"</em>.</p>
+  </div>
+
+  <div class="caja ojo">
+    <span class="titulo">⚠️ Dos cosas que NO se pueden cambiar aquí</span>
+    <p>El <strong>teléfono</strong> y el <strong>tipo de entrega</strong> aparecen en
+    gris y no dejan escribir. No es una falla:</p>
+    <ul class="simple">
+      <li>El teléfono es la <strong>llave</strong> con la que el pedido se une a su
+      cliente. Cambiarlo dejaría huérfano todo su historial.</li>
+      <li>El tipo de entrega decide el <strong>número del pedido</strong> (el #3 de
+      delivery no es el #3 de pickup) y en qué columna vive. Cambiarlo a mitad de
+      camino lo renumeraría.</li>
+    </ul>
+    <p>Si de verdad hay que cambiar una de esas dos, se cancela el pedido y se toma
+    de nuevo.</p>
+  </div>
+
   <div class="caja peligro">
-    <span class="titulo">🚫 Al cliente NO le llega un mensaje avisando del cambio</span>
-    <p>Editar un pedido no manda ningún WhatsApp automático. Si le cambiaste el
-    total, <strong>tienes que escribirle tú</strong> con el iconito 💬 y decírselo.
-    Si no, va a pagar el monto viejo.</p>
+    <span class="titulo">🚫 Un combo agregado sin personalizar no te deja guardar</span>
+    <p>Igual que al tomar un pedido nuevo: si agregas un combo con rolls a elección y
+    no eliges los rolls, al darle a Guardar te lo reclama. <strong>Es a
+    propósito</strong> — justamente ese era el error viejo.</p>
+    <p>Y si dejas el pedido <strong>vacío</strong> tampoco guarda: para anular un
+    pedido se usa la papelera del tablero (sección 6.2), no se le quitan los platos
+    uno por uno.</p>
   </div>
 
   <div class="caja ojo">
@@ -1608,6 +1670,33 @@
     <p>Si el pedido ya estaba <strong>En Cocina</strong>, la cocina no se entera del
     cambio por la pantalla. Ve y díselo en persona.</p>
   </div>
+
+  <div class="caja truco">
+    <span class="titulo">💡 Si te arrepientes a mitad de camino</span>
+    <p>Usa la flecha <strong>←</strong> de arriba a la izquierda, o el botón
+    <span class="btn gris">Tablero</span> de arriba a la derecha. Nada se guarda hasta
+    que tocas <strong>Guardar cambios</strong>.</p>
+  </div>
+</div>
+
+<div class="pagina">
+  <h4>Agregar platos en modo edición</h4>
+
+  <p>Al tocar <span class="btn gris">+ Añadir más platos</span> vuelves al menú
+  completo. Es exactamente el mismo de la Parte 5 — mismas categorías, mismo
+  buscador, mismos combos — solo que la franja amarilla sigue arriba
+  recordándote que estás editando:</p>
+
+  <figure>
+    <span class="captura">
+      <img src="img/08b-editar-menu.jpg" alt="El menú de la caja mientras se edita un pedido">
+    </span>
+    <figcaption>Abajo, en verde, el total del pedido tal como va quedando.</figcaption>
+  </figure>
+
+  <p>Cuando hayas agregado todo, haz clic en la barra verde de abajo
+  (<span class="btn verde">Continuar al cierre</span>) para volver al resumen y
+  guardar.</p>
 </div>
 
 <div class="pagina">
@@ -2782,8 +2871,8 @@
       <td><strong>Pregunta con cuánto paga</strong> en todo pedido en efectivo. El campo
       está en la ventana de <strong>Validar Pago</strong>.</td></tr>
     <tr><td style="font-size:16pt;font-weight:700;color:#dc2626;text-align:center">8</td>
-      <td><strong>Si editas un pedido, escríbele tú al cliente.</strong> El sistema no
-      lo avisa solo.</td></tr>
+      <td><strong>Si editas un pedido, avísale a la cocina.</strong> Al cliente le
+      escribe el sistema solo; a la cocina no.</td></tr>
     <tr><td style="font-size:16pt;font-weight:700;color:#dc2626;text-align:center">9</td>
       <td><strong>Antes de tocar la papelera 🗑️, lee el nombre en la tarjeta.</strong>
       Cancelar no se deshace.</td></tr>

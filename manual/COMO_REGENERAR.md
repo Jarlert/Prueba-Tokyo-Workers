@@ -33,7 +33,7 @@ Sirve igual `msedge.exe` si no está Chrome.
 
 ## Las capturas de pantalla
 
-Están en `manual/img/` — son 32, numeradas en el orden en que aparecen.
+Están en `manual/img/` — son 33, numeradas en el orden en que aparecen.
 Las 01–16 recorren el tablero y la caja; las 17–29 son el panel de
 administración, pestaña por pestaña.
 
