@@ -33,7 +33,7 @@ Sirve igual `msedge.exe` si no está Chrome.
 
 ## Las capturas de pantalla
 
-Están en `manual/img/` — son 31, numeradas en el orden en que aparecen.
+Están en `manual/img/` — son 32, numeradas en el orden en que aparecen.
 Las 01–16 recorren el tablero y la caja; las 17–29 son el panel de
 administración, pestaña por pestaña.
 
@@ -71,6 +71,10 @@ Detalles que costaron tiempo y conviene no volver a descubrir:
   corta en el borde de la ventana.
 - El panel admin **no muestra la pestaña 🛵 Motorizados**: está apagada por la
   bandera `FUNCION_MOTORIZADOS` de `config.js`. Son siete pestañas, no ocho.
+
+- Los modales (`05`, `06`, `06b`) se recortan al cuadro del modal con un
+  margen de 150 px, no a pantalla completa: así se leen impresos y aun se ve
+  algo del tablero apagado detrás. El selector es `#<idModal> > div`.
 
 Los circulitos rojos numerados **no** están quemados en la imagen: se ponen
 encima con CSS (`.captura .marca`, posicionados en porcentajes), así que se

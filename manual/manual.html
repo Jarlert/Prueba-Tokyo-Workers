@@ -728,7 +728,8 @@
     <tr>
       <td><strong style="color:#047857">Finalizado</strong></td>
       <td>El pedido ya salió del local. Aquí solo se acumula, para llevar la
-      cuenta del día.</td>
+      cuenta del día. Cada tarjeta guarda el nombre, el teléfono y el tipo de
+      entrega, por si alguien llama después.</td>
       <td>Nada. Solo mirar.</td>
     </tr>
   </table>
@@ -764,7 +765,9 @@
     <strong>#1</strong>). Es el número que el cliente ve en su WhatsApp.</li>
     <li><strong>Los cuatro iconitos</strong>, que se explican abajo.</li>
     <li><strong>La hora</strong> a la que entró el pedido, arriba a la derecha.</li>
-    <li><strong>El nombre del cliente</strong>, en letras grandes.</li>
+    <li><strong>El nombre del cliente</strong>, en letras grandes, y justo al lado
+    entre paréntesis si es <strong style="color:#0369a1">(Delivery)</strong> o
+    <strong style="color:#a16207">(Pickup)</strong>.</li>
     <li><strong>Todo lo que pidió</strong>, en letra gris, debajo del nombre.</li>
     <li><strong>El total en dólares</strong> y, debajo en amarillo, el mismo total en
     bolívares.</li>
@@ -787,6 +790,20 @@
       <td>Un <strong>globito de chat</strong>. Abre el chat de WhatsApp con ese cliente,
       para escribirle tú a mano.</td></tr>
   </table>
+
+  <div class="caja truco">
+    <span class="titulo">💡 (Delivery) o (Pickup): míralo antes de tocar nada</span>
+    <p>Al lado de cada nombre siempre dice una de las dos cosas, y de dos colores
+    distintos para que salte a la vista:</p>
+    <ul class="simple">
+      <li><strong style="color:#0369a1">(Delivery)</strong>, en azul — hay que
+      llevárselo. Lleva dirección, precio de envío y aviso al motorizado.</li>
+      <li><strong style="color:#a16207">(Pickup)</strong>, en amarillo — el cliente
+      viene a buscarlo. No se le cobra envío ni se avisa a nadie.</li>
+    </ul>
+    <p>Es lo primero que conviene mirar: cambia por completo lo que tienes que
+    hacer con ese pedido.</p>
+  </div>
 
   <div class="caja truco">
     <span class="titulo">💡 Si no sabes qué hace un iconito</span>
@@ -818,6 +835,38 @@
     <p>Antes de poner el precio del delivery, para leer la dirección. Antes de
     aceptar el pago, para confirmar el monto. Antes de despachar, para revisar que
     la cocina no se saltó una nota. Es un clic y evita casi todos los errores.</p>
+  </div>
+
+  <h4>La tarjeta cambia cuando el pedido ya salió</h4>
+
+  <p>En la última columna, <strong>Finalizado</strong>, las tarjetas se ven distintas:
+  más pequeñas y sin botones, porque ahí ya no hay nada que hacer.</p>
+
+  <figure>
+    <span class="captura estrecha">
+      <img src="img/03b-tarjeta-finalizada.jpg" alt="Una tarjeta ya finalizada">
+    </span>
+    <figcaption>Una tarjeta en la columna <strong>Finalizado</strong>.</figcaption>
+  </figure>
+
+  <p>Aun así te dice lo esencial para encontrar un pedido cuando alguien llama a
+  reclamar:</p>
+
+  <ul class="simple">
+    <li>El <strong>número</strong> y la <strong>hora</strong>.</li>
+    <li>El <strong>nombre del cliente</strong> y si fue
+    <strong style="color:#0369a1">(Delivery)</strong> o
+    <strong style="color:#a16207">(Pickup)</strong>.</li>
+    <li>Su <strong>teléfono</strong>, debajo del nombre.</li>
+    <li>El <strong>total</strong> y, si pagó por Pago Móvil, el
+    <strong>número de referencia</strong> abajo con un ✓✓ verde.</li>
+  </ul>
+
+  <div class="caja truco">
+    <span class="titulo">💡 Toda la tarjeta es un botón</span>
+    <p>En esta columna no hace falta buscar el iconito de la hoja: haz clic
+    <strong>en cualquier parte de la tarjeta</strong> (o en <em>Ver Recibo</em>) y se
+    abre el detalle completo.</p>
   </div>
 
   <h3>3.4 · La barra de arriba</h3>
@@ -991,19 +1040,12 @@
     <span class="captura media">
       <img src="img/05-precio-delivery.jpg" alt="Ventana para calcular el delivery">
     </span>
-    <figcaption>La ventana <strong>Calcular Delivery</strong>, cuando el cliente paga en efectivo.</figcaption>
+    <figcaption>La ventana <strong>Calcular Delivery</strong>. Solo pide una cosa: cuánto se cobra por el envío.</figcaption>
   </figure>
 
   <ol class="pasos" start="4">
     <li>
-      <p>Si el cliente paga <strong>en efectivo</strong>, arriba te pregunta
-      <strong>"¿Con cuánto paga?"</strong>. Escribe ahí el billete que te dijo el
-      cliente: <span class="campo">30$</span>, <span class="campo">50$</span>,
-      <span class="campo">justo</span>. Eso le llega al motorizado para que salga
-      con el vuelto. <strong>Si paga por Pago Móvil, esta pregunta no aparece.</strong></p>
-    </li>
-    <li>
-      <p>Ahora el precio del envío. Tienes dos caminos:</p>
+      <p>El precio del envío. Tienes dos caminos:</p>
       <ul class="simple">
         <li>Si es una dirección normal, haz clic en el botón grande morado
         <strong>Delivery estándar · $2</strong> y listo.</li>
@@ -1017,6 +1059,15 @@
       sumado al total, y al cliente le llega el WhatsApp con lo que tiene que pagar.</p>
     </li>
   </ol>
+
+  <div class="caja nota">
+    <span class="titulo">Aquí no se pregunta con cuánto paga</span>
+    <p>Es a propósito. El cliente recién se entera de cuánto debe
+    <strong>después</strong> de este paso, porque es este paso el que le manda el
+    mensaje de cobro. Preguntarte ahora con qué billete viene sería pedirte un dato
+    que todavía no existe.</p>
+    <p>Esa pregunta está en el paso siguiente, al aceptar el pago (sección 4.2).</p>
+  </div>
 
   <div class="caja ojo">
     <span class="titulo">⚠️ El precio del delivery se pone una sola vez</span>
@@ -1057,18 +1108,42 @@
     <span class="captura media">
       <img src="img/06-comprobante.jpg" alt="Ventana para registrar el comprobante de pago">
     </span>
-    <figcaption>Arriba te recuerda cómo va a pagar el cliente.</figcaption>
+    <figcaption>La ventana <strong>Validar Pago</strong> cuando el cliente paga por Pago Móvil.</figcaption>
+  </figure>
+
+  <p><strong>Esta ventana cambia según cómo pague el cliente</strong>, y arriba te
+  recuerda cuál de los dos casos es. Estos son los dos:</p>
+
+  <table>
+    <tr><th style="width:34%">Si paga por...</th><th>Ves esto</th></tr>
+    <tr>
+      <td><strong>Pago Móvil</strong></td>
+      <td>El recuadro <strong>Número de Referencia</strong>. Es
+      <strong>obligatorio</strong>: sin eso no te deja seguir.</td>
+    </tr>
+    <tr>
+      <td><strong>Efectivo</strong></td>
+      <td>No hay referencia que anotar, así que ese recuadro desaparece y en su
+      lugar sale <strong>"¿Con cuánto paga?"</strong>.</td>
+    </tr>
+  </table>
+
+  <figure>
+    <span class="captura media">
+      <img src="img/06b-comprobante-efectivo.jpg" alt="La misma ventana cuando el cliente paga en efectivo">
+    </span>
+    <figcaption>La misma ventana, en efectivo: sin referencia y con la pregunta del billete.</figcaption>
   </figure>
 
   <ol class="pasos" start="3">
     <li>
-      <p>Escribe el <strong>Número de Referencia</strong>:</p>
-      <ul class="simple">
-        <li>Si paga por <strong>Pago Móvil</strong>, es <strong>obligatorio</strong>.
-        Sin eso no te deja seguir.</li>
-        <li>Si paga en <strong>efectivo</strong>, ese recuadro <strong>no aparece</strong>.
-        No hay referencia que anotar.</li>
-      </ul>
+      <p>Llena lo que te pida según la tabla de arriba.</p>
+      <p>En <strong>"¿Con cuánto paga?"</strong> escribe el billete que te dijo el
+      cliente: <span class="campo">30$</span>, <span class="campo">50$</span>,
+      <span class="campo">justo</span>. Sirve para dos cosas: preparar el vuelto en
+      caja, y avisarle al motorizado — en los pedidos a domicilio ese dato viaja al
+      mensaje del grupo, para que salga con el cambio en el bolsillo.</p>
+      <p>Es <strong>opcional</strong>: si el cliente no lo dijo, déjalo vacío.</p>
     </li>
     <li>
       <p><strong>Sube la foto del comprobante</strong> (opcional, pero muy
@@ -1561,18 +1636,26 @@
 
   <h3>6.3 · El cliente paga en efectivo y necesita vuelto</h3>
 
-  <p>Esto se pregunta <strong>en el mismo momento en que pones el precio del
-  delivery</strong>. Es el campo <strong>"¿Con cuánto paga?"</strong> que viste en la
-  Parte 4.</p>
+  <p>Esto se pregunta <strong>al aceptar el pago</strong>, en la ventana
+  <strong>Validar Pago</strong>. Es el campo <strong>"¿Con cuánto paga?"</strong> que
+  viste en la Parte 4, y solo aparece cuando el cliente paga en efectivo.</p>
 
   <ul class="simple">
     <li>Pregúntale al cliente con qué billete va a pagar.</li>
     <li>Escríbelo tal cual: <span class="campo">30$</span>,
     <span class="campo">50$</span>, o <span class="campo">justo</span> si tiene el
     monto exacto.</li>
-    <li>Ese dato le llega al grupo de motorizados junto con la dirección, para que
-    el repartidor salga con el vuelto en el bolsillo.</li>
+    <li>Si es un pedido a domicilio, ese dato le llega al grupo de motorizados junto
+    con la dirección, para que el repartidor salga con el vuelto en el bolsillo.</li>
+    <li>Si es de retiro, te sirve igual para tener el cambio listo en la caja.</li>
   </ul>
+
+  <div class="caja nota">
+    <span class="titulo">¿Por qué no se pregunta antes, al cotizar el delivery?</span>
+    <p>Porque el cliente recién sabe cuánto debe cuando le llega el mensaje de cobro,
+    y ese mensaje sale justo <strong>al</strong> poner el precio del delivery. Un paso
+    antes, todavía no te lo podía haber dicho.</p>
+  </div>
 
   <div class="caja truco">
     <span class="titulo">💡 Vale la pena preguntarlo siempre</span>
@@ -2696,7 +2779,8 @@
       <td><strong>Dale al <span class="btn azul">Despachar ✓</span> azul cuando la
       comida sale de verdad</strong>, no antes.</td></tr>
     <tr><td style="font-size:16pt;font-weight:700;color:#dc2626;text-align:center">7</td>
-      <td><strong>Pregunta con cuánto paga</strong> en todos los delivery en efectivo.</td></tr>
+      <td><strong>Pregunta con cuánto paga</strong> en todo pedido en efectivo. El campo
+      está en la ventana de <strong>Validar Pago</strong>.</td></tr>
     <tr><td style="font-size:16pt;font-weight:700;color:#dc2626;text-align:center">8</td>
       <td><strong>Si editas un pedido, escríbele tú al cliente.</strong> El sistema no
       lo avisa solo.</td></tr>
