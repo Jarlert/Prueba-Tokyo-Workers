@@ -495,12 +495,12 @@
     <tr>
       <td><strong>Administración</strong></td>
       <td>Cambiar precios, marcar algo agotado, crear platos y combos</td>
-      <td>Solo el encargado</td>
+      <td>Solo el encargado o el dueño</td>
     </tr>
     <tr>
       <td><strong>Estadísticas</strong></td>
       <td>Ver cuánto se vendió, qué se vende más, buscar un cliente</td>
-      <td>Solo el encargado</td>
+      <td>Solo el encargado o el dueño</td>
     </tr>
     <tr>
       <td><strong>Menú del cliente</strong></td>
@@ -1144,7 +1144,15 @@
       <span class="campo">justo</span>. Sirve para dos cosas: preparar el vuelto en
       caja, y avisarle al motorizado — en los pedidos a domicilio ese dato viaja al
       mensaje del grupo, para que salga con el cambio en el bolsillo.</p>
-      <p>Es <strong>opcional</strong>: si el cliente no lo dijo, déjalo vacío.</p>
+      <p>Es <strong>opcional</strong> —el sistema te deja seguir sin llenarlo— pero
+      <strong>recomendamos muchísimo que preguntes y lo escribas</strong>. Es la
+      única forma de tener el vuelto listo a tiempo: si nadie lo anota, el
+      motorizado se entera del billete cuando ya está en la puerta del cliente, y
+      ahí o se devuelve a buscar cambio, o el cliente se queda esperando. Cuesta
+      una pregunta.</p>
+      <p>Si el cliente de verdad no lo sabe, escribe
+      <span class="campo">no sabe</span> en vez de dejarlo vacío: así el motorizado
+      sale prevenido con cambio suelto.</p>
     </li>
     <li>
       <p><strong>Sube la foto del comprobante</strong> (opcional, pero muy
@@ -1481,7 +1489,7 @@
     <div><span class="n">3</span><strong>Teléfono.</strong> Empieza siempre por aquí.</div>
     <div><span class="n">4</span><strong>Entrega y Método de pago.</strong> Dos listas
     desplegables.</div>
-    <div><span class="n">5</span><strong>Dirección / Mesa / Notas.</strong></div>
+    <div><span class="n">5</span><strong>Dirección.</strong> A dónde va el pedido.</div>
     <div><span class="n">6</span><strong>Procesar Pedido.</strong> El botón verde que
     manda todo.</div>
     <div><span class="n">7</span><strong>Añadir línea a mano</strong> — solo para admin.</div>
@@ -1513,9 +1521,11 @@
       WhatsApp, así que tiene que ser el correcto.</p>
     </li>
     <li>
-      <p><strong>Dirección / Mesa / Notas.</strong> La dirección completa si es
-      delivery, o el número de mesa si está en el local. Aquí también van las
-      aclaratorias generales: <span class="campo">tocar el timbre dos veces</span>.</p>
+      <p><strong>Dirección.</strong> La dirección completa a donde va el pedido.
+      Aquí también van las aclaratorias para el motorizado:
+      <span class="campo">tocar el timbre dos veces</span>.</p>
+      <p>Si el pedido es para retirar en el local, con poner
+      <span class="campo">Retira en el local</span> basta.</p>
     </li>
     <li>
       <p>Revisa el <strong>Total</strong> una vez más y haz clic en
@@ -2613,8 +2623,7 @@
     <tr><th style="width:38%">Plantilla</th><th>Cuándo sale</th></tr>
     <tr><td><strong>1. Recepción</strong></td><td>Apenas entra el pedido, mientras se calcula el delivery.</td></tr>
     <tr><td><strong>2A. Cobro (Pago Móvil)</strong></td><td>Al pedirle el pago, si eligió pago móvil.</td></tr>
-    <tr><td><strong>2B. Cobro (Zelle)</strong></td><td>Ya no se ofrece Zelle a los clientes nuevos, pero la plantilla sigue ahí por los pedidos viejos. <strong>No hace falta tocarla.</strong></td></tr>
-    <tr><td><strong>2C. Cobro (Efectivo)</strong></td><td>Al pedirle el pago, si va a pagar en efectivo.</td></tr>
+    <tr><td><strong>2B. Cobro (Efectivo)</strong></td><td>Al pedirle el pago, si va a pagar en efectivo.</td></tr>
     <tr><td><strong>3. Pago Aprobado</strong></td><td>Cuando aceptas el pago y el pedido pasa a cocina. <strong>Es el que lleva el tiempo estimado.</strong></td></tr>
     <tr><td><strong>4A. Finalizado (Delivery)</strong></td><td>Cuando despachas un pedido con delivery.</td></tr>
     <tr><td><strong>4B. Finalizado (Pick-Up)</strong></td><td>Cuando el pedido para retirar está listo.</td></tr>
@@ -2623,7 +2632,7 @@
   </table>
 
   <p>Se editan todas las que quieras y al final se aprieta un solo botón:
-  <span class="btn rojo">💾 Guardar Todas las Plantillas</span>. Guarda las nueve de
+  <span class="btn rojo">💾 Guardar Todas las Plantillas</span>. Las guarda todas de
   golpe.</p>
 
   <div class="caja peligro">
@@ -2823,7 +2832,10 @@
     <tr>
       <td><strong>Todo el sistema no carga</strong></td>
       <td>Prueba abrir cualquier otra página en el navegador. Si tampoco abre, es el
-      internet del local, no el sistema.</td>
+      internet del local, no el sistema.<br>
+      <strong>Si la otra página sí abre y el sistema no, el problema es nuestro:
+      contáctanos.</strong> No pierdas tiempo reinstalando ni cambiando nada;
+      mientras tanto, anota los pedidos en papel.</td>
     </tr>
     <tr>
       <td><strong>Me equivoqué en algo grande</strong></td>
