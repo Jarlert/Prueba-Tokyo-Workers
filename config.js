@@ -32,6 +32,15 @@ const API_BASE = "https://prueba-tokyo-workers-production-baac.up.railway.app";
 // delivery. Esas dos cosas se siguen usando todos los dias.
 const FUNCION_MOTORIZADOS = false;
 
+// Zelle no se le ofrece a los clientes desde hace rato (la opcion ya no esta
+// en el menu), asi que su plantilla de WhatsApp tampoco tiene por que ocupar
+// espacio en el panel. Esto SOLO esconde ese recuadro: la fila cobro_zelle
+// sigue en la base de datos, el textarea sigue en el HTML cargando y
+// guardando su texto tal cual, y el backend sigue sabiendo mandarla. Los
+// pedidos viejos pagados por Zelle se siguen leyendo igual.
+// Ponerlo en true lo devuelve a la vista, aqui o para otro cliente.
+const PLANTILLA_ZELLE = false;
+
 // Oculta un elemento por selector, si existe. Usado para apagar la UI de
 // motorizados sin borrar el HTML.
 function ocultarSiExiste(selector) {

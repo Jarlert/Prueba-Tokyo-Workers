@@ -213,6 +213,11 @@ async function cargarMensajesWP() {
     const txtRecepcion = document.getElementById('msg-recepcion');
     if(!txtRecepcion) return; 
 
+    // Antes de pedir nada: si la carga falla, el recuadro tiene que quedar
+    // escondido igual. Esconderlo no le quita el texto, porque un elemento
+    // con display:none acepta que le asignen .value como cualquier otro.
+    ocultarPlantillaZelle();
+
     try {
         txtRecepcion.value = "Cargando plantillas desde la base de datos...";
         const res = await fetch(URL_OBTENER_MSJ, { headers: authHeaders() });
@@ -383,6 +388,14 @@ async function eliminarUsuario(id) {
 // ==========================================
 // 5. GESTIÓN DE MOTORIZADOS
 // ==========================================
+
+// Esconde el recuadro de la plantilla de Zelle cuando esta apagada en
+// config.js. Solo lo oculta: el textarea sigue en el HTML, asi que su texto
+// se sigue cargando y volviendo a guardar sin que nadie lo pise.
+function ocultarPlantillaZelle() {
+    if (typeof PLANTILLA_ZELLE === "undefined" || PLANTILLA_ZELLE) return;
+    ocultarSiExiste('#bloque-plantilla-zelle');
+}
 
 // Esconde la pestana "Motorizados" cuando la funcion esta apagada en
 // config.js. Solo oculta: el formulario y la lista siguen en el HTML y
