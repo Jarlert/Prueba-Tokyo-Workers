@@ -160,6 +160,99 @@ def precio_de_linea(precio_unitario, cantidad, precio_paquete=None, cantidad_paq
     return float(precio_unitario) * cantidad
 
 
+def _campo_articulo(articulo, nombre, por_defecto=None):
+    """Lee un campo del articulo venga como objeto del schema o como dict crudo.
+
+    Al crear el pedido los articulos llegan validados por Pydantic; al editar
+    llegan como JSON pelado desde la caja.
+    """
+    if isinstance(articulo, dict):
+        return articulo.get(nombre, por_defecto)
+    return getattr(articulo, nombre, por_defecto)
+
+
+def construir_resumen_pedido(db: Session, articulos) -> tuple[str, float]:
+    """Arma el texto del pedido y su total leyendo los precios de la base.
+
+    Nunca se confia en el precio que manda el navegador, salvo en tres casos:
+    el plato ya no existe en la base (lo borraron mientras compraban), la linea
+    es un renglon escrito a mano por el cajero ("custom_0_1"), o es el regalo de
+    una promocion, que va marcado y se cobra en cero.
+
+    Un salto de linea por articulo (y otro para su descripcion, si tiene): el
+    tablero y las estadisticas leen este texto renglon por renglon buscando
+    "Nx Nombre ($precio)".
+    """
+    total_dolares = 0.0
+    resumen_articulos = []
+
+    for item in articulos or []:
+        id_item = str(_campo_articulo(item, "id", "") or "")
+        nombre_item = _campo_articulo(item, "name", "") or ""
+        nota_item = _campo_articulo(item, "note", "") or ""
+        precio_cliente = float(_campo_articulo(item, "price", 0) or 0)
+        es_regalo = bool(_campo_articulo(item, "esRegalo", False))
+
+        try:
+            cantidad = int(_campo_articulo(item, "qty", 0) or 0)
+        except (TypeError, ValueError):
+            continue
+        if cantidad <= 0:
+            continue
+
+        precio_seguro = 0.0
+        descripcion_item = ""
+        precio_paquete = None
+        cantidad_paquete = 0
+
+        # Separamos el prefijo del ID real.
+        # Ej: De "p_5" sacamos ["p", "5"]. De "c_1_Roles_Bebidas" sacamos ["c", "1", "Roles", "Bebidas"]
+        partes_id = id_item.split("_")
+        tipo_item = partes_id[0] if partes_id else ""
+        db_id = int(partes_id[1]) if len(partes_id) > 1 and partes_id[1].isdigit() else 0
+
+        if tipo_item == "p" and db_id:
+            # Es un producto normal
+            producto_db = db.query(models.Producto).filter(models.Producto.id == db_id).first()
+            if producto_db:
+                precio_seguro = producto_db.precio
+                descripcion_item = producto_db.descripcion or ""
+                precio_paquete = producto_db.precio_paquete
+                cantidad_paquete = producto_db.cantidad_paquete
+
+        elif tipo_item == "c" and db_id:
+            # Es un combo
+            combo_db = db.query(models.Combo).filter(models.Combo.id == db_id).first()
+            if combo_db:
+                precio_seguro = combo_db.precio
+                descripcion_item = combo_db.descripcion or ""
+
+        if es_regalo:
+            # El regalo de "compra N y llevate uno" viaja como un producto normal.
+            # Si le pusieramos el precio de la base dejaria de ser un regalo: el
+            # carrito se lo mostro al cliente en cero y en cero debe cobrarse.
+            precio_seguro = 0.0
+            precio_paquete, cantidad_paquete = None, 0
+        elif precio_seguro == 0.0:
+            # Respaldo: el plato ya no esta en la base, o es una linea a mano.
+            precio_seguro = precio_cliente
+
+        # Sumamos la linea con el precio INHACKEABLE de tu base de datos,
+        # aplicando el precio por paquete si el plato lo tiene.
+        total_linea = precio_de_linea(precio_seguro, cantidad, precio_paquete, cantidad_paquete)
+        total_dolares += total_linea
+
+        # Con precio por paquete el precio unitario no explica la cuenta, asi que
+        # la linea muestra lo que de verdad se cobro por ella.
+        hay_paquete = total_linea != precio_seguro * cantidad
+        precio_mostrado = total_linea if hay_paquete else precio_seguro
+        nota = f" (Nota: {nota_item})" if nota_item else ""
+        desc_texto = f"\n{descripcion_item}" if descripcion_item else ""
+        resumen_articulos.append(f"{cantidad}x {nombre_item} (${precio_mostrado:.2f}){nota}{desc_texto}")
+
+    return "\n".join(resumen_articulos), total_dolares
+
+
 @router.post("/")
 async def crear_pedido(
     pedido: schemas.PedidoCreate,
@@ -181,60 +274,10 @@ async def crear_pedido(
     cliente_db = db.query(models.Cliente).filter(models.Cliente.telefono == pedido.telefono).first()
     cedula_cliente = cliente_db.cedula if cliente_db else None
 
-    # 2. Calcular el total de forma segura consultando la BD, y de paso
-    # traer la descripcion de cada articulo para el resumen (punto 2.5)
-    total_dolares = 0.0
-    resumen_articulos = []
-    for item in pedido.articulos:
-        precio_seguro = 0.0
-        descripcion_item = ""
-        precio_paquete = None
-        cantidad_paquete = 0
-
-        # Separamos el prefijo del ID real.
-        # Ej: De "p_5" sacamos ["p", "5"]. De "c_1_Roles_Bebidas" sacamos ["c", "1", "Roles", "Bebidas"]
-        partes_id = item.id.split("_")
-        tipo_item = partes_id[0]
-        db_id = int(partes_id[1])
-
-        if tipo_item == "p":
-            # Es un producto normal
-            producto_db = db.query(models.Producto).filter(models.Producto.id == db_id).first()
-            if producto_db:
-                precio_seguro = producto_db.precio
-                descripcion_item = producto_db.descripcion or ""
-                precio_paquete = producto_db.precio_paquete
-                cantidad_paquete = producto_db.cantidad_paquete
-
-        elif tipo_item == "c":
-            # Es un combo
-            combo_db = db.query(models.Combo).filter(models.Combo.id == db_id).first()
-            if combo_db:
-                precio_seguro = combo_db.precio
-                descripcion_item = combo_db.descripcion or ""
-
-        # Sistema de respaldo: Si borraste el producto de la BD mientras el cliente compraba, usamos su precio temporal
-        if precio_seguro == 0.0:
-            precio_seguro = item.price
-
-        # Sumamos la linea con el precio INHACKEABLE de tu base de datos,
-        # aplicando el precio por paquete si el plato lo tiene.
-        total_linea = precio_de_linea(precio_seguro, item.qty, precio_paquete, cantidad_paquete)
-        total_dolares += total_linea
-
-        # 2.5 Replicamos la lógica de n8n para armar el texto del resumen
-        # Con precio por paquete el precio unitario no explica la cuenta, asi que
-        # la linea muestra lo que de verdad se cobro por ella.
-        hay_paquete = total_linea != precio_seguro * item.qty
-        precio_mostrado = total_linea if hay_paquete else item.price
-        nota = f" (Nota: {item.note})" if item.note else ""
-        desc_texto = f"\n{descripcion_item}" if descripcion_item else ""
-        resumen_articulos.append(f"{item.qty}x {item.name} (${precio_mostrado:.2f}){nota}{desc_texto}")
-
-    # Un salto de línea por artículo (y otro más para su descripción, si tiene) para que
-    # tanto el tablero como el modal de edición ("Editar Pedido" en app.js parsea línea por
-    # línea buscando "Nx Nombre ($precio)") puedan diferenciar cada renglón.
-    texto_detallado = "\n".join(resumen_articulos)
+    # 2. Calcular el total de forma segura consultando la BD y armar de paso el
+    # texto del resumen. La misma funcion la usa /editar, para que un pedido
+    # editado se lea y se cobre exactamente igual que uno recien hecho.
+    texto_detallado, total_dolares = construir_resumen_pedido(db, pedido.articulos)
 
     # 2.6 Cuanto ocupa el pedido al empacarlo (para el aviso a motorizados)
     empaque = calcular_empaque(db, pedido.articulos)
@@ -423,6 +466,60 @@ def actualizar_estado(datos: dict, db: Session = Depends(get_db), staff: dict = 
         pass
     # -------------------------------------------------------
     return {"success": True}
+
+@router.post("/editar")
+def editar_pedido(datos: dict, db: Session = Depends(get_db), staff: dict = Depends(requiere_staff)):
+    """Reescribe los articulos de un pedido que ya existe.
+
+    El tablero ya no tiene su propio mini-menu para editar: el lapiz abre la
+    caja (menu_trabajadores.html) con el pedido cargado, y de ahi sale este
+    carrito completo. El texto y el total se rehacen con construir_resumen_pedido,
+    la misma que usa crear_pedido, asi que un combo editado queda descrito igual
+    que uno recien tomado y el precio lo sigue poniendo la base de datos.
+
+    El telefono NO se toca: es la clave con la que el pedido se une a su cliente,
+    y cambiarlo dejaria el historial huerfano. La tasa BCV tampoco: cada pedido
+    guarda la del dia en que se creo.
+    """
+    pedido = buscar_pedido_por_id(db, datos.get("id"))
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+
+    articulos = datos.get("articulos")
+    if not articulos:
+        raise HTTPException(status_code=400, detail="El pedido editado llego sin articulos")
+
+    texto_detallado, total_dolares = construir_resumen_pedido(db, articulos)
+    empaque = calcular_empaque(db, articulos)
+
+    pedido.pedido_detallado = texto_detallado
+    pedido.total_orden = total_dolares
+    pedido.total_bandejas = empaque["bandejas"]
+    pedido.total_cajas_pizza = empaque["cajas_pizza"]
+    pedido.total_refrescos = empaque["refrescos"]
+
+    for campo in ("cliente", "direccion", "metodo_pago", "procesado_por"):
+        if datos.get(campo):
+            setattr(pedido, campo, datos[campo])
+
+    # Se lee antes del commit: despues el objeto queda expirado y volver a
+    # tocarlo dispararia otra consulta.
+    tasa_del_pedido = pedido.tasa_bcv or 0
+
+    db.commit()
+
+    try:
+        pusher_client.trigger('canal-cocina', 'actualizar-tablero', {'mensaje': 'edicion'})
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "pedido_detallado": texto_detallado,
+        "total_orden": total_dolares,
+        "tasa_bcv": tasa_del_pedido,
+    }
+
 
 # ==========================================
 # FUNCION EXTRA: Traductor de ID de Base de Datos a ID Diario

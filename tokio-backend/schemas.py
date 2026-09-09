@@ -10,6 +10,9 @@ class ArticuloCarrito(BaseModel):
     price: float
     qty: int
     note: Optional[str] = "" # Optional porque a veces no hay nota
+    # El regalo de una promocion viaja como un producto normal con precio 0. Este
+    # aviso es lo que impide que el backend le vuelva a poner el precio de lista.
+    esRegalo: bool = False
 
 class PedidoCreate(BaseModel):
     timestamp: datetime

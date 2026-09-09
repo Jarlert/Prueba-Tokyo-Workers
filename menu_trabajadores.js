@@ -20,10 +20,22 @@
 // API_BASE viene de config.js, que se carga antes que este archivo.
 const URL_BUSCAR_CLIENTES_TRAB = API_BASE + "/api/clientes/buscar";
 const URL_CREAR_PEDIDO_TRAB = API_BASE + "/api/pedidos/";
+const URL_EDITAR_PEDIDO_TRAB = API_BASE + "/api/pedidos/editar";
+const URL_NOTIFICAR_EDICION_TRAB = API_BASE + "/api/pedidos/notificar-edicion";
+
+// El tablero deja aquí el pedido que se va a editar antes de mandar al cajero a
+// esta pantalla, para no tener que volver a pedírselo al servidor.
+const CLAVE_PEDIDO_EN_EDICION = 'tokioPedidoEnEdicion';
 
 let usuarioActivoTrabajador = null;
 let contadorLineaManual = 0;
 let _ultimoTelefonoBuscadoTrab = null;
+
+// Pedido que se está editando, o null si se está tomando uno nuevo. Es el
+// interruptor de todo el modo edición: cambia el título, el botón de cerrar y
+// a dónde se manda el pedido al guardar.
+let pedidoEnEdicion = null;
+let contadorLineaPrecargada = 0;
 
 
 // --- Sesión del personal -----------------------------------------------------
@@ -46,6 +58,10 @@ function retrocederPaso() {
 }
 
 function volverAlTablero() {
+    // Editando un pedido que ya existe, salir sin guardar deja las cosas como
+    // estaban: mejor preguntar, porque el cajero llegó aquí desde el tablero.
+    if (pedidoEnEdicion && !confirm('¿Salir sin guardar los cambios del pedido?')) return;
+    limpiarPedidoEnEdicionGuardado();
     window.location.href = 'index.html';
 }
 
@@ -98,6 +114,15 @@ window.onload = async function() {
 
     history.replaceState({ step: 1 }, "Categorías");
     await cargarMenuDesdeDB();
+
+    // ?editar=<id> significa que venimos del lápiz del tablero: en vez de un
+    // pedido en blanco, cargamos el que ya existe y abrimos directo el carrito.
+    const idAEditar = new URLSearchParams(window.location.search).get('editar');
+    if (idAEditar) {
+        await entrarEnModoEdicion(idAEditar);
+        return;
+    }
+
     goToStep(1, false);
 };
 
@@ -309,6 +334,11 @@ function _limpiarEstadoClienteTrab() {
 }
 
 async function buscarClienteTrabajador() {
+    // Editando, el teléfono no se puede cambiar (es la clave que une el pedido
+    // con su cliente), así que tampoco hay nada que buscar: la consulta solo
+    // serviría para pisar el nombre o la dirección que el cajero acaba de corregir.
+    if (pedidoEnEdicion) return;
+
     const inputTel = document.getElementById('trab-telefono');
     const telefono = normalizarTelefono(inputTel.value);
 
@@ -424,6 +454,10 @@ function agregarLineaManual() {
 async function enviarPedidoTrabajador(event) {
     if (event && typeof event.preventDefault === 'function') event.preventDefault();
 
+    // El mismo formulario sirve para tomar un pedido nuevo y para editar uno que
+    // ya está en el tablero; lo único que cambia es a dónde va.
+    if (pedidoEnEdicion) return guardarEdicionDePedido();
+
     // Si quedaron combos elegidos pero sin personalizar, no se puede enviar: la
     // cocina recibiría un combo sin saber qué piezas lleva. Va antes que el aviso
     // de carrito vacío porque un pedido con solo pendientes no está vacío.
@@ -511,6 +545,331 @@ function reiniciarPedidoTrabajador() {
     calculateTotals();
     renderizarCategorias();
     goToStep(1);
+}
+
+
+
+// --- Modo edición: un pedido que ya existe -----------------------------------
+//
+// El tablero ya no trae su propio mini-menú para editar. Su lápiz manda aquí con
+// ?editar=<id>, y esta pantalla —que es la que sabe armar combos— se encarga del
+// resto. Al guardar, el backend rehace el texto y el total con la misma cuenta
+// que usa al crear un pedido.
+
+function limpiarPedidoEnEdicionGuardado() {
+    try { localStorage.removeItem(CLAVE_PEDIDO_EN_EDICION); } catch (e) { /* modo incógnito */ }
+}
+
+// El tablero deja el pedido en localStorage antes de navegar. Si el cajero
+// recarga la página ese apunte puede haberse perdido, así que hay respaldo:
+// se lo pedimos al servidor.
+async function recuperarPedidoAEditar(idPedido) {
+    try {
+        const guardado = JSON.parse(localStorage.getItem(CLAVE_PEDIDO_EN_EDICION) || 'null');
+        if (guardado && String(guardado.id) === String(idPedido)) return guardado;
+    } catch (e) { /* apunte ilegible: lo pedimos al servidor */ }
+
+    try {
+        const res = await fetch(API_BASE + '/api/pedidos/?t=' + Date.now(), { headers: authHeaders() });
+        if (!res.ok) return null;
+        const pedidos = await res.json();
+        const encontrado = (Array.isArray(pedidos) ? pedidos : [])
+            .find(p => String(p.id_pedido || p.id) === String(idPedido));
+        if (!encontrado) return null;
+        return {
+            id: encontrado.id_pedido || encontrado.id,
+            id_visual: '',
+            cliente: encontrado.cliente || '',
+            telefono: encontrado.telefono || '',
+            direccion: encontrado.direccion || '',
+            tipo_entrega: encontrado.tipo_entrega || '',
+            metodo_pago: encontrado.metodo_pago || '',
+            pedido_detallado: encontrado.pedido_detallado || ''
+        };
+    } catch (e) {
+        console.error('No se pudo recuperar el pedido a editar:', e);
+        return null;
+    }
+}
+
+async function entrarEnModoEdicion(idPedido) {
+    const pedido = await recuperarPedidoAEditar(idPedido);
+    if (!pedido) {
+        alert('No se encontró el pedido que querías editar. Vuelve al tablero e inténtalo de nuevo.');
+        window.location.replace('index.html');
+        return;
+    }
+
+    pedidoEnEdicion = pedido;
+
+    precargarCarritoDesdePedido(pedido.pedido_detallado);
+    rellenarFormularioDeEdicion(pedido);
+    pintarPantallaDeEdicion(pedido);
+
+    calculateTotals();
+    // Se entra por el carrito: el cajero ya sabe lo que el cliente pidió, lo que
+    // viene a hacer es cambiarlo. prepareCheckout pinta el resumen y salta al paso 3.
+    prepareCheckout();
+}
+
+// Busca un plato del menú por su nombre exacto. menuData incluye los que no se
+// venden sueltos (piezas de combos) y los agotados, y aquí eso es lo correcto:
+// el pedido ya se hizo, solo estamos recuperando de qué plato hablaba.
+function buscarItemPorNombreExacto(nombre) {
+    const buscado = String(nombre || '').trim().toLowerCase();
+    for (const catKey in menuData) {
+        const items = (menuData[catKey] && menuData[catKey].items) || [];
+        const encontrado = items.find(i => String(i.name || '').trim().toLowerCase() === buscado);
+        if (encontrado) return encontrado;
+    }
+    return null;
+}
+
+// Un combo ya personalizado se guardó como "Combo Dúo (Rolls: 2x California)":
+// su nombre exacto no está en el menú. Lo buscamos por lo que va antes del
+// paréntesis y SOLO para recuperar su id, que es lo que le dice al backend
+// cuántas bandejas ocupa. El texto y el precio de la línea no se tocan.
+function buscarItemPorNombreBase(nombre) {
+    const completo = String(nombre || '').trim().toLowerCase();
+    let mejor = null;
+    for (const catKey in menuData) {
+        const items = (menuData[catKey] && menuData[catKey].items) || [];
+        items.forEach(item => {
+            const base = String(item.name || '').trim().toLowerCase();
+            if (!base || !completo.startsWith(base + ' (')) return;
+            // Con varios nombres que encajan gana el más largo ("Combo Dúo Grande"
+            // antes que "Combo Dúo").
+            if (!mejor || base.length > String(mejor.name).trim().length) mejor = item;
+        });
+    }
+    return mejor;
+}
+
+// Convierte el texto guardado del pedido en líneas de carrito. Es el mismo
+// formato que arma el backend: "2x Nombre ($4.50) (Nota: sin picante)", y en su
+// propio renglón la descripción del plato (que aquí se ignora).
+function precargarCarritoDesdePedido(textoDetallado) {
+    cart = {};
+    pendientesPersonalizarCombo = {};
+    contadorLineaPrecargada = 0;
+
+    String(textoDetallado || '').split('\n').forEach(linea => {
+        const match = linea.trim().match(/^(\d+)[xX]\s+(.+)$/);
+        if (!match) return; // renglón de descripción, no es un artículo
+
+        const cantidad = parseInt(match[1], 10) || 0;
+        if (cantidad <= 0) return;
+
+        let nombre = match[2].trim();
+
+        // Primero la nota: va al final del todo, después del precio.
+        let nota = '';
+        const matchNota = nombre.match(/\(Nota:\s*(.+?)\)$/i);
+        if (matchNota) {
+            nota = matchNota[1].trim();
+            nombre = nombre.replace(/\s*\(Nota:\s*.+?\)$/i, '').trim();
+        }
+
+        // Quitada la nota, el precio sí queda al final: ($12.50). Es el precio de
+        // UNA unidad, salvo cuando el plato tiene precio por paquete: ahí el
+        // backend escribe el total de la línea, porque el unitario ya no explica
+        // la cuenta. Ese caso no molesta aquí, porque un plato del menú recupera
+        // su precio del catálogo y no de este texto.
+        let precioEnTexto = 0;
+        const matchPrecio = nombre.match(/\(\$(\d+(?:\.\d+)?)\)$/);
+        if (matchPrecio) {
+            precioEnTexto = parseFloat(matchPrecio[1]) || 0;
+            nombre = nombre.replace(/\s*\(\$[\d.]+\)$/, '').trim();
+        }
+
+        // El regalo de una promoción no se precarga: sincronizarPromocionesCarrito
+        // lo vuelve a poner solo si el pedido editado sigue calificando, y así no
+        // quedan dos regalos si el cajero quita combos.
+        if (nombre.startsWith('🎁')) return;
+
+        const itemMenu = buscarItemPorNombreExacto(nombre);
+        if (itemMenu) {
+            // Se guarda con el mismo id que usa la tarjeta del menú: si el cajero
+            // agrega otro igual desde el buscador, se suma a esta línea en vez de
+            // abrir una segunda. El precio se toma del menú, no del texto, para que
+            // el precio por paquete vuelva a hacer su cuenta.
+            cart[itemMenu.id] = {
+                id: itemMenu.id, name: itemMenu.name, price: itemMenu.price,
+                qty: cantidad, note: nota
+            };
+            return;
+        }
+
+        // Combo personalizado o línea escrita a mano: se conserva tal cual, con su
+        // propia clave para que no choque con nada del menú.
+        const base = buscarItemPorNombreBase(nombre);
+        contadorLineaPrecargada++;
+        const idLinea = base ? base.id : 'custom_0';
+        cart[`${idLinea}_ya${contadorLineaPrecargada}`] = {
+            id: idLinea,
+            name: nombre,
+            price: precioEnTexto,
+            qty: cantidad,
+            note: nota
+        };
+    });
+}
+
+function rellenarFormularioDeEdicion(pedido) {
+    const inputTel = document.getElementById('trab-telefono');
+    inputTel.value = pedido.telefono || '';
+    // El teléfono es la clave con la que el pedido se une a su cliente: cambiarlo
+    // aquí dejaría el historial del cliente huérfano. Se muestra, no se edita.
+    inputTel.readOnly = true;
+    inputTel.classList.add('bg-slate-100', 'text-slate-500', 'cursor-not-allowed');
+    inputTel.title = 'El teléfono no se cambia desde aquí';
+
+    document.getElementById('trab-cliente').value = pedido.cliente || '';
+    document.getElementById('trab-direccion').value = pedido.direccion || '';
+
+    // El tipo de entrega decide el número diario del pedido (#3 de delivery, #3 de
+    // pickup) y la columna en la que vive en el tablero; cambiarlo a mitad de
+    // camino lo renumeraría. Se ve, pero no se toca.
+    const selEntrega = document.getElementById('trab-entrega');
+    const entrega = String(pedido.tipo_entrega || '').toLowerCase().includes('deliver') ? 'Delivery' : 'Pickup';
+    selEntrega.value = entrega;
+    selEntrega.disabled = true;
+    selEntrega.classList.add('opacity-60', 'cursor-not-allowed');
+    selEntrega.title = 'El tipo de entrega no se cambia desde aquí';
+
+    const selPago = document.getElementById('trab-pago');
+    const pagoGuardado = String(pedido.metodo_pago || '');
+    const opcionIgual = Array.from(selPago.options).find(o => o.value.toLowerCase() === pagoGuardado.toLowerCase());
+    if (opcionIgual) selPago.value = opcionIgual.value;
+}
+
+function pintarPantallaDeEdicion(pedido) {
+    const numero = pedido.id_visual ? `#${pedido.id_visual}` : `#${pedido.id}`;
+
+    const titulo = document.getElementById('titulo-pantalla');
+    if (titulo) titulo.innerHTML = `✏️ Editando pedido <span class="text-amber-400">${escapeHtml(numero)}</span>`;
+    const subtitulo = document.getElementById('subtitulo-pantalla');
+    if (subtitulo) subtitulo.innerText = 'Los cambios se avisan al cliente por WhatsApp';
+
+    const aviso = document.getElementById('aviso-modo-edicion');
+    if (aviso) {
+        aviso.classList.remove('hidden');
+        aviso.innerHTML = `Estás editando el pedido <b>${escapeHtml(numero)}</b> de <b>${escapeHtml(pedido.cliente || 'un cliente')}</b>. Al guardar, el cliente recibe el pedido corregido por WhatsApp.`;
+    }
+
+    const btn = document.getElementById('btn-enviar-pedido');
+    if (btn) {
+        btn.innerHTML = 'Guardar cambios <i class="fa-solid fa-floppy-disk"></i>';
+        btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+        btn.classList.add('bg-amber-500', 'hover:bg-amber-400', 'text-slate-900');
+    }
+}
+
+async function guardarEdicionDePedido() {
+    // Igual que al tomar un pedido nuevo: un combo sin personalizar no puede
+    // llegar a la cocina. Va antes del carrito vacío porque un pedido con solo
+    // pendientes tampoco está vacío.
+    const idsPendientes = idsCombosPendientes();
+    if (idsPendientes.length > 0) {
+        abrirModalCombosPendientes(idsPendientes);
+        return;
+    }
+
+    const articulos = Object.values(cart);
+    if (articulos.length === 0) {
+        alert('El pedido quedaría vacío. Si quieres anularlo, hazlo desde el tablero con la papelera.');
+        goToStep(1);
+        return;
+    }
+
+    const nombreCliente = document.getElementById('trab-cliente').value.trim();
+    if (!nombreCliente) {
+        alert('Falta el nombre del cliente.');
+        document.getElementById('trab-cliente').focus();
+        return;
+    }
+
+    const operador = usuarioActivoTrabajador
+        ? `${usuarioActivoTrabajador.nombre} (${usuarioActivoTrabajador.rol})`
+        : 'No registrado';
+
+    const payload = {
+        id: pedidoEnEdicion.id,
+        cliente: nombreCliente,
+        direccion: document.getElementById('trab-direccion').value.trim(),
+        metodo_pago: document.getElementById('trab-pago').value,
+        procesado_por: `Editado en caja por ${operador}`,
+        articulos: articulos
+    };
+
+    const btn = document.getElementById('btn-enviar-pedido');
+    const htmlOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+
+    try {
+        const res = await fetch(URL_EDITAR_PEDIDO_TRAB, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            console.error('Respuesta del servidor:', await res.text());
+            alert('El servidor rechazó los cambios. Revisa el pedido e intenta de nuevo.');
+            return;
+        }
+
+        // El backend devuelve el texto y el total definitivos (los recalculó él),
+        // así que el WhatsApp al cliente sale con exactamente lo que quedó guardado.
+        const guardado = await res.json();
+        await avisarEdicionAlCliente(payload, guardado);
+
+        limpiarPedidoEnEdicionGuardado();
+        pedidoEnEdicion = null; // para que volverAlTablero no vuelva a preguntar
+        window.location.href = 'index.html';
+    } catch (e) {
+        console.error('Error guardando la edición:', e);
+        alert('Fallo de conexión al guardar. Revisa el internet e intenta de nuevo.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = htmlOriginal;
+    }
+}
+
+async function avisarEdicionAlCliente(payload, guardado) {
+    const metodo = String(payload.metodo_pago || '').toLowerCase();
+    const esPagoMovil = metodo.includes('pago') || metodo.includes('movil') || metodo.includes('móvil');
+
+    // Al pago móvil se le agrega el equivalente en bolívares con la tasa que el
+    // pedido tiene guardada desde que se creó, no con la de hoy.
+    let textoBolivares = '';
+    const tasa = parseFloat(guardado.tasa_bcv) || 0;
+    if (esPagoMovil && tasa > 0) {
+        const totalBs = (parseFloat(guardado.total_orden) || 0) * tasa;
+        const formateado = new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(totalBs);
+        textoBolivares = `\nEquivalente en Bolívares: *${formateado} Bs*`;
+    }
+
+    try {
+        await fetch(URL_NOTIFICAR_EDICION_TRAB, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({
+                telefono: pedidoEnEdicion.telefono || '',
+                cliente: payload.cliente,
+                pedido_detallado: guardado.pedido_detallado || '',
+                total_orden: parseFloat(guardado.total_orden) || 0,
+                texto_bolivares: textoBolivares,
+                // notificar-edicion traduce este id de base de datos al número
+                // diario que el cliente conoce (#3 del día).
+                id_visual: String(pedidoEnEdicion.id)
+            })
+        });
+    } catch (e) {
+        // El pedido ya quedó guardado: que falle el WhatsApp no debe deshacerlo.
+        console.error('No se pudo avisar al cliente por WhatsApp:', e);
+    }
 }
 
 

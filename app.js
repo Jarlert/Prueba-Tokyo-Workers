@@ -5,18 +5,14 @@
 const URL_OBTENER_MOTORIZADOS = API_BASE + "/api/motorizados/";
 const API_OBTENER_PEDIDOS = API_BASE + "/api/pedidos/";
 const API_ACTUALIZAR_ESTADO = API_BASE + "/api/pedidos/actualizar-estado";
-const URL_OBTENER_MENU = API_BASE + "/api/menu/";
 const URL_OBTENER_USUARIOS = API_BASE + "/api/usuarios/";
 
 let MOTORIZADOS_SISTEMA = []; 
 let USUARIOS_SISTEMA = [];
-let CATALOGO_PRODUCTOS = []; 
 let inventarioProductosBase = []; 
 let usuarioActivo = null;
 let pedidosEnMemoria = [];
 
-let carritoEdicion = []; 
-let totalEdicionUSD = 0;
 let resolveTiempoEstimado = null; 
 
 // El boton "Nuevo Pedido" del tablero ya no abre un formulario aqui: lleva al
@@ -24,54 +20,6 @@ let resolveTiempoEstimado = null;
 // adaptado a la caja y con la personalizacion de combos incluida.
 function irAMenuTrabajadores() {
     window.location.href = 'menu_trabajadores.html';
-}
-
-// --- CARGAR CATÁLOGO DESDE LA BASE DE DATOS ---
-async function cargarCatalogoDesdeDB() {
-    try {
-        const urlFresca = URL_OBTENER_MENU + "?t=" + new Date().getTime();
-        const response = await fetch(urlFresca);
-        if (!response.ok) throw new Error('Error al conectar con el servidor de menú');
-        
-        const data = await response.json();
-        let todosLosItems = [];
-
-        function rastrearItems(objeto, prefijoBase = "p") {
-            if (Array.isArray(objeto)) {
-                objeto.forEach(item => rastrearItems(item, prefijoBase));
-            } else if (typeof objeto === 'object' && objeto !== null) {
-                if (objeto.nombre && objeto.precio !== undefined) {
-                    let prefijo = prefijoBase;
-                    if (objeto.categoria === 'Combos' || objeto.es_combo) prefijo = "c"; 
-                    
-                    todosLosItems.push({
-                        id: `${prefijo}_${objeto.id}`,
-                        name: objeto.nombre,
-                        price: parseFloat(objeto.precio),
-                        // NUEVO: Guardamos la categoría y las opciones ocultas
-                        categoria: objeto.categoria || '',
-                        agotado: objeto.agotado === true,
-                        opciones_combo: objeto.items_json || objeto.items || null,
-                        // Precio por paquete (ej. el par de lumpias), para que al
-                        // editar un pedido salga la misma cuenta que en el menú.
-                        precioPaquete: parseFloat(objeto.precio_paquete) || 0,
-                        cantidadPaquete: parseInt(objeto.cantidad_paquete, 10) || 0
-                    });
-                } else {
-                    for (const llave in objeto) {
-                        if (llave.toLowerCase().includes('combo')) rastrearItems(objeto[llave], "c");
-                        else rastrearItems(objeto[llave], prefijoBase);
-                    }
-                }
-            }
-        }
-
-        rastrearItems(data);
-        CATALOGO_PRODUCTOS = todosLosItems;
-        console.log("🔥 Catálogo conectado a PostgreSQL:", CATALOGO_PRODUCTOS.length, "ítems encontrados.");
-    } catch (error) {
-        console.error("Error obteniendo el catálogo interno:", error);
-    } 
 }
 
 async function cargarMotorizadosDesdeDB() {
@@ -264,217 +212,33 @@ function aplicarRestriccionesRol() {
     }
 }
 
-function abrirModalEditarPedido(idReal, idVisual) {
+// Editar un pedido ya no se hace desde aquí. Este tablero no sabe armar combos
+// —elegir los rolls, los estilos, las bebidas—, así que un combo agregado desde
+// su viejo mini-menú llegaba a la cocina pelado, sin decir qué llevaba. En vez de
+// mantener aquí una segunda copia del menú, el lápiz manda a la caja
+// (menu_trabajadores.html), que es la pantalla que sí sabe armarlos, con el
+// pedido ya cargado. Ver "Modo edición" al final de menu_trabajadores.js.
+function irAEditarPedidoEnCaja(idReal, idVisual) {
     const pedido = pedidosEnMemoria.find(p => String(p.id_pedido || p['ID_Pedido'] || p.ID || 'S/ID') === String(idReal));
     if (!pedido) return;
-    document.getElementById('editIdReal').value = idReal;
-    document.getElementById('txtEditIdVisual').innerText = `#${idVisual}`;
-    document.getElementById('editCliente').value = pedido.cliente || pedido['Cliente'] || '';
-    document.getElementById('buscadorMenu').value = '';
-    document.getElementById('listaSugerencias').classList.add('hidden');
-    
-    carritoEdicion = [];
-    const textoDetallado = pedido.pedido_detallado || pedido['Pedido Detallado'] || '';
-    const lineas = textoDetallado.split('\n');
-    
-    lineas.forEach(linea => {
-        const match = linea.trim().match(/^(\d+)[xX]\s+(.+)$/);
-        if (match) {
-            const cant = parseInt(match[1]); 
-            let nombreLimpio = match[2].trim();
-            let precioExtraido = 0;
-            let notaExtraida = "";
 
-            // 1. Extraemos y limpiamos la nota si existe (Nota: ...)
-            const matchNota = nombreLimpio.match(/\(Nota:\s*(.+?)\)$/i);
-            if (matchNota) {
-                notaExtraida = matchNota[1].trim();
-                nombreLimpio = nombreLimpio.replace(/\s*\(Nota:\s*.+?\)$/i, '').trim();
-            }
+    // El pedido viaja por localStorage para que la caja no tenga que volver a
+    // pedirlo. Si el apunte se pierde (una recarga, una ventana de incógnito),
+    // esa pantalla lo consulta al servidor por su cuenta.
+    try {
+        localStorage.setItem('tokioPedidoEnEdicion', JSON.stringify({
+            id: idReal,
+            id_visual: idVisual,
+            cliente: pedido.cliente || pedido['Cliente'] || '',
+            telefono: pedido.telefono || '',
+            direccion: pedido.direccion || '',
+            tipo_entrega: pedido.tipo_entrega || '',
+            metodo_pago: pedido.metodo_pago || pedido['Método de pago'] || pedido.Metodo_pago || '',
+            pedido_detallado: pedido.pedido_detallado || pedido['Pedido Detallado'] || ''
+        }));
+    } catch (e) { /* sin localStorage, la caja lo pide al servidor */ }
 
-            // 2. Ahora que quitamos la nota, el precio sí está al final ($X.XX)
-            const matchPrecio = nombreLimpio.match(/\(\$(\d+(?:\.\d+)?)\)$/);
-            if (matchPrecio) {
-                precioExtraido = parseFloat(matchPrecio[1]) / cant; 
-                nombreLimpio = nombreLimpio.replace(/\s*\(\$[\d.]+\)$/, '').trim(); 
-            }
-
-            const itemCat = typeof CATALOGO_PRODUCTOS !== 'undefined' ? CATALOGO_PRODUCTOS.find(p => p.name.toLowerCase() === nombreLimpio.toLowerCase()) : null;
-            const precioFinal = itemCat ? itemCat.price : (precioExtraido || 0);
-
-            // Un combo personalizado se guarda como "Combo Dúo (Rolls: 2x California)",
-            // así que su nombre exacto no está en el catálogo. Lo buscamos por lo que va
-            // antes del paréntesis SOLO para recuperar su id; el precio y el texto de la
-            // línea se quedan tal cual estaban. Ese id es lo que le permite al backend
-            // saber cuántas bandejas ocupa el pedido después de editarlo.
-            const itemBase = itemCat || (typeof CATALOGO_PRODUCTOS !== 'undefined'
-                ? CATALOGO_PRODUCTOS.find(p => nombreLimpio.toLowerCase().startsWith(p.name.toLowerCase() + ' ('))
-                : null);
-
-            // AGREGAMOS LA NOTA AL CARRITO EN MEMORIA
-            carritoEdicion.push({ id: itemBase ? itemBase.id : 'custom', name: nombreLimpio, price: precioFinal, qty: cant, note: notaExtraida });
-        }
-    });
-    
-    if (carritoEdicion.length === 0 && textoDetallado !== '') carritoEdicion.push({ id: 'custom', name: textoDetallado, price: parseFloat(pedido.total_orden) || 0, qty: 1, note: "" });
-    renderizarCarritoEdicion();
-    document.getElementById('modalEditarPedido').classList.remove('hidden');
-}
-
-// Precio de una línea del pedido aplicando el precio por paquete del producto
-// (ej. lumpias: $0.60 la suelta, $1.50 el par). Es la misma cuenta que hace el
-// menú del cliente y que rehace el backend al crear el pedido.
-function precioLineaEdicion(item) {
-    const cat = CATALOGO_PRODUCTOS.find(p => String(p.id) === String(item.id));
-    const precioPaquete = cat ? (parseFloat(cat.precioPaquete) || 0) : 0;
-    const cantPaquete = cat ? (parseInt(cat.cantidadPaquete, 10) || 0) : 0;
-
-    if (precioPaquete > 0 && cantPaquete > 1 && item.qty > 0) {
-        const paquetes = Math.floor(item.qty / cantPaquete);
-        const sueltas = item.qty % cantPaquete;
-        return paquetes * precioPaquete + sueltas * item.price;
-    }
-    return item.price * item.qty;
-}
-
-function renderizarCarritoEdicion() {
-    const contenedor = document.getElementById('listaEdicionArticulos');
-    contenedor.innerHTML = ''; totalEdicionUSD = 0;
-    const tasaActual = parseFloat(document.getElementById('tasaBCV').value) || 1;
-
-    if (carritoEdicion.length === 0) {
-        contenedor.innerHTML = '<p class="text-xs text-slate-500 italic text-center py-4">El carrito está vacío. Busca un producto arriba.</p>';
-        document.getElementById('txtEditTotalVisual').innerHTML = '$0.00';
-        return;
-    }
-
-    carritoEdicion.forEach((item, index) => {
-        const subtotal = precioLineaEdicion(item);
-        totalEdicionUSD += subtotal;
-        const precioUnidadBs = (item.price * tasaActual).toFixed(2);
-        const subtotalBs = (subtotal * tasaActual).toFixed(2);
-
-        // Si tiene nota, la mostramos en amarillo debajo del nombre
-        let notaHtml = item.note ? `<p class="text-[10px] text-amber-400 mt-1 leading-tight"><i class="fa-solid fa-thumbtack"></i> Nota: ${item.note}</p>` : "";
-
-        contenedor.innerHTML += `
-            <div class="flex justify-between items-center bg-slate-800 p-2 rounded border border-slate-700">
-                <div class="flex-1 pr-2">
-                    <p class="text-sm text-white font-semibold leading-tight">${item.name}</p>
-                    <p class="text-xs text-slate-400 mt-0.5">$${item.price.toFixed(2)} c/u <span class="text-[10px] text-amber-400 ml-1">(Bs. ${precioUnidadBs})</span></p>
-                    ${notaHtml}
-                </div>
-                <div class="flex items-center gap-3">
-                    <div class="flex items-center bg-slate-900 border border-slate-700 rounded-md overflow-hidden">
-                        <button onclick="modificarCantEdicion(${index}, -1)" class="px-2 py-1 text-slate-400 hover:text-white hover:bg-slate-700 cursor-pointer"><i class="fa-solid fa-minus text-[10px]"></i></button>
-                        <span class="text-sm text-white w-6 text-center font-bold">${item.qty}</span>
-                        <button onclick="modificarCantEdicion(${index}, 1)" class="px-2 py-1 text-slate-400 hover:text-white hover:bg-slate-700 cursor-pointer"><i class="fa-solid fa-plus text-[10px]"></i></button>
-                    </div>
-                    <div class="flex flex-col text-right w-16">
-                        <span class="text-sm font-bold text-amber-400">$${subtotal.toFixed(2)}</span>
-                        <span class="text-[10px] font-bold text-amber-400">Bs. ${subtotalBs}</span>
-                    </div>
-                    <button onclick="eliminarItemEdicion(${index})" class="text-red-500 hover:text-red-400 p-1 cursor-pointer"><i class="fa-solid fa-trash-can"></i></button>
-                </div>
-            </div>`;
-    });
-    
-    // Aprovechamos y le ponemos el formato de Bs. venezolano también al total del modal
-    const totalEdicionBs = new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(totalEdicionUSD * tasaActual);
-    document.getElementById('txtEditTotalVisual').innerHTML = `<div class="flex flex-col text-right"><span class="text-emerald-400">$${totalEdicionUSD.toFixed(2)}</span><span class="text-xs text-amber-400 mt-0.5">Bs. ${totalEdicionBs}</span></div>`;
-}
-
-function modificarCantEdicion(index, cambio) { carritoEdicion[index].qty += cambio; if (carritoEdicion[index].qty <= 0) carritoEdicion.splice(index, 1); renderizarCarritoEdicion(); }
-function eliminarItemEdicion(index) { carritoEdicion.splice(index, 1); renderizarCarritoEdicion(); }
-
-function buscarProducto(texto) {
-    const sugerenciasDiv = document.getElementById('listaSugerencias');
-    if (!texto || texto.length < 2) { sugerenciasDiv.classList.add('hidden'); return; }
-    const textoMinus = texto.toLowerCase();
-    const resultados = typeof CATALOGO_PRODUCTOS !== 'undefined' ? CATALOGO_PRODUCTOS.filter(p => p.name.toLowerCase().includes(textoMinus)) : [];
-    if (resultados.length > 0) {
-        sugerenciasDiv.innerHTML = resultados.map(p => `<div onclick="agregarAlCarritoEdicion('${p.id}')" class="p-3 border-b border-slate-600 hover:bg-slate-600 cursor-pointer transition flex justify-between items-center"><span class="text-sm text-white">${p.name}</span><span class="text-xs font-bold text-emerald-400">$${p.price.toFixed(2)}</span></div>`).join('');
-        sugerenciasDiv.classList.remove('hidden');
-    } else { sugerenciasDiv.innerHTML = '<div class="p-3 text-sm text-slate-400 italic">No se encontraron productos</div>'; sugerenciasDiv.classList.remove('hidden'); }
-}
-
-function agregarAlCarritoEdicion(idProducto) {
-    const producto = CATALOGO_PRODUCTOS.find(p => String(p.id) === String(idProducto)); 
-    if (!producto) return;
-    
-    const existeIndex = carritoEdicion.findIndex(item => item.name === producto.name);
-    if (existeIndex >= 0) {
-        carritoEdicion[existeIndex].qty += 1; 
-    } else {
-        carritoEdicion.push({ id: producto.id, name: producto.name, price: producto.price, qty: 1 });
-    }
-    
-    document.getElementById('buscadorMenu').value = ''; 
-    document.getElementById('listaSugerencias').classList.add('hidden'); 
-    renderizarCarritoEdicion();
-}
-
-function cerrarModalEditar() { document.getElementById('modalEditarPedido').classList.add('hidden'); }
-
-function guardarEdicionPedido() {
-    const idReal = document.getElementById('editIdReal').value; 
-    const nuevoCliente = document.getElementById('editCliente').value.trim();
-    const pedidoIndex = pedidosEnMemoria.findIndex(p => String(p.id_pedido || p['ID_Pedido'] || p.ID || 'S/ID') === String(idReal));
-    
-    if(pedidoIndex === -1) return;
-    
-    const pedidoAnterior = pedidosEnMemoria[pedidoIndex]; 
-    
-    // AQUÍ SALVAMOS LA NOTA: Volvemos a concatenarla al armar el texto para la base de datos
-    const nuevoDetalle = carritoEdicion.map(item => {
-        let notaStr = item.note ? ` (Nota: ${item.note})` : "";
-        return `${item.qty}x ${item.name} ($${precioLineaEdicion(item).toFixed(2)})${notaStr}`;
-    }).join('\n');
-
-    const tasaActual = parseFloat(document.getElementById('tasaBCV').value) || 1;
-
-    pedidosEnMemoria[pedidoIndex].cliente = nuevoCliente; 
-    pedidosEnMemoria[pedidoIndex].pedido_detallado = nuevoDetalle; 
-    pedidosEnMemoria[pedidoIndex].total_orden = totalEdicionUSD;
-    pedidosEnMemoria[pedidoIndex].tasa_bcv = tasaActual; 
-    
-    cerrarModalEditar();
-
-    const payloadBD = {
-        id: idReal, estado: pedidoAnterior.estado || 'Pago Pendiente', cliente: nuevoCliente, pedido_detallado: nuevoDetalle, total_orden: totalEdicionUSD,   
-        telefono: pedidoAnterior.telefono || '', tipo_entrega: pedidoAnterior.tipo_entrega || '', procesado_por: usuarioActivo ? `${usuarioActivo.nombre} (${usuarioActivo.rol})` : "No registrado",
-        referencia_pago: pedidoAnterior.referencia_pago || pedidoAnterior.Referencia_pago || "", imagen_pago: pedidoAnterior.imagen_pago || pedidoAnterior.Imagen_pago || "",
-        tasa_bcv: tasaActual,
-
-        // Con esto el backend recalcula cuántas bandejas y cajas ocupa el pedido
-        // después de la edición. Las líneas manuales viajan como 'custom' y
-        // simplemente no suman.
-        articulos: carritoEdicion.map(item => ({ id: item.id, qty: item.qty }))
-    };
-    fetch(API_ACTUALIZAR_ESTADO, { method: 'POST', headers: authHeaders(), body: JSON.stringify(payloadBD) }).catch(e => console.error("Error BD:", e));
-
-    const metodoPago = String(pedidoAnterior.metodo_pago || pedidoAnterior['Método de pago'] || pedidoAnterior.Metodo_pago || '').toLowerCase();
-    const esPagoMovil = metodoPago.includes('pago') || metodoPago.includes('movil') || metodoPago.includes('móvil');
-    
-    let textoAdicionalBs = "";
-    if (esPagoMovil) {
-        const totalBs = totalEdicionUSD * tasaActual;
-        const totalBsFormateado = new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(totalBs);
-        textoAdicionalBs = `\nEquivalente en Bolívares: *${totalBsFormateado} Bs*`;
-    }
-
-    const payloadNotificacion = {
-        telefono: pedidoAnterior.telefono || '',
-        cliente: nuevoCliente,
-        pedido_detallado: nuevoDetalle,
-        total_orden: totalEdicionUSD,
-        texto_bolivares: textoAdicionalBs,
-        id_visual: String(idReal)
-    };
-    
-    fetch(API_BASE + "/api/pedidos/notificar-edicion", { 
-        method: 'POST', headers: authHeaders(), body: JSON.stringify(payloadNotificacion) 
-    }).catch(e => console.error("Error enviando WhatsApp:", e));
+    window.location.href = 'menu_trabajadores.html?editar=' + encodeURIComponent(idReal);
 }
 
 // --- CANCELAR PEDIDO ---
@@ -896,7 +660,7 @@ function renderizarTablero() {
                             
                             <button onclick="abrirModalDetalle('${idReal}')" class="text-slate-400 hover:text-white transition cursor-pointer" title="Ver Detalles"><i class="fa-solid fa-file-lines"></i></button>
                             
-                            <button onclick="abrirModalEditarPedido('${idReal}', '${idVisual}')" class="text-slate-400 hover:text-amber-400 transition cursor-pointer" title="Editar Pedido"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="irAEditarPedidoEnCaja('${idReal}', '${idVisual}')" class="text-slate-400 hover:text-amber-400 transition cursor-pointer" title="Editar Pedido"><i class="fa-solid fa-pen"></i></button>
                             
                             <button onclick="cancelarPedido('${idReal}')" class="text-slate-400 hover:text-red-500 transition cursor-pointer" title="Cancelar Pedido"><i class="fa-solid fa-trash"></i></button>
                             
@@ -920,7 +684,7 @@ function renderizarTablero() {
                             
                             <button onclick="abrirModalDetalle('${idReal}')" class="text-slate-400 hover:text-white transition cursor-pointer" title="Ver Detalles"><i class="fa-solid fa-file-lines"></i></button>
                             
-                            <button onclick="abrirModalEditarPedido('${idReal}', '${idVisual}')" class="text-slate-400 hover:text-amber-400 transition cursor-pointer" title="Editar Pedido"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="irAEditarPedidoEnCaja('${idReal}', '${idVisual}')" class="text-slate-400 hover:text-amber-400 transition cursor-pointer" title="Editar Pedido"><i class="fa-solid fa-pen"></i></button>
                             <button onclick="cancelarPedido('${idReal}')" class="text-slate-400 hover:text-red-500 transition cursor-pointer" title="Cancelar Pedido"><i class="fa-solid fa-trash"></i></button>
                             ${btnWhatsApp}
                         </div>
@@ -1091,7 +855,6 @@ async function inicializarTablero() {
     }
     
     await cargarMotorizadosDesdeDB();
-    await cargarCatalogoDesdeDB(); 
     verificarSesion();
     actualizarTasaBCV();
 }
